@@ -8,79 +8,91 @@
 html, body {
   margin: 0;
   padding: 0;
-  width: 100%;
   height: 100%;
+  width: 100%;
   overflow: hidden;
   background: #111;
-  color: #fff;
   font-family: system-ui;
-}
-
-#c {
-  width: 100%;
-  height: 100%;
-  display: block;
+  color: #fff;
 }
 
 #ui {
   position: fixed;
   top: 10px;
   left: 10px;
-  right: 10px;
   z-index: 10;
   background: rgba(0,0,0,0.6);
   padding: 10px;
   border-radius: 10px;
 }
 
-#ui input { margin:2px; }
-body.view #ui { display: none; }
+#ui input {
+  margin: 2px;
+}
 
-#scPlayer {
+body.view #ui {
+  display: none;
+}
+
+canvas {
+  display: block;
+}
+
+.led {
   position: fixed;
-  bottom: 10px;
-  left: 10px;
-  width: 320px;
-  height: 120px;
-  border: 0;
-  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  background: linear-gradient(90deg, red, orange, yellow, green, blue, violet);
+  animation: ledScroll 2s linear infinite;
+}
+
+@keyframes ledScroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 200% 0; }
 }
 </style>
 </head>
-
 <body class="view">
+
+<div class="led"></div>
+
 <div id="ui">
   <b>ADMIN</b><br>
   <input id="url" placeholder="URL obrázku / videa" size="40">
   <button id="load">Načíst</button><br>
-  <small>
-    + / - scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view
-  </small>
+  <small>+/- scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view</small>
 </div>
 
-<iframe id="scPlayer" allow="autoplay"></iframe>
 <canvas id="c"></canvas>
 
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script>
+// režimy
 const MODE = { ADMIN: "admin", VIEW: "view" };
 let mode = MODE.VIEW;
 
+// BabylonJS setup
 const canvas = document.getElementById("c");
 const engine = new BABYLON.Engine(canvas, true);
 const scene = new BABYLON.Scene(engine);
-scene.clearColor = new BABYLON.Color4(0.05,0.05,0.05,1);
+scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.05, 1);
 
-const cam = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.3, 12, new BABYLON.Vector3(0,3,0), scene);
+const cam = new BABYLON.ArcRotateCamera("cam",-Math.PI/2, Math.PI/2.3, 12, new BABYLON.Vector3(0,3,0), scene);
 cam.attachControl(canvas, true);
 cam.lowerRadiusLimit = 2;
+
 new BABYLON.HemisphericLight("l", new BABYLON.Vector3(0,1,0), scene);
 
-const ROOM = { W: 16, D: 28, H: 5 };
-BABYLON.MeshBuilder.CreateGround("floor", {width: ROOM.W, height: ROOM.D}, scene);
-const back = BABYLON.MeshBuilder.CreatePlane("back", {width: ROOM.W, height: ROOM.H}, scene);
-back.position.z = -ROOM.D/2; back.position.y = ROOM.H/2;
+// místnost
+const ROOM = { W:16, D:28, H:5 };
+BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene);
+const backWall = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
+backWall.position.z = -ROOM.D/2;
+backWall.position.y = ROOM.H/2;
 
+// obrazy/videa
 let selected = null;
 const frames = [];
 
@@ -97,26 +109,29 @@ function applyTransform(it){
 
 function loadImage(url,it){
   const tex = new BABYLON.Texture(url, scene);
-  const m = new BABYLON.StandardMaterial("m", scene);
-  m.diffuseTexture = tex;
-  m.emissiveTexture = tex;
-  m.disableLighting = true;
-  it.mesh.material = m;
+  const mat = new BABYLON.StandardMaterial("m",scene);
+  mat.diffuseTexture = tex;
+  mat.emissiveTexture = tex;
+  mat.disableLighting = true;
+  it.mesh.material = mat;
 }
 
 function loadVideo(url,it){
   const v = document.createElement("video");
-  v.src = url; v.loop = true; v.muted = true; v.autoplay = true;
-  const tex = new BABYLON.VideoTexture("v", v, scene, true, true);
-  const m = new BABYLON.StandardMaterial("vm", scene);
-  m.diffuseTexture = tex;
-  m.emissiveTexture = tex;
-  m.disableLighting = true;
-  it.mesh.material = m;
+  v.src = url;
+  v.loop = true;
+  v.muted = true;
+  v.autoplay = true;
+  const tex = new BABYLON.VideoTexture("v",v,scene,true,true);
+  const mat = new BABYLON.StandardMaterial("vm",scene);
+  mat.diffuseTexture = tex;
+  mat.emissiveTexture = tex;
+  mat.disableLighting = true;
+  it.mesh.material = mat;
 }
 
 function addFrame(x,y,z,data){
-  const p = BABYLON.MeshBuilder.CreatePlane("p",{size:1.2}, scene);
+  const p = BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
   p.position.set(x,y,z);
   p.rotation.y = Math.PI;
   p.isPickable = true;
@@ -131,33 +146,20 @@ function addFrame(x,y,z,data){
   applyTransform(it);
 }
 
-// --- zde se načítá gallery.json ze složky data ---
+// načtení obrázků z assets/
 async function loadGallery(){
-  try {
-    const cfg = await fetch("data/gallery.json").then(r=>r.json());
-    if(cfg.soundcloud)
-      document.getElementById("scPlayer").src =
-        "https://w.soundcloud.com/player/?url="+encodeURIComponent(cfg.soundcloud);
-
-    const y = ROOM.H*0.55;
-    cfg.walls.back.forEach((d,i)=>{
-      addFrame(-4+i*2,y,-ROOM.D/2+0.02,d);
-    });
-    cfg.walls.front.forEach((d,i)=>{
-      addFrame(-4+i*2,y,ROOM.D/2-0.02,d);
-    });
-    cfg.walls.left.forEach((d,i)=>{
-      addFrame(-ROOM.W/2+0.02,y,-4+i*2,d);
-    });
-    cfg.walls.right.forEach((d,i)=>{
-      addFrame(ROOM.W/2-0.02,y,-4+i*2,d);
-    });
-  } catch(e){
-    console.error("Nelze načíst gallery.json:", e);
-  }
+  const images = ["assets/one.jpg"]; // sem můžeš přidat další soubory
+  const y = ROOM.H * 0.55;
+  images.forEach((src,i)=>{
+    const data = {
+      src: src,
+      transform: { scale: 1, rotation: 0, flipX: false, offsetX:0, offsetY:0 }
+    };
+    addFrame(-4 + i*2, y, -ROOM.D/2 + 0.02, data);
+  });
 }
 
-// --- interakce admin / view ---
+// interakce
 scene.onPointerObservable.add(e=>{
   if(mode!==MODE.ADMIN) return;
   if(e.pickInfo.hit){
@@ -166,8 +168,8 @@ scene.onPointerObservable.add(e=>{
 });
 
 window.addEventListener("keydown", e=>{
-  if(e.key==="a"){ mode=MODE.ADMIN; document.body.className="admin"; }
-  if(e.key==="v"){ mode=MODE.VIEW; document.body.className="view"; }
+  if(e.key==="a"){mode=MODE.ADMIN; document.body.className="admin";}
+  if(e.key==="v"){mode=MODE.VIEW; document.body.className="view";}
   if(!selected || mode!==MODE.ADMIN) return;
   const t = selected.transform;
   if(e.key==="+") t.scale+=0.05;
@@ -184,12 +186,11 @@ window.addEventListener("keydown", e=>{
 document.getElementById("load").onclick = ()=>{
   if(!selected) return;
   const u = document.getElementById("url").value;
-  selected.transform={scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
-  if(isVideo(u)) loadVideo(u, selected);
-  else loadImage(u, selected);
+  selected.transform = {scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
+  if(isVideo(u)) loadVideo(u,selected);
+  else loadImage(u,selected);
 };
 
-// --- spustit ---
 loadGallery();
 engine.runRenderLoop(()=>scene.render());
 window.addEventListener("resize",()=>engine.resize());
