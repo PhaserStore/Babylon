@@ -9,7 +9,7 @@
         "type": "image",
         "src": "assets/one.jpg",
         "title": "První dílo",
-        "link": "",
+        "link": "https://everpress.com/the-future-phaser-collection",
         "transform": {
           "scale": 1,
           "rotation": 0,
