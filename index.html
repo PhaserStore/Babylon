@@ -5,121 +5,102 @@
 <title>Virtual Gallery</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui}
-#ui{position:fixed;top:10px;left:10px;right:10px;z-index:10;background:rgba(0,0,0,.6);padding:10px;border-radius:10px}
-#ui input{margin:2px}
-body.view #ui{display:none}
-#scPlayer{position:fixed;bottom:10px;left:10px;width:320px;height:120px;border:0}
+html, body { margin:0; height:100%; overflow:hidden; background:#111; color:#fff; font-family:system-ui; }
+#ui { position:fixed; top:10px; left:10px; z-index:10; background:rgba(0,0,0,0.6); padding:10px; border-radius:10px; }
+#ui input { margin:2px; }
+body.view #ui { display:none; }
+canvas { width:100vw; height:100vh; display:block; }
 </style>
 </head>
-
 <body class="view">
 
 <div id="ui">
   <b>ADMIN</b><br>
   <input id="url" placeholder="URL obrázku / videa" size="40">
   <button id="load">Načíst</button><br>
-  <small>
-    + / - scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view
-  </small>
+  <small>+ / - scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view</small>
 </div>
 
-<iframe id="scPlayer" allow="autoplay"></iframe>
 <canvas id="c"></canvas>
 
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script>
-const MODE={ADMIN:"admin",VIEW:"view"};
-let mode=MODE.VIEW;
+const MODE = {ADMIN:"admin", VIEW:"view"};
+let mode = MODE.VIEW;
 
-const canvas=document.getElementById("c");
-const engine=new BABYLON.Engine(canvas,true);
-const scene=new BABYLON.Scene(engine);
-scene.clearColor=new BABYLON.Color4(.05,.05,.05,1);
+const canvas = document.getElementById("c");
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(.05,.05,.05,1);
 
-const cam=new BABYLON.ArcRotateCamera("cam",-Math.PI/2,Math.PI/2.3,12,new BABYLON.Vector3(0,3,0),scene);
+const cam = new BABYLON.ArcRotateCamera("cam",-Math.PI/2,Math.PI/2.3,12,new BABYLON.Vector3(0,3,0),scene);
 cam.attachControl(canvas,true);
 cam.lowerRadiusLimit=2;
-new BABYLON.HemisphericLight("l",new BABYLON.Vector3(0,1,0),scene);
+new BABYLON.HemisphericLight("l", new BABYLON.Vector3(0,1,0), scene);
 
-const ROOM={W:16,D:28,H:5};
+const ROOM = {W:16, D:28, H:5};
 BABYLON.MeshBuilder.CreateGround("f",{width:ROOM.W,height:ROOM.D},scene);
-const back=BABYLON.MeshBuilder.CreatePlane("b",{width:ROOM.W,height:ROOM.H},scene);
-back.position.z=-ROOM.D/2; back.position.y=ROOM.H/2;
+const back = BABYLON.MeshBuilder.CreatePlane("b",{width:ROOM.W,height:ROOM.H},scene);
+back.position.z = -ROOM.D/2; back.position.y = ROOM.H/2;
 
-let selected=null;
-const frames=[];
+let selected = null;
+const frames = [];
 
-function isVideo(u){return u.match(/\.(mp4|webm)$/i);}
+function isVideo(u){ return u.match(/\.(mp4|webm)$/i); }
 
 function applyTransform(it){
-  const t=it.transform;
-  it.mesh.scaling.x=t.flipX?-t.scale:t.scale;
-  it.mesh.scaling.y=t.scale;
-  it.mesh.rotation.z=t.rotation;
-  it.mesh.position.x=it.base.x+t.offsetX;
-  it.mesh.position.y=it.base.y+t.offsetY;
+  const t = it.transform;
+  it.mesh.scaling.x = t.flipX ? -t.scale : t.scale;
+  it.mesh.scaling.y = t.scale;
+  it.mesh.rotation.z = t.rotation;
+  it.mesh.position.x = it.base.x + t.offsetX;
+  it.mesh.position.y = it.base.y + t.offsetY;
 }
 
 function loadImage(url,it){
-  const tex=new BABYLON.Texture(url,scene);
-  const m=new BABYLON.StandardMaterial("m",scene);
-  m.diffuseTexture=tex;
-  m.emissiveTexture=tex;
-  m.disableLighting=true;
-  it.mesh.material=m;
+  const tex = new BABYLON.Texture(url, scene);
+  const m = new BABYLON.StandardMaterial("m",scene);
+  m.diffuseTexture = tex;
+  m.emissiveTexture = tex;
+  m.disableLighting = true;
+  it.mesh.material = m;
 }
 
 function loadVideo(url,it){
-  const v=document.createElement("video");
-  v.src=url; v.loop=true; v.muted=true; v.autoplay=true;
-  const tex=new BABYLON.VideoTexture("v",v,scene,true,true);
-  const m=new BABYLON.StandardMaterial("vm",scene);
-  m.diffuseTexture=tex;
-  m.emissiveTexture=tex;
-  m.disableLighting=true;
-  it.mesh.material=m;
+  const v = document.createElement("video");
+  v.src = url; v.loop = true; v.muted = true; v.autoplay = true;
+  const tex = new BABYLON.VideoTexture("v", v, scene, true, true);
+  const m = new BABYLON.StandardMaterial("vm", scene);
+  m.diffuseTexture = tex;
+  m.emissiveTexture = tex;
+  m.disableLighting = true;
+  it.mesh.material = m;
 }
 
-function addFrame(x,y,z,data){
-  const p=BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
+function addFrame(x,y,z,url){
+  const p = BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
   p.position.set(x,y,z);
-  p.rotation.y=Math.PI;
-  p.isPickable=true;
-  const it={
-    mesh:p,
-    base:p.position.clone(),
-    transform:data.transform
-  };
+  p.rotation.y = Math.PI;
+  p.isPickable = true;
+  const it = { mesh: p, base: p.position.clone(), transform:{scale:1, rotation:0, flipX:false, offsetX:0, offsetY:0} };
   frames.push(it);
-  if(isVideo(data.src)) loadVideo(data.src,it);
-  else loadImage(data.src,it);
+  if(isVideo(url)) loadVideo(url,it); else loadImage(url,it);
   applyTransform(it);
 }
 
-async function loadGallery(){
-  const cfg=await fetch("data/gallery.json").then(r=>r.json());
-  document.getElementById("scPlayer").src=
-    "https://w.soundcloud.com/player/?url="+encodeURIComponent(cfg.soundcloud);
-
-  const y=ROOM.H*0.55;
-  cfg.walls.back.forEach((d,i)=>{
-    addFrame(-4+i*2,y,-ROOM.D/2+0.02,d);
-  });
-}
+// Přidej svůj první obrázek na zadní zeď
+addFrame(0, ROOM.H*0.55, -ROOM.D/2+0.01, "assets/one.jpg");
 
 scene.onPointerObservable.add(e=>{
-  if(mode!==MODE.ADMIN) return;
-  if(e.pickInfo.hit){
-    selected=frames.find(f=>f.mesh===e.pickInfo.pickedMesh);
-  }
+  if(mode !== MODE.ADMIN) return;
+  if(e.pickInfo.hit) selected = frames.find(f=>f.mesh===e.pickInfo.pickedMesh);
 });
 
-window.addEventListener("keydown",e=>{
-  if(e.key==="a"){mode=MODE.ADMIN;document.body.className="admin";}
-  if(e.key==="v"){mode=MODE.VIEW;document.body.className="view";}
+window.addEventListener("keydown", e=>{
+  if(e.key==="a"){ mode=MODE.ADMIN; document.body.className="admin"; }
+  if(e.key==="v"){ mode=MODE.VIEW; document.body.className="view"; }
   if(!selected||mode!==MODE.ADMIN) return;
-  const t=selected.transform;
+  const t = selected.transform;
   if(e.key==="+") t.scale+=.05;
   if(e.key==="-"&&t.scale>.1) t.scale-=.05;
   if(e.key==="ArrowLeft") t.offsetX-=.05;
@@ -131,20 +112,15 @@ window.addEventListener("keydown",e=>{
   applyTransform(selected);
 });
 
-document.getElementById("load").onclick=()=>{
+document.getElementById("load").onclick = ()=>{
   if(!selected) return;
-  const u=document.getElementById("url").value;
-  selected.transform={scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
-  if(isVideo(u)) loadVideo(u,selected);
-  else loadImage(u,selected);
+  const u = document.getElementById("url").value;
+  selected.transform = {scale:1, rotation:0, flipX:false, offsetX:0, offsetY:0};
+  if(isVideo(u)) loadVideo(u,selected); else loadImage(u,selected);
 };
 
-loadGallery();
 engine.runRenderLoop(()=>scene.render());
 window.addEventListener("resize",()=>engine.resize());
 </script>
 </body>
 </html>
-
-
-
