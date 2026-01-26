@@ -1,0 +1,7 @@
+virtual-gallery
+├─ index.html
+├─ data
+│  └─ gallery.json
+└─ assets
+   ├─ images
+   └─ videos
