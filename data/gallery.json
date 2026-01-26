@@ -7,7 +7,7 @@
     "back": [
       {
         "type": "image",
-        "src": "assets/images/one.jpg",
+        "src": "assets/one.jpg",
         "title": "První dílo",
         "link": "",
         "transform": {
