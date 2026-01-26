@@ -1,20 +1,149 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <title>Virtual Gallery</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui}
+#ui{position:fixed;top:10px;left:10px;right:10px;z-index:10;background:rgba(0,0,0,.6);padding:10px;border-radius:10px}
+#ui input{margin:2px}
+body.view #ui{display:none}
+#scPlayer{position:fixed;bottom:10px;left:10px;width:320px;height:120px;border:0}
+</style>
 </head>
-<body>
-<canvas id="renderCanvas"></canvas>
+
+<body class="view">
 
 <div id="ui">
-  <input id="url" placeholder="URL obrázku (assets/one.jpg)" size="40">
-  <button id="load">Načíst</button>
+  <b>ADMIN</b><br>
+  <input id="url" placeholder="URL obrázku / videa (assets/xxx)" size="40">
+  <button id="load">Načíst</button><br>
+  <small>
+    + / - scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view
+  </small>
 </div>
 
+<iframe id="scPlayer" allow="autoplay"></iframe>
+<canvas id="c"></canvas>
+
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
-<script src="script.js"></script>
+<script>
+const MODE={ADMIN:"admin",VIEW:"view"};
+let mode=MODE.VIEW;
+
+const canvas=document.getElementById("c");
+const engine=new BABYLON.Engine(canvas,true);
+const scene=new BABYLON.Scene(engine);
+scene.clearColor=new BABYLON.Color4(.05,.05,.05,1);
+
+const cam=new BABYLON.ArcRotateCamera("cam",-Math.PI/2,Math.PI/2.3,12,new BABYLON.Vector3(0,3,0),scene);
+cam.attachControl(canvas,true);
+cam.lowerRadiusLimit=2;
+new BABYLON.HemisphericLight("l",new BABYLON.Vector3(0,1,0),scene);
+
+const ROOM={W:16,D:28,H:5};
+BABYLON.MeshBuilder.CreateGround("f",{width:ROOM.W,height:ROOM.D},scene);
+const back=BABYLON.MeshBuilder.CreatePlane("b",{width:ROOM.W,height:ROOM.H},scene);
+back.position.z=-ROOM.D/2; back.position.y=ROOM.H/2;
+
+let selected=null;
+const frames=[];
+
+const galleryAssets = [
+  {src:"assets/one.jpg", type:"image", title:"První dílo"},
+  {src:"assets/two.jpg", type:"image", title:"Druhé dílo"},
+  {src:"assets/video.mp4", type:"video", title:"Video dílo"}
+];
+
+function isVideo(u){return u.match(/\.(mp4|webm)$/i);}
+
+function applyTransform(it){
+  const t=it.transform;
+  it.mesh.scaling.x=t.flipX?-t.scale:t.scale;
+  it.mesh.scaling.y=t.scale;
+  it.mesh.rotation.z=t.rotation;
+  it.mesh.position.x=it.base.x+t.offsetX;
+  it.mesh.position.y=it.base.y+t.offsetY;
+}
+
+function loadImage(url,it){
+  const tex=new BABYLON.Texture(url,scene);
+  const m=new BABYLON.StandardMaterial("m",scene);
+  m.diffuseTexture=tex;
+  m.emissiveTexture=tex;
+  m.disableLighting=true;
+  it.mesh.material=m;
+}
+
+function loadVideo(url,it){
+  const v=document.createElement("video");
+  v.src=url; v.loop=true; v.muted=true; v.autoplay=true;
+  const tex=new BABYLON.VideoTexture("v",v,scene,true,true);
+  const m=new BABYLON.StandardMaterial("vm",scene);
+  m.diffuseTexture=tex;
+  m.emissiveTexture=tex;
+  m.disableLighting=true;
+  it.mesh.material=m;
+}
+
+function addFrame(x,y,z,data){
+  const p=BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
+  p.position.set(x,y,z);
+  p.rotation.y=Math.PI;
+  p.isPickable=true;
+  const it={
+    mesh:p,
+    base:p.position.clone(),
+    transform:{scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0}
+  };
+  frames.push(it);
+  if(isVideo(data.src)) loadVideo(data.src,it);
+  else loadImage(data.src,it);
+  applyTransform(it);
+}
+
+function loadGallery(){
+  const y=ROOM.H*0.55;
+  galleryAssets.forEach((d,i)=>{
+    addFrame(-4+i*2,y,-ROOM.D/2+0.02,d);
+  });
+}
+
+scene.onPointerObservable.add(e=>{
+  if(mode!==MODE.ADMIN) return;
+  if(e.pickInfo.hit){
+    selected=frames.find(f=>f.mesh===e.pickInfo.pickedMesh);
+  }
+});
+
+window.addEventListener("keydown",e=>{
+  if(e.key==="a"){mode=MODE.ADMIN;document.body.className="admin";}
+  if(e.key==="v"){mode=MODE.VIEW;document.body.className="view";}
+  if(!selected||mode!==MODE.ADMIN) return;
+  const t=selected.transform;
+  if(e.key==="+") t.scale+=.05;
+  if(e.key==="-"&&t.scale>.1) t.scale-=.05;
+  if(e.key==="ArrowLeft") t.offsetX-=.05;
+  if(e.key==="ArrowRight") t.offsetX+=.05;
+  if(e.key==="ArrowUp") t.offsetY+=.05;
+  if(e.key==="ArrowDown") t.offsetY-=.05;
+  if(e.key==="r") t.rotation+=.1;
+  if(e.key==="f") t.flipX=!t.flipX;
+  applyTransform(selected);
+});
+
+document.getElementById("load").onclick=()=>{
+  if(!selected) return;
+  const u=document.getElementById("url").value;
+  selected.transform={scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
+  if(isVideo(u)) loadVideo(u,selected);
+  else loadImage(u,selected);
+};
+
+loadGallery();
+engine.runRenderLoop(()=>scene.render());
+window.addEventListener("resize",()=>engine.resize());
+</script>
 </body>
 </html>
