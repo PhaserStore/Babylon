@@ -1,519 +1,150 @@
-
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Virtual Gallery — LED · Layout · URL loader · SVG logo (ratio fix + centered + LED)</title>
-
+<meta charset="utf-8">
+<title>Virtual Gallery</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
-  #renderCanvas{width:100%;height:100%;display:block;touch-action:none}
-  #ui{
-    position:fixed;top:12px;left:12px;right:12px;z-index:10;
-    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
-    background:rgba(15,15,18,.65);border:1px solid rgba(255,255,255,.15);
-    border-radius:10px;padding:10px 12px;color:#fff;backdrop-filter:blur(4px)
-  }
-  .group{display:flex;gap:8px;align-items:center;background:rgba(40,40,44,.5);padding:8px 10px;border-radius:8px}
-  input,button,textarea{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#3a3a3a;color:#fff}
-  button:hover{background:#575757}
-  textarea{min-width:320px;min-height:80px}
-  #hint{flex-basis:100%;font-size:12px;color:#ccc}
-  body.view #ui{display:none}
-  label{display:flex;gap:6px;align-items:center}
+html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui}
+#ui{position:fixed;top:10px;left:10px;right:10px;z-index:10;background:rgba(0,0,0,.6);padding:10px;border-radius:10px}
+#ui input{margin:2px}
+body.view #ui{display:none}
+#scPlayer{position:fixed;bottom:10px;left:10px;width:320px;height:120px;border:0}
 </style>
 </head>
 
 <body class="view">
-  <!-- ===== UI (ADMIN) ===== -->
-  <div id="ui">
-    <div class="group">
-      <label>URL <input id="imgUrl" size="38" placeholder="https://... (.avif/.jpg/.png/.webp)"></label>
-      <button id="btnLoad">Načíst do vybraného rámu</button>
-      <button id="btnDemo">Načíst DEMO bez URL</button>
-    </div>
 
-    <div class="group">
-      <label>Název <input id="title" placeholder="Název díla" size="16"></label>
-      <label>Skrytá URL <input id="link" placeholder="https://..." size="18"></label>
-      <button id="btnPlacard">Aktualizovat cedulku</button>
-    </div>
+<div id="ui">
+  <b>ADMIN</b><br>
+  <input id="url" placeholder="URL obrázku / videa" size="40">
+  <button id="load">Načíst</button><br>
+  <small>
+    + / - scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view
+  </small>
+</div>
 
-    <div class="group">
-      <label>Úsek X od <input id="lxStart" type="number" step="0.1" value="-6.5" style="width:80px"></label>
-      <label>do <input id="lxEnd" type="number" step="0.1" value="6.5" style="width:80px"></label>
-      <label>Mezera <input id="lxSpace" type="range" min="1.6" max="3.0" step="0.1" value="2.2"></label>
-      <button id="btnApplyLayout">Použít layout</button>
-      <button id="btnAdd">➕ Přidat rám</button>
-      <button id="btnResetCam">🎥 Reset kamery</button>
-    </div>
+<iframe id="scPlayer" allow="autoplay"></iframe>
+<canvas id="c"></canvas>
 
-    <div id="hint">A = ADMIN · V = VIEW · Klik na rám = výběr (modrý lem). Dvojklik = rychlé přiblížení (stejné minimum jako kolečko). Klik na cedulku = otevření skryté URL.</div>
-  </div>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+const MODE={ADMIN:"admin",VIEW:"view"};
+let mode=MODE.VIEW;
 
-  <!-- ===== Canvas ===== -->
-  <canvas id="renderCanvas"></canvas>
+const canvas=document.getElementById("c");
+const engine=new BABYLON.Engine(canvas,true);
+const scene=new BABYLON.Scene(engine);
+scene.clearColor=new BABYLON.Color4(.05,.05,.05,1);
 
-  <!-- ✅ BabylonJS z CDN -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+const cam=new BABYLON.ArcRotateCamera("cam",-Math.PI/2,Math.PI/2.3,12,new BABYLON.Vector3(0,3,0),scene);
+cam.attachControl(canvas,true);
+cam.lowerRadiusLimit=2;
+new BABYLON.HemisphericLight("l",new BABYLON.Vector3(0,1,0),scene);
 
-  <script>
-  "use strict";
+const ROOM={W:16,D:28,H:5};
+BABYLON.MeshBuilder.CreateGround("f",{width:ROOM.W,height:ROOM.D},scene);
+const back=BABYLON.MeshBuilder.CreatePlane("b",{width:ROOM.W,height:ROOM.H},scene);
+back.position.z=-ROOM.D/2; back.position.y=ROOM.H/2;
 
-  /* =========================
-     MODE: A (admin) / V (view)
-  ========================= */
-  const MODE = { ADMIN: "admin", VIEW: "view" };
-  let mode = MODE.VIEW; // výchozí VIEW
+let selected=null;
+const frames=[];
 
-  function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
-  function setMode(m){
-    mode = m;
-    document.body.classList.toggle('view', m === MODE.VIEW);
-    document.body.classList.toggle('admin', m === MODE.ADMIN);
-    if (m === MODE.VIEW) clearSelection(); // ve view žádné zvýraznění
-    hint(m === MODE.ADMIN ? "ADMIN mód: editace povolena" : "VIEW mód: čistá výstava");
-  }
-  window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.toLowerCase(); if(k==='a') setMode(MODE.ADMIN); if(k==='v') setMode(MODE.VIEW); });
+function isVideo(u){return u.match(/\.(mp4|webm)$/i);}
 
-  /* =========================
-     DOM
-  ========================= */
-  const $ = (id)=>document.getElementById(id);
-  const imgUrlEl=$("imgUrl"), titleEl=$("title"), linkEl=$("link"), hintEl=$("hint");
-  const lxStartEl=$("lxStart"), lxEndEl=$("lxEnd"), lxSpaceEl=$("lxSpace");
+function applyTransform(it){
+  const t=it.transform;
+  it.mesh.scaling.x=t.flipX?-t.scale:t.scale;
+  it.mesh.scaling.y=t.scale;
+  it.mesh.rotation.z=t.rotation;
+  it.mesh.position.x=it.base.x+t.offsetX;
+  it.mesh.position.y=it.base.y+t.offsetY;
+}
 
-  function hint(msg){ if(hintEl) hintEl.textContent=msg; }
+function loadImage(url,it){
+  const tex=new BABYLON.Texture(url,scene);
+  const m=new BABYLON.StandardMaterial("m",scene);
+  m.diffuseTexture=tex;
+  m.emissiveTexture=tex;
+  m.disableLighting=true;
+  it.mesh.material=m;
+}
 
-  /* =========================
-     ENGINE / SCENE / CAMERA
-  ========================= */
-  const canvas = $("renderCanvas");
-  const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
-  let scene, camera, glow, hl;
+function loadVideo(url,it){
+  const v=document.createElement("video");
+  v.src=url; v.loop=true; v.muted=true; v.autoplay=true;
+  const tex=new BABYLON.VideoTexture("v",v,scene,true,true);
+  const m=new BABYLON.StandardMaterial("vm",scene);
+  m.diffuseTexture=tex;
+  m.emissiveTexture=tex;
+  m.disableLighting=true;
+  it.mesh.material=m;
+}
 
-  const ROOM = { W: 16, D: 30, H: 5.6 }; // vyšší galerie (víc místa na logo)
-
-  // společné limity zoomu – stejná hloubka pro kolečko i double‑click
-  const MIN_RADIUS = 1.6;
-  const MAX_RADIUS = 40;
-
-  function createScene(){
-    scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
-
-    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
-    camera.attachControl(canvas, true);
-    camera.lowerBetaLimit = 0.1;
-    camera.upperBetaLimit = Math.PI - 0.1;
-
-    // 🔧 deep wheel zoom – stejné minimum jako double‑click
-    camera.lowerRadiusLimit = MIN_RADIUS;
-    camera.upperRadiusLimit = MAX_RADIUS;
-    camera.wheelDeltaPercentage = 0.02; // jemný procentuální zoom (nezávislý na DPI)
-    camera.pinchDeltaPercentage = 0.02;
-    camera.inertia = 0.85;
-
-    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
-
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize:64 });
-    glow.intensity = 0.9; // LED efekt
-
-    hl = new BABYLON.HighlightLayer("hl", scene);
-
-    buildRoom();
-    buildLED();
-    buildInitialFrames();
-
-    // ✅ LOGA: narovnáno podle viewBoxu, zmenšeno, vystředěno, LED glow
-    buildGalleryLogosDual();
-
-    setupPicking();
-    setupDoubleClickZoom();
-    return scene;
-  }
-
-  /* =========================
-     ROOM + LED
-  ========================= */
-  function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
-  function unlitTex(tex){ const m=new BABYLON.StandardMaterial("mt",scene); m.diffuseTexture=tex; m.emissiveColor=new BABYLON.Color3(1,1,1); m.disableLighting=true; return m; }
-
-  function buildRoom(){
-    const floor = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene); floor.material = unlit("#151515");
-    const back  = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene); back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#2b2b2b"); // tmavší stěna pro lepší kontrast neonu
-    const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene); front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.rotation.y = Math.PI; front.material = unlit("#2b2b2b");
-    const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene); ceiling.position.y = ROOM.H; ceiling.rotation.x = Math.PI; ceiling.material = unlit("#0f0f10");
-  }
-
-  function buildLED(){
-    const n=new BABYLON.TransformNode("led",scene);
-    const t=0.02, inw=0.1;
-    const xL=-ROOM.W/2+inw, xR=ROOM.W/2-inw;
-    const zF=ROOM.D/2-inw,  zB=-ROOM.D/2+inw;
-    const y0=0.04, y1=ROOM.H-0.04;
-    const mat=new BABYLON.StandardMaterial("ledMat",scene); mat.emissiveColor=BABYLON.Color3.FromHexString("#ffbdf6"); mat.disableLighting=true;
-
-    const seg=(a,b)=>{ const d=BABYLON.Vector3.Distance(a,b); const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene); m.position=BABYLON.Vector3.Center(a,b); m.lookAt(b); m.rotation.x+=Math.PI; m.material=mat; m.isPickable=false; m.parent=n; glow.addIncludedOnlyMesh(m); };
-
-    // spodní + horní obvod
-    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
-    ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    // 4 svislé rohy
-    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
-  }
-
-  /* =========================
-     LAYOUT ZÓNA
-  ========================= */
-  const WALL_LAYOUT = {
-    centerY: ROOM.H * 0.55,
-    startX: parseFloat(lxStartEl.value),
-    endX:   parseFloat(lxEndEl.value),
-    spacing: parseFloat(lxSpaceEl.value),
-    safety: 0.0,
-    z: -ROOM.D/2 + 0.03
+function addFrame(x,y,z,data){
+  const p=BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
+  p.position.set(x,y,z);
+  p.rotation.y=Math.PI;
+  p.isPickable=true;
+  const it={
+    mesh:p,
+    base:p.position.clone(),
+    transform:data.transform
   };
-  lxSpaceEl.addEventListener("input", ()=>{ hint("Mezera: "+lxSpaceEl.value+" m"); });
+  frames.push(it);
+  if(isVideo(data.src)) loadVideo(data.src,it);
+  else loadImage(data.src,it);
+  applyTransform(it);
+}
 
-  function applyLayoutFromUI(){
-    WALL_LAYOUT.startX = parseFloat(lxStartEl.value);
-    WALL_LAYOUT.endX   = parseFloat(lxEndEl.value);
-    WALL_LAYOUT.spacing= parseFloat(lxSpaceEl.value);
-    rebuildFramePositions();
-    hint("Layout aplikován.");
-  }
+async function loadGallery(){
+  const cfg=await fetch("data/gallery.json").then(r=>r.json());
+  document.getElementById("scPlayer").src=
+    "https://w.soundcloud.com/player/?url="+encodeURIComponent(cfg.soundcloud);
 
-  function framePos(idx){
-    const x=WALL_LAYOUT.startX + WALL_LAYOUT.spacing * idx;
-    if(x > WALL_LAYOUT.endX) return null;
-    return new BABYLON.Vector3(x, WALL_LAYOUT.centerY, WALL_LAYOUT.z);
-  }
-
-  function rebuildFramePositions(){
-    for(let i=0;i<frames.length;i++){
-      const p = framePos(i);
-      if(!p) { frames[i].frame.setEnabled(false); frames[i].box.setEnabled(false); frames[i].placard.setEnabled(false); continue; }
-      const it=frames[i];
-      [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(true));
-      it.box.position.copyFrom(p);
-      it.frame.position    = p.add(new BABYLON.Vector3(0,0,0.03));
-      it.placard.position  = p.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
-    }
-  }
-
-  /* =========================
-     FRAMES + CEDULKY
-  ========================= */
-  const frames=[]; // {frame, box, placard, data:{title,url}}
-  const FRAME_SIZE = { W: 1.2, H: 1.2 };
-  let selected = null;
-
-  function buildInitialFrames(){
-    const INITIAL=5;
-    for(let i=0;i<INITIAL;i++){
-      const p=framePos(i); if(!p) break;
-      addFrame(p);
-    }
-  }
-
-  function addFrame(pos){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+0.08,height:FRAME_SIZE.H+0.08,depth:0.05},scene);
-    box.position = pos.clone(); box.material = unlit("#383838"); box.isPickable = true;
-
-    const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H},scene);
-    f.position = pos.add(new BABYLON.Vector3(0,0,0.03));
-    f.rotation.y = Math.PI; // obraz čelem do místnosti
-    f.isPickable = true;
-    f.material  = lightGrayPlaceholderMat("KLIKNOUT → VYBRAT");
-
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac",{width:FRAME_SIZE.W,height:0.22},scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
-    plac.rotation.y = Math.PI; plac.isPickable = true;
-
-    const data = { title: "(bez názvu)", url: "" };
-    drawPlacard(plac, data);
-
-    const it = { frame:f, box, placard:plac, data };
-    frames.push(it); return it;
-  }
-
-  function lightGrayPlaceholderMat(text){
-    const dt=new BABYLON.DynamicTexture("ph2",{width:512,height:512},scene,true);
-    const c=dt.getContext();
-    c.fillStyle="#bcbcbc"; c.fillRect(0,0,512,512);
-    c.fillStyle="#222";    c.font="bold 32px system-ui"; c.textAlign="center"; c.textBaseline="middle";
-    c.fillText(text,256,256);
-    dt.update(); return unlitTex(dt);
-  }
-  function drawPlacard(plac,data){
-    const dt=new BABYLON.DynamicTexture("pl",{width:1024,height:256},scene,true);
-    const c=dt.getContext();
-    c.fillStyle="#222"; c.fillRect(0,0,1024,256);
-    c.fillStyle="#e6e6e6"; c.font="bold 56px system-ui"; c.textAlign="center"; c.textBaseline="middle";
-    c.fillText(data.title||"(bez názvu)",512,128);
-    dt.update(); plac.material=unlitTex(dt);
-  }
-
-  /* =========================
-     VÝBĚR / PICKING
-  ========================= */
-  function clearSelection(){ if(!selected) return; selected.box.renderOutline=false; hl.removeAllMeshes(); selected=null; }
-  function selectFrame(it){
-    if(mode!==MODE.ADMIN) return;
-    clearSelection();
-    selected=it;
-    it.box.outlineColor = BABYLON.Color3.FromHexString("#66CCFF");
-    it.box.outlineWidth = 0.04;
-    it.box.renderOutline = true;
-    hl.addMesh(it.box, BABYLON.Color3.FromHexString("#66CCFF"));
-    hint("Vybrán rám.");
-  }
-  function setupPicking(){
-    scene.onPointerObservable.add((pi)=>{
-      if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
-      if (!pi.pickInfo?.hit) return;
-      const mesh = pi.pickInfo.pickedMesh;
-
-      for(const it of frames){
-        if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
-      }
-      if (mode === MODE.ADMIN){
-        for(const it of frames){ if(mesh===it.frame||mesh===it.box){ selectFrame(it); return; } }
-      }
-    }, BABYLON.PointerEventTypes.POINTERPICK);
-  }
-
-  /* =========================
-     PLYNULÉ PŘIBLÍŽENÍ (double‑click) + deep wheel zoom
-  ========================= */
-  function setupDoubleClickZoom(){
-    canvas.addEventListener("dblclick", ()=>{
-      const pick=scene.pick(scene.pointerX,scene.pointerY);
-      if(!pick?.hit) return;
-      camera.target=pick.pickedPoint.clone();
-      camera.radius=Math.max(MIN_RADIUS, camera.radius*0.65); // stejné minimum jako kolečko
-    });
-  }
-
-  /* =========================
-     IMAGE LOADING (URL + DATA)
-  ========================= */
-  async function loadIntoFrameSmart(inputText, item){
-    if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
-    if(!item){ item=frames[0]; }
-    const s=inputText.trim();
-    if(s.startsWith("<svg")) return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s),item.frame);
-    if(s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s,item.frame);
-    return loadImageUrlIntoTexture(s,item.frame);
-  }
-
-  async function loadImageUrlIntoTexture(url, frame){
-    try{
-      const resp=await fetch(url,{mode:"cors",cache:"no-store"});
-      if(!resp.ok||resp.type==="opaque") throw new Error("CORS");
-      const ct=resp.headers.get("content-type")||""; if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
-      const blob=await resp.blob();
-      let bmp;
-      try{ bmp=await createImageBitmap(blob,{premultiplyAlpha:"premultiply"});}catch{ bmp=await blobToImg(blob); }
-      const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
-      const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-      const m = unlitTex(dt); frame.material = m; hint("Obrázek načten ✔");
-    }catch(e){ console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL)."); }
-  }
-
-  async function loadSVGOrDataIntoTexture(dataUrl, frame){
-    const bmp = await dataUrlToImg(dataUrl);
-    const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
-    const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-    frame.material = unlitTex(dt); hint("Obrázek/SVG načten ✔");
-  }
-
-  function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
-  function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
-  function drawFitted(ctx,bmp,frameW,frameH){
-    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
-    if(r>targetR){ dh=1024; dw=Math.round(dh*r); dx=Math.round((1024-dw)/2);}
-    else{ dw=1024; dh=Math.round(dw/r); dy=Math.round((1024-dh)/2);}
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,1024,1024);
-    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
-  }
-
-  /* =========================
-     ✅ LOGO – narovnání (viewBox), zmenšení, vystředění, LED glow
-  ========================= */
-
-  // – Tvoje kompletní SVG (barva přímo v textuře; nic netónujeme)
-  const GALLERY_LOGO_SVG = `
-<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
-  <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g>
-    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-  </g>
-  <g>
-    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
-</svg>`;
-
-  const LOGO_ASPECT = 941.43 / 272.86; // poměr z viewBoxu (~3.4515)
-
-  // Jemně zmenšené a vystředěné: změň jen tento scale (0.40 = 40 % šířky stěny)
-  const LOGO_SCALE = 0.40;    // ← zvětšíš/zmenšíš logo
-  const GLOW_BLUR_PX = 18;    // ← větší = měkčí neon
-  const FRONT_BACK_OFFSET = 0.25; // vzdálenost loga od stěny (m)
-
-  function buildGalleryLogosDual(){
-    // SVG -> IMG
-    const img = new Image();
-    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
-
-    img.onload = () => {
-      // --- ostrá textura ---
-      const SIZE = 1024;
-      const dt = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
-      const ctx = dt.getContext();
-      ctx.clearRect(0,0,SIZE,SIZE);
-
-      const maxW = SIZE * 0.92;
-      const w = maxW;
-      const h = Math.round(maxW / LOGO_ASPECT);
-      const x = Math.round((SIZE - w)/2);
-      const y = Math.round((SIZE - h)/2);
-      ctx.drawImage(img, x, y, w, h);
-      dt.update();
-
-      // --- glow textura ---
-      const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
-      const gc = glowDT.getContext();
-      gc.clearRect(0,0,SIZE,SIZE);
-      gc.filter = `blur(${GLOW_BLUR_PX}px)`;
-      gc.drawImage(img, x, y, w, h);
-      glowDT.update();
-
-      // --- materiály ---
-      const sharpMat = new BABYLON.StandardMaterial("logoSharp", scene);
-      sharpMat.disableLighting = true;
-      sharpMat.diffuseTexture = dt;
-      sharpMat.opacityTexture = dt;
-      sharpMat.emissiveColor = new BABYLON.Color3(1,1,1); // zesílení textury
-      sharpMat.backFaceCulling = false;
-
-      const glowMat = new BABYLON.StandardMaterial("logoGlow", scene);
-      glowMat.disableLighting = true;
-      glowMat.emissiveTexture = glowDT;
-      glowMat.opacityTexture  = glowDT;
-      glowMat.emissiveColor = new BABYLON.Color3(1,1,1);
-      glowMat.backFaceCulling = false;
-
-      // --- rozměry loga (bez deformace) ---
-      
-const logoW = ROOM.W * LOGO_SCALE;        // šířka se mění podle scale
-const logoH = 5.8;               // <-- sem dosadíš vlastní výšku (v metrech)
-
-
-      // výška nad rámy – střed galerie (vystředěno horizontálně i vertikálně kolem zóny rámů)
-      const yPos = WALL_LAYOUT.centerY + FRAME_SIZE.H * 0.90 + 0.40;
-
-      function placeLogo(z, rotY){
-        // glow mesh
-        const g = BABYLON.MeshBuilder.CreatePlane("logoGlow",{width:logoW,height:logoH},scene);
-        g.position.set(0, yPos, z - Math.sign(z)*0.005);
-        g.rotation.y = rotY;
-        g.material = glowMat;
-        glow.addIncludedOnlyMesh(g);
-
-        // ostrý mesh
-        const s = BABYLON.MeshBuilder.CreatePlane("logoSharp",{width:logoW,height:logoH},scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005);
-        s.rotation.y = rotY;
-        s.material = sharpMat;
-      }
-
-      // Zadní stěna (čelem do místnosti) + přední stěna
-      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI);
-      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0);
-
-      hint("Logo zmenšeno, vystředěno a bez deformací ✔  (glow aktivní)");
-    };
-
-    img.onerror = () => {
-      console.error("Logo SVG nešlo dekódovat.");
-      hint("Chyba: logo SVG nešlo dekódovat.");
-    };
-  }
-
-  /* =========================
-     UI BINDINGS
-  ========================= */
-  $("btnLoad").addEventListener("click", ()=>{
-    const it = selected || frames[0];
-    if(!it){ alert("Neexistuje žádný rám."); return; }
-    const input = imgUrlEl.value.trim();
-    loadIntoFrameSmart(input, it);
+  const y=ROOM.H*0.55;
+  cfg.walls.back.forEach((d,i)=>{
+    addFrame(-4+i*2,y,-ROOM.D/2+0.02,d);
   });
+}
 
-  $("btnPlacard").addEventListener("click", ()=>{
-    const it=selected||frames[0];
-    it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
-    it.data.url   = (linkEl?.value  || "").trim();
-    drawPlacard(it.placard, it.data);
-    hint("Cedulka aktualizována.");
-  });
+scene.onPointerObservable.add(e=>{
+  if(mode!==MODE.ADMIN) return;
+  if(e.pickInfo.hit){
+    selected=frames.find(f=>f.mesh===e.pickInfo.pickedMesh);
+  }
+});
 
-  $("btnAdd").addEventListener("click", ()=>{
-    const p = framePos(frames.length);
-    if(!p){ alert("Už není místo v nastaveném úseku stěny."); return; }
-    const it=addFrame(p);
-    if (mode === MODE.ADMIN) selectFrame(it);
-    hint("Přidán nový rám.");
-  });
+window.addEventListener("keydown",e=>{
+  if(e.key==="a"){mode=MODE.ADMIN;document.body.className="admin";}
+  if(e.key==="v"){mode=MODE.VIEW;document.body.className="view";}
+  if(!selected||mode!==MODE.ADMIN) return;
+  const t=selected.transform;
+  if(e.key==="+") t.scale+=.05;
+  if(e.key==="-"&&t.scale>.1) t.scale-=.05;
+  if(e.key==="ArrowLeft") t.offsetX-=.05;
+  if(e.key==="ArrowRight") t.offsetX+=.05;
+  if(e.key==="ArrowUp") t.offsetY+=.05;
+  if(e.key==="ArrowDown") t.offsetY-=.05;
+  if(e.key==="r") t.rotation+=.1;
+  if(e.key==="f") t.flipX=!t.flipX;
+  applyTransform(selected);
+});
 
-  $("btnResetCam").addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius=11.5;
-  });
+document.getElementById("load").onclick=()=>{
+  if(!selected) return;
+  const u=document.getElementById("url").value;
+  selected.transform={scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
+  if(isVideo(u)) loadVideo(u,selected);
+  else loadImage(u,selected);
+};
 
-  $("btnApplyLayout").addEventListener("click", applyLayoutFromUI);
-
-  // DEMO přidání bez URL (programově)
-  $("btnDemo").addEventListener("click", async ()=>{
-    const DEMO_SVGS = [
-      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#e8e8e8'/><circle cx='50' cy='50' r='32' fill='#222'/></svg>`),
-      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#d0e8ff'/><rect x='20' y='20' width='60' height='60' fill='#0044aa'/></svg>`),
-      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#ffe9d6'/><path d='M15 85 L85 15' stroke='#c24' stroke-width='10'/></svg>`)
-    ];
-    for(let i=0;i<Math.min(DEMO_SVGS.length,frames.length);i++){
-      await loadSVGOrDataIntoTexture(DEMO_SVGS[i], frames[i].frame);
-      frames[i].data.title = "DEMO "+(i+1);
-      drawPlacard(frames[i].placard, frames[i].data);
-    }
-    hint("DEMO obrázky vloženy ✔");
-  });
-
-  /* =========================
-     BOOT
-  ========================= */
-  createScene();
-  engine.runRenderLoop(()=> scene.render());
-  window.addEventListener("resize", ()=> engine.resize());
-
-  // Start ve VIEW módu
-  setMode(MODE.VIEW);
-  </script>
+loadGallery();
+engine.runRenderLoop(()=>scene.render());
+window.addEventListener("resize",()=>engine.resize());
+</script>
 </body>
 </html>
+
 
 
