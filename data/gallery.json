@@ -1,15 +1,9 @@
 {
-  "framesPerWall": 5,
-  "frameSize": 1.2,
-  "spacing": 2.2,
   "soundcloud": "https://soundcloud.com/vertigo01/sets/detroit-techno",
   "walls": {
     "back": [
       {
-        "type": "image",
         "src": "assets/one.jpg",
-        "title": "První dílo",
-        "link": "https://everpress.com/the-future-phaser-collection",
         "transform": {
           "scale": 1,
           "rotation": 0,
@@ -18,9 +12,6 @@
           "offsetY": 0
         }
       }
-    ],
-    "front": [],
-    "left": [],
-    "right": []
+    ]
   }
 }
