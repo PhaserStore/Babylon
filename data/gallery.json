@@ -1,7 +1,26 @@
-virtual-gallery
-├─ index.html
-├─ data
-│  └─ gallery.json
-└─ assets
-   ├─ images
-   └─ videos
+{
+  "framesPerWall": 5,
+  "frameSize": 1.2,
+  "spacing": 2.2,
+  "soundcloud": "https://soundcloud.com/vertigo01/sets/detroit-techno",
+  "walls": {
+    "back": [
+      {
+        "type": "image",
+        "src": "assets/images/obraz1.jpg",
+        "title": "První dílo",
+        "link": "",
+        "transform": {
+          "scale": 1,
+          "rotation": 0,
+          "flipX": false,
+          "offsetX": 0,
+          "offsetY": 0
+        }
+      }
+    ],
+    "front": [],
+    "left": [],
+    "right": []
+  }
+}
