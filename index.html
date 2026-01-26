@@ -50,12 +50,6 @@ back.position.z=-ROOM.D/2; back.position.y=ROOM.H/2;
 let selected=null;
 const frames=[];
 
-const galleryAssets = [
-  {src:"assets/one.jpg", type:"image", title:"První dílo"},
-  {src:"assets/two.jpg", type:"image", title:"Druhé dílo"},
-  {src:"assets/video.mp4", type:"video", title:"Video dílo"}
-];
-
 function isVideo(u){return u.match(/\.(mp4|webm)$/i);}
 
 function applyTransform(it){
@@ -103,10 +97,13 @@ function addFrame(x,y,z,data){
   applyTransform(it);
 }
 
-function loadGallery(){
-  const y=ROOM.H*0.55;
-  galleryAssets.forEach((d,i)=>{
-    addFrame(-4+i*2,y,-ROOM.D/2+0.02,d);
+// 🔹 Načtení souborů z assets/assets.json
+async function loadGallery(){
+  const files = await fetch("assets/assets.json").then(r=>r.json());
+  const y = ROOM.H*0.55;
+  files.forEach((f,i)=>{
+    const type = isVideo(f) ? "video" : "image";
+    addFrame(-4 + i*2, y, -ROOM.D/2 + 0.02, {src:"assets/"+f, type:type});
   });
 }
 
