@@ -3,7 +3,7 @@
   "walls": {
     "back": [
       {
-        "src": "assets/one.jpg",
+        "src": "../assets/one.jpg",
         "transform": {
           "scale": 1,
           "rotation": 0,
