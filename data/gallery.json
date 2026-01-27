@@ -1,17 +1,38 @@
 {
   "soundcloud": "https://soundcloud.com/vertigo01/sets/detroit-techno",
-  "walls": {
-    "back": [
-      {
-        "src": "../assets/one.jpg",
-        "transform": {
-          "scale": 1,
-          "rotation": 0,
-          "flipX": false,
-          "offsetX": 0,
-          "offsetY": 0
-        }
-      }
+ {
+  "room": {
+    "width": 32,
+    "height": 12,         // ↑ zvýšená výška galerie
+    "depth": 48
+  },
+  "frames": {
+    "defaultFrame": {
+      "outerWidth": 6,    // rozměry rámu (v metrech scény)
+      "outerHeight": 4,
+      "imageInset": 0.25, // odsazení obrazu od vnitřního okraje rámu
+      "plaqueHeight": 0.5 // výška cedulky pod rámem
+    },
+    "walls": [
+      { "wall": "front",  "rows": 2, "cols": 4, "gapX": 2.4, "gapY": 2.0, "yOffset": 0.5 },
+      { "wall": "right",  "rows": 2, "cols": 3, "gapX": 2.2, "gapY": 2.0, "yOffset": 0.5 },
+      { "wall": "back",   "rows": 2, "cols": 4, "gapX": 2.4, "gapY": 2.0, "yOffset": 0.5 },
+      { "wall": "left",   "rows": 2, "cols": 3, "gapX": 2.2, "gapY": 2.0, "yOffset": 0.5 }
     ]
+  },
+  "logo": {
+    "enabled": true,
+    "width": 5,
+    "height": 2,
+    "y": 4.5,             // vertikální pozice loga
+    "wall": "front"       // na kterou stěnu logo umístit
+  },
+  "glow": {
+    "intensity": 0.55,
+    "blurKernelSize": 64,
+    "mainTextureFixedSize": 1024
+  },
+  "highlight": {
+    "blurSize": 2.0
   }
 }
