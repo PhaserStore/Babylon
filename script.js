@@ -395,3 +395,12 @@ function autoAssignLocalAssets(){
     img.src = url + "?v=" + Date.now();
   });
 }
+/* -----------------------------
+   7) SVG logo "phaser" – zadní i přední stěna
+------------------------------*/
+function buildGalleryLogo(){
+  const LOGO = {
+    url: 'assets/phaser.svg',
+    scale: 0.44,
+    blur: 14,
+    yOffset:
