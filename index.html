@@ -57,7 +57,7 @@
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- BabylonJS z CDN -->
+  <!-- ✅ BabylonJS z CDN – MUSÍ být V TOMTO TVARU -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 
   <script>
@@ -79,7 +79,7 @@
     mode = m;
     document.body.classList.toggle('view', m === MODE.VIEW);
     document.body.classList.toggle('admin', m === MODE.ADMIN);
-    if (m === MODE.VIEW) clearSelection(); // ve view žádné zvýraznění
+    if (m === MODE.VIEW) clearSelection();
     hint(m === MODE.ADMIN ? "ADMIN mód: editace povolena" : "VIEW mód: čistá výstava");
   }
   window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.toLowerCase(); if(k==='a') setMode(MODE.ADMIN); if(k==='v') setMode(MODE.VIEW); });
@@ -91,10 +91,8 @@
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
   let scene, camera, glow, hl;
 
-  const ROOM = { W: 16, D: 30, H: 5.6 }; // vyšší galerie (víc místa na logo)
-
-  const MIN_RADIUS = 1.6;
-  const MAX_RADIUS = 40;
+  const ROOM = { W: 16, D: 30, H: 5.6 };
+  const MIN_RADIUS = 1.6, MAX_RADIUS = 40;
 
   function createScene(){
     scene = new BABYLON.Scene(engine);
@@ -113,7 +111,7 @@
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize:64 });
-    glow.intensity = 0.9; // LED efekt
+    glow.intensity = 0.9;
 
     hl = new BABYLON.HighlightLayer("hl", scene);
 
@@ -150,11 +148,9 @@
 
     const seg=(a,b)=>{ const d=BABYLON.Vector3.Distance(a,b); const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene); m.position=BABYLON.Vector3.Center(a,b); m.lookAt(b); m.rotation.x+=Math.PI; m.material=mat; m.isPickable=false; m.parent=n; glow.addIncludedOnlyMesh(m); };
 
-    // spodní + horní obvod
     [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
      [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    // 4 svislé rohy
     [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
@@ -199,17 +195,16 @@
   /* =========================
      FRAMES + CEDULKY
   ========================= */
-  const frames=[]; // {frame, box, placard, data:{title,url}}
+  const frames=[];
   const FRAME_SIZE = { W: 1.2, H: 1.2 };
   let selected = null;
 
   function buildInitialFrames(){
-    const INITIAL=6; // klidně uprav
+    const INITIAL=6;
     for(let i=0;i<INITIAL;i++){
       const p=framePos(i); if(!p) break;
       addFrame(p);
     }
-    // Auto-naplnění z lokálních assetů (pokud existují)
     autoAssignLocalAssets();
   }
 
@@ -219,7 +214,7 @@
 
     const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H},scene);
     f.position = pos.add(new BABYLON.Vector3(0,0,0.03));
-    f.rotation.y = Math.PI; // obraz čelem do místnosti
+    f.rotation.y = Math.PI;
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → VYBRAT");
 
@@ -281,10 +276,11 @@
   }
 
   /* =========================
-     PLYNULÉ PŘIBLÍŽENÍ (double‑click)
+     DOUBLE CLICK ZOOM
   ========================= */
+  const canvasEl = document.getElementById('renderCanvas');
   function setupDoubleClickZoom(){
-    canvas.addEventListener("dblclick", ()=>{
+    canvasEl.addEventListener("dblclick", ()=>{
       const pick=scene.pick(scene.pointerX,scene.pointerY);
       if(!pick?.hit) return;
       camera.target=pick.pickedPoint.clone();
@@ -413,7 +409,6 @@
     local.forEach((url, i)=>{
       const it = frames[i];
       if (!it) return;
-      // pokusíme se obrázek načíst (když chybí, tiše přeskočíme)
       const img = new Image();
       img.onload = ()=>{
         const dt=new BABYLON.DynamicTexture("imgDT"+i,{width:1024,height:1024},scene,true);
@@ -422,8 +417,8 @@
         it.data.title = url.split("/").pop();
         drawPlacard(it.placard, it.data);
       };
-      img.onerror = ()=>{}; // když soubor neexistuje, nic se neděje
-      img.src = url + "?v=" + Date.now(); // obejdeme cache GH Pages
+      img.onerror = ()=>{};
+      img.src = url + "?v=" + Date.now();
     });
   }
 
