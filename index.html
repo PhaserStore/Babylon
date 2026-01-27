@@ -3,83 +3,81 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Virtual Gallery — LED · Layout · URL loader</title>
+  <title>Virtual Gallery — Mód A/V · LED · URL loader</title>
 
-  <!-- Favicon (zabrání 404 na /favicon.ico) -->
-  <link rel="icon" href="./assets/phaser.svg" type="image/svg+xml" />
+  <!-- Favicon -->
+  ./assets/phaser.svg
 
   <style>
     html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
     #renderCanvas{width:100%;height:100%;display:block;touch-action:none}
 
-    /* ===== ADMIN UI ===== */
     #ui{
       position:fixed;top:12px;left:12px;right:12px;z-index:10;
       display:flex;flex-wrap:wrap;gap:8px;align-items:center;
       background:rgba(15,15,18,.65);border:1px solid rgba(255,255,255,.15);
       border-radius:10px;padding:10px 12px;color:#fff;backdrop-filter:blur(6px)
     }
+    body.view #ui{display:none}
     .group{display:flex;gap:8px;align-items:center;background:rgba(40,40,44,.5);padding:8px 10px;border-radius:8px}
-    input,button,textarea,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#3a3a3a;color:#fff}
+    input,button,textarea,select{
+      padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
+      background:#3a3a3a;color:#fff;
+    }
     button:hover{background:#575757}
     textarea{min-width:320px;min-height:80px}
     #hint{flex-basis:100%;font-size:12px;color:#ccc}
-    /* VIEW mód = čistá výstava (UI nevidět) – JS přepíná class body.view / body.admin */
-    body.view #ui{display:none}
     label{display:flex;gap:6px;align-items:center}
   </style>
 </head>
 
 <body class="view">
-  <!-- ===== UI (ADMIN – zobrazí se až po klávese A; zpět V) ===== -->
+
   <div id="ui">
-    <!-- Zdrojové URL obrázku -->
+    <!-- URL / DEMO -->
     <div class="group">
-      <label>URL <input id="imgUrl" size="38" placeholder="https://... (.avif/.jpg/.png/.webp)"></label>
-      <button id="btnLoad">Načíst do vybraného rámu</button>
-      <button id="btnDemo">Načíst DEMO bez URL</button>
+      <label>URL <input id="imgUrl" size="38" placeholder="https://... (.jpg/.png/.webp/.avif)"></label>
+      <button id="btnLoad">Načíst do rámu</button>
+      <button id="btnDemo">Načíst DEMO</button>
     </div>
 
-    <!-- Cedulka (titulek + skrytá URL) -->
+    <!-- Název + skrytá URL -->
     <div class="group">
       <label>Název <input id="title" placeholder="Název díla" size="16"></label>
       <label>Skrytá URL <input id="link" placeholder="https://..." size="18"></label>
       <button id="btnPlacard">Aktualizovat cedulku</button>
     </div>
 
-    <!-- VÝBĚR STĚNY + layout aktivní stěny -->
+    <!-- Stěna + layout -->
     <div class="group">
       <label>Stěna
         <select id="wallSelect">
-          <option value="back" selected>Zadní</option>
+          <option value="back">Zadní</option>
           <option value="front">Přední</option>
           <option value="left">Levá</option>
           <option value="right">Pravá</option>
         </select>
       </label>
 
-      <label>Úsek X od <input id="lxStart" type="number" step="0.1" value="-6.5" style="width:80px"></label>
-      <label>do <input id="lxEnd" type="number" step="0.1" value="6.5" style="width:80px"></label>
-      <label>Mezera <input id="lxSpace" type="range" min="1.6" max="3.0" step="0.1" value="2.2"></label>
+      <label>Úsek X od <input id="lxStart" type="number" value="-6.5" step="0.1" style="width:80px"></label>
+      <label>do <input id="lxEnd" type="number" value="6.5" step="0.1" style="width:80px"></label>
+      <label>Mezera <input id="lxSpace" type="range" min="1.0" max="4.0" step="0.1" value="2.2"></label>
 
       <button id="btnApplyLayout">Použít layout</button>
       <button id="btnAdd">➕ Přidat rám</button>
-      <button id="btnResetCam">🎥 Reset kamery</button>
+      <button id="btnResetCam">🎥 Kamera</button>
     </div>
 
-    <div id="hint">
-      A = ADMIN · V = VIEW · Stěnu vybírej v rozbalovačce „Stěna“. Klik na rám = výběr (modrý lem).
-      Dvojklik = rychlé přiblížení. Klik na cedulku = otevření uložené skryté URL.
-    </div>
+    <div id="hint">A = ADMIN · V = VIEW · Klik na rám = výběr. Dvojklik = přiblížení.</div>
   </div>
 
-  <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- Babylon.js z CDN (SPRÁVNÉ script tagy) -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Babylon engine -->
+  https://cdn.babylonjs.com/babylon.js</script>
 
-  <!-- Tvůj aplikační skript -->
-  <script src="./script.js"></script>
+  <!-- Aplikační JS -->
+  ./script.js</script>
+
 </body>
 </html>
