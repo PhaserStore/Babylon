@@ -20,7 +20,13 @@
         <option value="upload">Lokální soubory</option>
       </select>
     </div>
+<!-- === SoundCloud: overlay pro ADMIN mód === -->
+<div id="sc-wrap">
+  <iframe id="sc-iframe" allow="autoplay"></iframe>
+</div>
 
+<!-- === SoundCloud: skrytý iframe pro VIEW mód (vytváří se/ničí z JS) === -->
+<!-- <iframe id="sc-hidden" allow="autoplay"></iframe>  (vytváří JS, není nutno zde) -->
     <div id="githubInputs" class="group">
       <input id="ghOwner" placeholder="owner (např. Ulet)" />
       <input id="ghRepo" placeholder="repo (např. Babylon)" />
