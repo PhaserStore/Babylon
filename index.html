@@ -1,63 +1,439 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Babylon Gallery</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Virtual Gallery — LED · Layout · URL loader</title>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    #renderCanvas{width:100%;height:100%;display:block;touch-action:none}
 
-  <!-- Babylon.js (CDN; pro produkci můžeš hostovat sám) -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    /* ===== ADMIN UI ===== */
+    #ui{
+      position:fixed;top:12px;left:12px;right:12px;z-index:10;
+      display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+      background:rgba(15,15,18,.65);border:1px solid rgba(255,255,255,.15);
+      border-radius:10px;padding:10px 12px;color:#fff;backdrop-filter:blur(6px)
+    }
+    .group{display:flex;gap:8px;align-items:center;background:rgba(40,40,44,.5);padding:8px 10px;border-radius:8px}
+    input,button,textarea{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#3a3a3a;color:#fff}
+    button:hover{background:#575757}
+    textarea{min-width:320px;min-height:80px}
+    #hint{flex-basis:100%;font-size:12px;color:#ccc}
+    /* VIEW mód = čistá výstava (UI nevidět) */
+    body.view #ui{display:none}
+    label{display:flex;gap:6px;align-items:center}
+  </style>
 </head>
-<body>
 
-  <!-- Toolbar (ADMIN zobrazený až po stisku A) -->
-  <div id="toolbar" style="display:none">
-    <strong>ADMIN</strong>
+<body class="view">
+  <!-- ===== UI (ADMIN – zobrazí se až po klávese A) ===== -->
+  <div id="ui">
+    <div class="group">
+      <label>URL <input id="imgUrl" size="38" placeholder="https://... (.avif/.jpg/.png/.webp)"></label>
+      <button id="btnLoad">Načíst do vybraného rámu</button>
+      <button id="btnDemo">Načíst DEMO bez URL</button>
+    </div>
 
-    <label>Zdroj:</label>
-    <select id="sourceSelect">
-      <option value="github" selected>GitHub /assets</option>
-      <option value="url">URL seznam</option>
-      <option value="upload">Upload</option>
-    </select>
+    <div class="group">
+      <label>Název <input id="title" placeholder="Název díla" size="16"></label>
+      <label>Skrytá URL <input id="link" placeholder="https://..." size="18"></label>
+      <button id="btnPlacard">Aktualizovat cedulku</button>
+    </div>
 
-    <span id="githubInputs">
-      <input id="ghOwner" placeholder="owner (např. PhaserStore)" />
-      <input id="ghRepo" placeholder="repo (např. Babylon)" />
-      <input id="ghBranch" placeholder="branch (např. main)" value="main" />
-      <button id="btnLoadGithub">Načíst /assets</button>
-    </span>
+    <div class="group">
+      <label>Úsek X od <input id="lxStart" type="number" step="0.1" value="-6.5" style="width:80px"></label>
+      <label>do <input id="lxEnd" type="number" step="0.1" value="6.5" style="width:80px"></label>
+      <label>Mezera <input id="lxSpace" type="range" min="1.6" max="3.0" step="0.1" value="2.2"></label>
+      <button id="btnApplyLayout">Použít layout</button>
+      <button id="btnAdd">➕ Přidat rám</button>
+      <button id="btnResetCam">🎥 Reset kamery</button>
+    </div>
 
-    <span id="urlInputs" class="hidden">
-      <textarea id="urlList" placeholder="vložit URL (1 na řádek)" rows="1" cols="28"></textarea>
-      <button id="btnLoadUrls">Načíst URL</button>
-    </span>
-
-    <span id="uploadInputs" class="hidden">
-      <input id="filePicker" type="file" accept="image/*" multiple />
-    </span>
-
-    <button id="btnToggleEdit">Režim úpravy rámu: Vyp</button>
-    <button id="btnFlipH">Zrcadlit H</button>
-    <button id="btnFlipV">Zrcadlit V</button>
-
-    <input id="inputSoundCloud" placeholder="SoundCloud URL (playlist/track)" style="width:320px" />
-    <button id="btnSaveSoundCloud">Uložit SC</button>
+    <div id="hint">A = ADMIN · V = VIEW · Klik na rám = výběr (modrý lem). Dvojklik = rychlé přiblížení. Klik na cedulku = otevření skryté URL.</div>
   </div>
 
-  <!-- SoundCloud overlay (ADMIN mód) -->
-  <div id="sc-wrap" style="display:none">
-    <iframe id="sc-iframe" allow="autoplay"></iframe>
-  </div>
-
-  <!-- Plátno Babylon.js -->
+  <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- Hlavní skript -->
-  <script src="script.js"></script>
+  <!-- BabylonJS z CDN -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+  <script>
+  "use strict";
+
+  /* =========================
+     MODE: A (admin) / V (view)
+  ========================= */
+  const MODE = { ADMIN: "admin", VIEW: "view" };
+  let mode = MODE.VIEW; // výchozí VIEW
+
+  const $ = (id)=>document.getElementById(id);
+  const imgUrlEl=$("imgUrl"), titleEl=$("title"), linkEl=$("link"), hintEl=$("hint");
+  const lxStartEl=$("lxStart"), lxEndEl=$("lxEnd"), lxSpaceEl=$("lxSpace");
+
+  function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
+  function hint(msg){ if(hintEl) hintEl.textContent=msg; }
+  function setMode(m){
+    mode = m;
+    document.body.classList.toggle('view', m === MODE.VIEW);
+    document.body.classList.toggle('admin', m === MODE.ADMIN);
+    if (m === MODE.VIEW) clearSelection(); // ve view žádné zvýraznění
+    hint(m === MODE.ADMIN ? "ADMIN mód: editace povolena" : "VIEW mód: čistá výstava");
+  }
+  window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.toLowerCase(); if(k==='a') setMode(MODE.ADMIN); if(k==='v') setMode(MODE.VIEW); });
+
+  /* =========================
+     ENGINE / SCENE / CAMERA
+  ========================= */
+  const canvas = $("renderCanvas");
+  const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
+  let scene, camera, glow, hl;
+
+  const ROOM = { W: 16, D: 30, H: 5.6 }; // vyšší galerie (víc místa na logo)
+
+  const MIN_RADIUS = 1.6;
+  const MAX_RADIUS = 40;
+
+  function createScene(){
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
+
+    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
+    camera.attachControl(canvas, true);
+    camera.lowerBetaLimit = 0.1;
+    camera.upperBetaLimit = Math.PI - 0.1;
+    camera.lowerRadiusLimit = MIN_RADIUS;
+    camera.upperRadiusLimit = MAX_RADIUS;
+    camera.wheelDeltaPercentage = 0.02;
+    camera.pinchDeltaPercentage = 0.02;
+    camera.inertia = 0.85;
+
+    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize:64 });
+    glow.intensity = 0.9; // LED efekt
+
+    hl = new BABYLON.HighlightLayer("hl", scene);
+
+    buildRoom();
+    buildLED();
+    buildInitialFrames();
+    buildGalleryLogo();
+
+    setupPicking();
+    setupDoubleClickZoom();
+    return scene;
+  }
+
+  /* =========================
+     ROOM + LED
+  ========================= */
+  function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
+  function unlitTex(tex){ const m=new BABYLON.StandardMaterial("mt",scene); m.diffuseTexture=tex; m.emissiveColor=new BABYLON.Color3(1,1,1); m.disableLighting=true; return m; }
+
+  function buildRoom(){
+    const floor = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene); floor.material = unlit("#151515");
+    const back  = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene); back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#2b2b2b");
+    const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene); front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.rotation.y = Math.PI; front.material = unlit("#2b2b2b");
+    const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene); ceiling.position.y = ROOM.H; ceiling.rotation.x = Math.PI; ceiling.material = unlit("#0f0f10");
+  }
+
+  function buildLED(){
+    const n=new BABYLON.TransformNode("led",scene);
+    const t=0.02, inw=0.1;
+    const xL=-ROOM.W/2+inw, xR=ROOM.W/2-inw;
+    const zF=ROOM.D/2-inw,  zB=-ROOM.D/2+inw;
+    const y0=0.04, y1=ROOM.H-0.04;
+    const mat=new BABYLON.StandardMaterial("ledMat",scene); mat.emissiveColor=BABYLON.Color3.FromHexString("#ffbdf6"); mat.disableLighting=true;
+
+    const seg=(a,b)=>{ const d=BABYLON.Vector3.Distance(a,b); const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene); m.position=BABYLON.Vector3.Center(a,b); m.lookAt(b); m.rotation.x+=Math.PI; m.material=mat; m.isPickable=false; m.parent=n; glow.addIncludedOnlyMesh(m); };
+
+    // spodní + horní obvod
+    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
+     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
+    ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
+    // 4 svislé rohy
+    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
+  }
+
+  /* =========================
+     LAYOUT
+  ========================= */
+  const WALL_LAYOUT = {
+    centerY: ROOM.H * 0.55,
+    startX: parseFloat(lxStartEl.value),
+    endX:   parseFloat(lxEndEl.value),
+    spacing: parseFloat(lxSpaceEl.value),
+    z: -ROOM.D/2 + 0.03
+  };
+  lxSpaceEl.addEventListener("input", ()=>{ hint("Mezera: "+lxSpaceEl.value+" m"); });
+
+  function applyLayoutFromUI(){
+    WALL_LAYOUT.startX = parseFloat(lxStartEl.value);
+    WALL_LAYOUT.endX   = parseFloat(lxEndEl.value);
+    WALL_LAYOUT.spacing= parseFloat(lxSpaceEl.value);
+    rebuildFramePositions();
+    hint("Layout aplikován.");
+  }
+
+  function framePos(idx){
+    const x=WALL_LAYOUT.startX + WALL_LAYOUT.spacing * idx;
+    if(x > WALL_LAYOUT.endX) return null;
+    return new BABYLON.Vector3(x, WALL_LAYOUT.centerY, WALL_LAYOUT.z);
+  }
+
+  function rebuildFramePositions(){
+    for(let i=0;i<frames.length;i++){
+      const p = framePos(i);
+      if(!p) { frames[i].frame.setEnabled(false); frames[i].box.setEnabled(false); frames[i].placard.setEnabled(false); continue; }
+      const it=frames[i];
+      [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(true));
+      it.box.position.copyFrom(p);
+      it.frame.position    = p.add(new BABYLON.Vector3(0,0,0.03));
+      it.placard.position  = p.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
+    }
+  }
+
+  /* =========================
+     FRAMES + CEDULKY
+  ========================= */
+  const frames=[]; // {frame, box, placard, data:{title,url}}
+  const FRAME_SIZE = { W: 1.2, H: 1.2 };
+  let selected = null;
+
+  function buildInitialFrames(){
+    const INITIAL=6; // klidně uprav
+    for(let i=0;i<INITIAL;i++){
+      const p=framePos(i); if(!p) break;
+      addFrame(p);
+    }
+    // Auto-naplnění z lokálních assetů (pokud existují)
+    autoAssignLocalAssets();
+  }
+
+  function addFrame(pos){
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+0.08,height:FRAME_SIZE.H+0.08,depth:0.05},scene);
+    box.position = pos.clone(); box.material = unlit("#383838"); box.isPickable = true;
+
+    const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H},scene);
+    f.position = pos.add(new BABYLON.Vector3(0,0,0.03));
+    f.rotation.y = Math.PI; // obraz čelem do místnosti
+    f.isPickable = true;
+    f.material  = lightGrayPlaceholderMat("KLIKNOUT → VYBRAT");
+
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac",{width:FRAME_SIZE.W,height:0.22},scene);
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
+    plac.rotation.y = Math.PI; plac.isPickable = true;
+
+    const data = { title: "(bez názvu)", url: "" };
+    drawPlacard(plac, data);
+
+    const it = { frame:f, box, placard:plac, data };
+    frames.push(it); return it;
+  }
+
+  function lightGrayPlaceholderMat(text){
+    const dt=new BABYLON.DynamicTexture("ph2",{width:512,height:512},scene,true);
+    const c=dt.getContext();
+    c.fillStyle="#bcbcbc"; c.fillRect(0,0,512,512);
+    c.fillStyle="#222";    c.font="bold 32px system-ui"; c.textAlign="center"; c.textBaseline="middle";
+    c.fillText(text,256,256);
+    dt.update(); return unlitTex(dt);
+  }
+  function drawPlacard(plac,data){
+    const dt=new BABYLON.DynamicTexture("pl",{width:1024,height:256},scene,true);
+    const c=dt.getContext();
+    c.fillStyle="#222"; c.fillRect(0,0,1024,256);
+    c.fillStyle="#e6e6e6"; c.font="bold 56px system-ui"; c.textAlign="center"; c.textBaseline="middle";
+    c.fillText(data.title||"(bez názvu)",512,128);
+    dt.update(); plac.material=unlitTex(dt);
+  }
+
+  /* =========================
+     VÝBĚR / PICKING
+  ========================= */
+  function clearSelection(){ if(!selected) return; selected.box.renderOutline=false; hl.removeAllMeshes(); selected=null; }
+  function selectFrame(it){
+    if(mode!==MODE.ADMIN) return;
+    clearSelection();
+    selected=it;
+    it.box.outlineColor = BABYLON.Color3.FromHexString("#66CCFF");
+    it.box.outlineWidth = 0.04;
+    it.box.renderOutline = true;
+    hl.addMesh(it.box, BABYLON.Color3.FromHexString("#66CCFF"));
+    hint("Vybrán rám.");
+  }
+  function setupPicking(){
+    scene.onPointerObservable.add((pi)=>{
+      if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+      if (!pi.pickInfo?.hit) return;
+      const mesh = pi.pickInfo.pickedMesh;
+
+      for(const it of frames){
+        if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
+      }
+      if (mode === MODE.ADMIN){
+        for(const it of frames){ if(mesh===it.frame||mesh===it.box){ selectFrame(it); return; } }
+      }
+    }, BABYLON.PointerEventTypes.POINTERPICK);
+  }
+
+  /* =========================
+     PLYNULÉ PŘIBLÍŽENÍ (double‑click)
+  ========================= */
+  function setupDoubleClickZoom(){
+    canvas.addEventListener("dblclick", ()=>{
+      const pick=scene.pick(scene.pointerX,scene.pointerY);
+      if(!pick?.hit) return;
+      camera.target=pick.pickedPoint.clone();
+      camera.radius=Math.max(MIN_RADIUS, camera.radius*0.65);
+    });
+  }
+
+  /* =========================
+     LOADING OBRÁZKŮ
+  ========================= */
+  async function loadIntoFrameSmart(inputText, item){
+    if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
+    if(!item){ item=frames[0]; }
+    const s=inputText.trim();
+    if(s.startsWith("<svg")) return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s),item.frame);
+    if(s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s,item.frame);
+    return loadImageUrlIntoTexture(s,item.frame);
+  }
+
+  async function loadImageUrlIntoTexture(url, frame){
+    try{
+      const resp=await fetch(url,{mode:"cors",cache:"no-store"});
+      if(!resp.ok) throw new Error("HTTP");
+      const ct=resp.headers.get("content-type")||""; if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
+      const blob=await resp.blob();
+      let bmp;
+      try{ bmp=await createImageBitmap(blob,{premultiplyAlpha:"premultiply"});}catch{ bmp=await blobToImg(blob); }
+      const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
+      const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+      const m = unlitTex(dt); frame.material = m; hint("Obrázek načten ✔");
+    }catch(e){ console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL)."); }
+  }
+
+  async function loadSVGOrDataIntoTexture(dataUrl, frame){
+    const bmp = await dataUrlToImg(dataUrl);
+    const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
+    const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+    frame.material = unlitTex(dt); hint("Obrázek/SVG načten ✔");
+  }
+
+  function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
+  function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
+  function drawFitted(ctx,bmp,frameW,frameH){
+    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
+    if(r>targetR){ dh=1024; dw=Math.round(dh*r); dx=Math.round((1024-dw)/2);}
+    else{ dw=1024; dh=Math.round(dw/r); dy=Math.round((1024-dh)/2);}
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,1024,1024);
+    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
+  }
+
+  /* =========================
+     LOGO – jednoduchá varianta
+  ========================= */
+  function buildGalleryLogo(){
+    const tex = new BABYLON.DynamicTexture("logo",{width:512,height:128},scene,true);
+    const c = tex.getContext();
+    c.fillStyle = "#000"; c.fillRect(0,0,512,128);
+    c.fillStyle = "#daff3e"; c.font = "bold 64px system-ui"; c.textAlign="center"; c.textBaseline="middle";
+    c.fillText("VIRTUAL GALLERY", 256, 64);
+    tex.update();
+
+    const mat = new BABYLON.StandardMaterial("logoMat", scene);
+    mat.diffuseTexture = tex;
+    mat.opacityTexture = tex;
+    mat.disableLighting = true;
+    mat.emissiveColor = new BABYLON.Color3(1,1,1);
+
+    const p = BABYLON.MeshBuilder.CreatePlane("logo",{width:ROOM.W*0.42,height:ROOM.W*0.42/4},scene);
+    p.position.set(0, WALL_LAYOUT.centerY + FRAME_SIZE.H*0.95 + 0.40, -ROOM.D/2 + 0.25);
+    p.rotation.y = Math.PI;
+    p.material = mat;
+    glow.addIncludedOnlyMesh(p);
+  }
+
+  /* =========================
+     UI BINDINGS
+  ========================= */
+  $("btnLoad").addEventListener("click", ()=>{
+    const it = selected || frames[0];
+    if(!it){ alert("Neexistuje žádný rám."); return; }
+    const input = imgUrlEl.value.trim();
+    loadIntoFrameSmart(input, it);
+  });
+
+  $("btnPlacard").addEventListener("click", ()=>{
+    const it=selected||frames[0];
+    it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
+    it.data.url   = (linkEl?.value  || "").trim();
+    drawPlacard(it.placard, it.data);
+    hint("Cedulka aktualizována.");
+  });
+
+  $("btnAdd").addEventListener("click", ()=>{
+    const p = framePos(frames.length);
+    if(!p){ alert("Už není místo v nastaveném úseku stěny."); return; }
+    const it=addFrame(p);
+    if (mode === MODE.ADMIN) selectFrame(it);
+    hint("Přidán nový rám.");
+  });
+
+  $("btnResetCam").addEventListener("click", ()=>{
+    camera.target.set(0, ROOM.H*0.48, 0);
+    camera.radius=11.5;
+  });
+
+  $("btnApplyLayout").addEventListener("click", applyLayoutFromUI);
+  $("btnDemo").addEventListener("click", async ()=>{
+    const DEMO = [
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#e8e8e8'/><circle cx='50' cy='50' r='32' fill='#222'/></svg>`),
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#d0e8ff'/><rect x='20' y='20' width='60' height='60' fill='#0044aa'/></svg>`),
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#ffe9d6'/><path d='M15 85 L85 15' stroke='#c24' stroke-width='10'/></svg>`)
+    ];
+    for(let i=0;i<Math.min(DEMO.length,frames.length);i++){
+      await loadSVGOrDataIntoTexture(DEMO[i], frames[i].frame);
+      frames[i].data.title = "DEMO "+(i+1);
+      drawPlacard(frames[i].placard, frames[i].data);
+    }
+    hint("DEMO obrázky vloženy ✔");
+  });
+
+  /* =========================
+     AUTO-LOAD LOKÁLNÍCH ASSETŮ
+  ========================= */
+  function autoAssignLocalAssets(){
+    const local = ["assets/one.jpg","assets/two.jpg"];
+    local.forEach((url, i)=>{
+      const it = frames[i];
+      if (!it) return;
+      // pokusíme se obrázek načíst (když chybí, tiše přeskočíme)
+      const img = new Image();
+      img.onload = ()=>{
+        const dt=new BABYLON.DynamicTexture("imgDT"+i,{width:1024,height:1024},scene,true);
+        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+        it.frame.material = unlitTex(dt);
+        it.data.title = url.split("/").pop();
+        drawPlacard(it.placard, it.data);
+      };
+      img.onerror = ()=>{}; // když soubor neexistuje, nic se neděje
+      img.src = url + "?v=" + Date.now(); // obejdeme cache GH Pages
+    });
+  }
+
+  /* =========================
+     BOOT
+  ========================= */
+  createScene();
+  engine.runRenderLoop(()=> scene.render());
+  window.addEventListener("resize", ()=> engine.resize());
+  setMode(MODE.VIEW); // start ve VIEW
+  </script>
 </body>
 </html>
