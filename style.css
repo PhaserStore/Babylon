@@ -1,3 +1,4 @@
+/* ====== ZÁKLAD ====== */
 html, body {
   height: 100%;
   margin: 0;
@@ -7,45 +8,50 @@ html, body {
 #renderCanvas {
   width: 100vw;
   height: 100vh;
-  touch-action: none; /* pro pointer gesture */
   display: block;
+  touch-action: none; /* pro pointer gesto */
 }
+
+/* ====== TOOLBAR ====== */
 #toolbar {
-  position: fixed; inset: 16px 16px auto 16px;
-  z-index: 10;
+  position: fixed; inset: 12px 12px auto 12px;
+  z-index: 900;
   display: flex; flex-wrap: wrap; gap: 8px 12px;
   align-items: center;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(20,20,20,0.65);
+  background: rgba(20,20,20,0.85);
   color: #fff; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   backdrop-filter: blur(8px);
 }
-#toolbar .group { display: flex; gap: 8px; align-items: center; }
 #toolbar input, #toolbar select, #toolbar textarea, #toolbar button {
   background: #111; color: #f0f0f0; border: 1px solid #333; border-radius: 6px;
   padding: 6px 8px; font-size: 13px;
 }
 #toolbar textarea { width: 260px; height: 72px; }
 .hidden { display: none; }
-.hint { opacity: .75; font-size: 12px; }
-/* === SoundCloud overlay – viditelný jen v admin módu === */
+
+/* ====== SoundCloud overlay ====== */
 #sc-wrap {
   position: fixed;
   left: 16px;
   bottom: 16px;
-  width: 360px;     /* můžeš upravit */
-  height: 166px;    /* compact widget výška */
+  width: 360px;   /* compact varianta */
+  height: 166px;
   z-index: 1000;
-  display: none;    /* řídí se z JS podle admin/view módu */
+  display: none;  /* řídí se z JS podle admin/view módu */
   box-shadow: 0 8px 24px rgba(0,0,0,.3);
   border-radius: 8px;
   overflow: hidden;
   background: #000;
 }
-#sc-wrap iframe { width: 100%; height: 100%; border: 0; }
+#sc-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
 
-/* skrytý „player“ pro view mód (viz JS) */
+/* (Skrytý autoplay player pro VIEW) – vytváří JS, tady jen pro úplnost */
 #sc-hidden {
   position: fixed;
   width: 1px; height: 1px;
