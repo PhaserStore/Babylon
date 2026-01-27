@@ -331,104 +331,29 @@
     ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
   }
 
+  /* =========================
+     LOGO – jednoduchá varianta
+  ========================= */
+  function buildGalleryLogo(){
+    const tex = new BABYLON.DynamicTexture("logo",{width:512,height:128},scene,true);
+    const c = tex.getContext();
+    c.fillStyle = "#000"; c.fillRect(0,0,512,128);
+    c.fillStyle = "#daff3e"; c.font = "bold 64px system-ui"; c.textAlign="center"; c.textBaseline="middle";
+    c.fillText("VIRTUAL GALLERY", 256, 64);
+    tex.update();
 
+    const mat = new BABYLON.StandardMaterial("logoMat", scene);
+    mat.diffuseTexture = tex;
+    mat.opacityTexture = tex;
+    mat.disableLighting = true;
+    mat.emissiveColor = new BABYLON.Color3(1,1,1);
 
-/* =========================
-   LOGO – SVG s neon glowem
-========================= */
-function buildGalleryLogo(){
-  // Nastavení pozice/velikosti
-  const LOGO = {
-    url: 'assets/phaser.svg', // ← SVG soubor v assets/
-    scale: 0.44,              // šířka loga v poměru k ROOM.W (0.44 = 44 % šířky stěny)
-    blur: 14,                 // poloměr rozmazání glow (px) – měkkost neonu
-    yOffset: 0.40,            // posun loga nad střed řady rámů (m)
-    wallOffset: 0.25,         // vzdálenost od zadní stěny (m)
-    fallbackAspect: 3.45      // když SVG nevrátí rozměry, použijeme tenhle poměr
-  };
-
-  const img = new Image();
-  img.crossOrigin = 'anonymous';        // bezpečné pro GH Pages
-  img.src = LOGO.url + '?v=' + Date.now(); // obejít cache při výměně SVG
-
-  img.onload = () => {
-    // 1) Připravíme dvě průhledné textury (ostrá + glow)
-    const SIZE = 1024;
-    const sharpDT = new BABYLON.DynamicTexture('logoSharpDT', {width:SIZE, height:SIZE}, scene, true);
-    const sharpCtx = sharpDT.getContext();
-    sharpCtx.clearRect(0,0,SIZE,SIZE); // žádné pozadí (A=0)
-
-    const glowDT  = new BABYLON.DynamicTexture('logoGlowDT',  {width:SIZE, height:SIZE}, scene, true);
-    const glowCtx = glowDT.getContext();
-    glowCtx.clearRect(0,0,SIZE,SIZE);
-
-    // 2) Korektní poměr stran – zkusíme vzít z obrázku, jinak fallback
-    const aspect = (img.naturalWidth && img.naturalHeight)
-      ? (img.naturalWidth / img.naturalHeight)
-      : LOGO.fallbackAspect;
-
-    const maxW = SIZE * 0.92;             // malá rezerva od okrajů
-    const drawW = maxW;
-    const drawH = Math.round(drawW / aspect);
-    const drawX = Math.round((SIZE - drawW)/2);
-    const drawY = Math.round((SIZE - drawH)/2);
-
-    // 3) Ostře vykreslené logo (bez pozadí)
-    sharpCtx.drawImage(img, drawX, drawY, drawW, drawH);
-    sharpDT.update();
-
-    // 4) Glow vrstva (rozmazané logo)
-    glowCtx.filter = `blur(${LOGO.blur}px)`;
-    glowCtx.drawImage(img, drawX, drawY, drawW, drawH);
-    glowDT.update();
-
-    // 5) Materiály – jen textury, bez vyplňování barvou
-    const sharpMat = new BABYLON.StandardMaterial('logoSharpMat', scene);
-    sharpMat.disableLighting = true;
-    sharpMat.diffuseTexture  = sharpDT;
-    sharpMat.opacityTexture  = sharpDT;
-    sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1);
-    sharpMat.backFaceCulling = false;
-
-    const glowMat = new BABYLON.StandardMaterial('logoGlowMat', scene);
-    glowMat.disableLighting = true;
-    glowMat.emissiveTexture = glowDT;  // glow běží v emissive
-    glowMat.opacityTexture  = glowDT;
-    glowMat.emissiveColor   = new BABYLON.Color3(1,1,1);
-    glowMat.backFaceCulling = false;
-
-    // 6) Rozměry plane podle šířky stěny (bez deformace)
-    const planeW = ROOM.W * LOGO.scale;
-    const planeH = planeW / aspect;
-
-    // 7) Pozice – vystředěné nad rámy na zadní stěně
-    const yPos = WALL_LAYOUT.centerY + FRAME_SIZE.H*0.95 + LOGO.yOffset;
-
-    // Glow plane – trošičku „za“ ostrým (aby se prolnuly hrany)
-    const gl = BABYLON.MeshBuilder.CreatePlane('logoGlow', {width:planeW, height:planeH}, scene);
-    gl.position.set(0, yPos, -ROOM.D/2 + LOGO.wallOffset - 0.004);
-    gl.rotation.y = Math.PI;
-    gl.material   = glowMat;
-    glow.addIncludedOnlyMesh(gl); // GlowLayer řešíme jen pro logo
-
-    // Ostrý plane – nepatrně „před“ glowem
-    const sh = BABYLON.MeshBuilder.CreatePlane('logoSharp', {width:planeW, height:planeH}, scene);
-    sh.position.set(0, yPos, -ROOM.D/2 + LOGO.wallOffset + 0.004);
-    sh.rotation.y = Math.PI;
-    sh.material   = sharpMat;
-
-    // Trochu zjemníme globální glow, aby se logo nepřepalovalo
-    glow.intensity = 0.65; // klidně dolaď 0.55–0.85
-    hint('Logo: SVG načteno a zobrazeno s neon glowem ✔');
-  };
-
-  img.onerror = () => {
-    hint('Logo: Nepodařilo se načíst assets/phaser.svg – zůstává textová varianta.');
-  };
-}
-
-/* ... ostatní kód beze změny ... */
-</script>}
+    const p = BABYLON.MeshBuilder.CreatePlane("logo",{width:ROOM.W*0.42,height:ROOM.W*0.42/4},scene);
+    p.position.set(0, WALL_LAYOUT.centerY + FRAME_SIZE.H*0.95 + 0.40, -ROOM.D/2 + 0.25);
+    p.rotation.y = Math.PI;
+    p.material = mat;
+    glow.addIncludedOnlyMesh(p);
+  }
 
   /* =========================
      UI BINDINGS
