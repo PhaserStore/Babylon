@@ -285,3 +285,297 @@ function buildInitialFrames(){
 let selected = null;
 function clearSelection(){
   if (!selected) return;
+  selected.box.renderOutline = false;
+  hl.removeAllMeshes();
+  selected = null;
+}
+function selectFrame(it){
+  if (mode !== MODE.ADMIN) return;
+  clearSelection();
+  selected = it;
+  it.box.outlineColor = BABYLON.Color3.FromHexString("#66CCFF");
+  it.box.outlineWidth = 0.04;
+  it.box.renderOutline = true;
+  hl.addMesh(it.box, BABYLON.Color3.FromHexString("#66CCFF"));
+  hint(`Vybrán rám (${it.wall} #${it.idx+1}).`);
+}
+function setupPicking(){
+  scene.onPointerObservable.add((pi)=>{
+    if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+    if (!pi.pickInfo?.hit) return;
+    const mesh = pi.pickInfo.pickedMesh;
+
+    for (const it of allFrames()){
+      if (mesh === it.placard && it.data.url){
+        window.open(it.data.url, "_blank", "noopener");
+        return;
+      }
+    }
+    if (mode === MODE.ADMIN){
+      for (const it of allFrames()){
+        if (mesh===it.frame || mesh===it.box){ selectFrame(it); return; }
+      }
+    }
+  }, BABYLON.PointerEventTypes.POINTERPICK);
+}
+
+/* -----------------------------
+   5) Double click zoom
+------------------------------*/
+function setupDoubleClickZoom(){
+  canvas.addEventListener("dblclick", ()=>{
+    const pick = scene.pick(scene.pointerX, scene.pointerY);
+    if (!pick?.hit) return;
+    camera.target = pick.pickedPoint.clone();
+    camera.radius = Math.max(MIN_RADIUS, camera.radius*0.65);
+  });
+}
+
+/* -----------------------------
+   6) Image loading
+------------------------------*/
+function drawFitted(ctx, bmp, frameW, frameH){
+  const targetR = frameW/frameH, r = bmp.width / bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
+  if (r>targetR){ dh=1024; dw=Math.round(dh*r); dx=Math.round((1024-dw)/2); }
+  else          { dw=1024; dh=Math.round(dw/r);  dy=Math.round((1024-dh)/2); }
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,1024,1024);
+  ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
+}
+function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
+function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
+
+async function loadImageUrlIntoTexture(url, frame){
+  try{
+    const resp = await fetch(url, { mode:"cors", cache:"no-store" });
+    if(!resp.ok) throw new Error("HTTP");
+    const ct = resp.headers.get("content-type")||"";
+    if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
+    const blob = await resp.blob();
+    let bmp;
+    try { bmp = await createImageBitmap(blob, { premultiplyAlpha:"premultiply" }); }
+    catch { bmp = await blobToImg(blob); }
+
+    const dt = new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
+    const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+    frame.material = unlitTex(dt); hint("Obrázek načten ✔");
+  }catch(e){
+    console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL).");
+  }
+}
+async function loadSVGOrDataIntoTexture(dataUrl, frame){
+  const bmp = await dataUrlToImg(dataUrl);
+  const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
+  const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+  frame.material = unlitTex(dt); hint("Obrázek/SVG načten ✔");
+}
+async function loadIntoFrameSmart(inputText, item){
+  if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
+  if(!item){ item = framesOf(currentWall)[0] || allFrames()[0]; }
+  if(!item){ alert("Neexistuje žádný rám."); return; }
+  const s = inputText.trim();
+  if (s.startsWith("<svg"))        return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s), item.frame);
+  if (s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s, item.frame);
+  return loadImageUrlIntoTexture(s, item.frame);
+}
+function autoAssignLocalAssets(){
+  const arr = framesOf('back');
+  const local = ["assets/one.jpg","assets/two.jpg"];
+  local.forEach((url, i)=>{
+    const it = arr[i]; if (!it) return;
+    const img = new Image();
+    img.onload = ()=>{
+      const dt=new BABYLON.DynamicTexture("imgDT"+i,{width:1024,height:1024},scene,true);
+      const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+      it.frame.material = unlitTex(dt);
+      it.data.title = url.split("/").pop();
+      drawPlacard(it.placard, it.data);
+      savePlacardData(it.wall, it.idx, it.data);
+    };
+    img.onerror = ()=>{};
+    img.src = url + "?v=" + Date.now();
+  });
+}
+
+/* -----------------------------
+   7) SVG logo "phaser" – zadní i přední stěna
+------------------------------*/
+function buildGalleryLogo(){
+  const LOGO = {
+    url: 'assets/phaser.svg',
+    scale: 0.44,
+    blur: 14,
+    yOffset: 0.40,
+    wallOffset: 0.25,
+    fallbackAspect: 3.45
+  };
+
+  fetch(LOGO.url + '?v=' + Date.now())
+    .then(r => r.text())
+    .then(svgText => {
+      let aspect = LOGO.fallbackAspect;
+      const m = svgText.match(/viewBox\s*=\s*["']\s*[\d.\-]+\s+[\d.\-]+\s+([\d.]+)\s+([\d.]+)\s*["']/i);
+      if (m) {
+        const w = parseFloat(m[1]), h = parseFloat(m[2]);
+        if (w>0 && h>0) aspect = w/h;
+      }
+      const dataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgText);
+      placeLogoOnBothWalls(dataUrl, aspect);
+    })
+    .catch(()=>{
+      const img = new Image(); img.onload = ()=>placeLogoOnBothWalls(img.src, LOGO.fallbackAspect);
+      img.src = LOGO.url + '?v=' + Date.now();
+    });
+
+  function placeLogoOnBothWalls(imageSrc, aspect){
+    const SIZE = 1024;
+
+    const sharpDT = new BABYLON.DynamicTexture('logoSharpDT',{width:SIZE,height:SIZE},scene,true);
+    const sctx = sharpDT.getContext(); sctx.clearRect(0,0,SIZE,SIZE);
+
+    const glowDT  = new BABYLON.DynamicTexture('logoGlowDT',{width:SIZE,height:SIZE},scene,true);
+    const gctx = glowDT.getContext(); gctx.clearRect(0,0,SIZE,SIZE);
+
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = SIZE * 0.92;
+      const drawW = maxW;
+      const drawH = Math.round(drawW / aspect);
+      const drawX = Math.round((SIZE - drawW)/2);
+      const drawY = Math.round((SIZE - drawH)/2);
+
+      sctx.clearRect(0,0,SIZE,SIZE);
+      sctx.drawImage(img, drawX, drawY, drawW, drawH);
+      sharpDT.update();
+
+      gctx.clearRect(0,0,SIZE,SIZE);
+      gctx.filter = `blur(${LOGO.blur}px)`;
+      gctx.drawImage(img, drawX, drawY, drawW, drawH);
+      glowDT.update();
+
+      const sharpMat = new BABYLON.StandardMaterial('logoSharpMat', scene);
+      sharpMat.disableLighting = true;
+      sharpMat.diffuseTexture  = sharpDT; sharpMat.diffuseTexture.hasAlpha = true;
+      sharpMat.opacityTexture  = sharpDT;
+      sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+      sharpMat.backFaceCulling = false;
+
+      const glowMat = new BABYLON.StandardMaterial('logoGlowMat', scene);
+      glowMat.disableLighting = true;
+      glowMat.emissiveTexture = glowDT; glowMat.emissiveTexture.hasAlpha = true;
+      glowMat.opacityTexture  = glowDT;
+      glowMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+      glowMat.backFaceCulling = false;
+
+      const planeW = ROOM.W * LOGO.scale;
+      const planeH = planeW / aspect;
+      const yBack  = WALL_LAYOUT.back.centerY  + FRAME_SIZE.H*0.95 + LOGO.yOffset;
+      const yFront = WALL_LAYOUT.front.centerY + FRAME_SIZE.H*0.95 + LOGO.yOffset;
+
+      // zadní
+      const glBack = BABYLON.MeshBuilder.CreatePlane('logoGlowBack',{width:planeW,height:planeH},scene);
+      glBack.parent = wallNodes.back;
+      glBack.position.set(0, (yBack - WALL_LAYOUT.back.centerY), LOGO.wallOffset - 0.004);
+      glBack.material = glowMat; glow.addIncludedOnlyMesh(glBack);
+
+      const shBack = BABYLON.MeshBuilder.CreatePlane('logoSharpBack',{width:planeW,height:planeH},scene);
+      shBack.parent = wallNodes.back;
+      shBack.position.set(0, (yBack - WALL_LAYOUT.back.centerY), LOGO.wallOffset + 0.004);
+      shBack.material = sharpMat;
+
+      // přední
+      const glFront = BABYLON.MeshBuilder.CreatePlane('logoGlowFront',{width:planeW,height:planeH},scene);
+      glFront.parent = wallNodes.front;
+      glFront.position.set(0, (yFront - WALL_LAYOUT.front.centerY), LOGO.wallOffset - 0.004);
+      glFront.material = glowMat; glow.addIncludedOnlyMesh(glFront);
+
+      const shFront = BABYLON.MeshBuilder.CreatePlane('logoSharpFront',{width:planeW,height:planeH},scene);
+      shFront.parent = wallNodes.front;
+      shFront.position.set(0, (yFront - WALL_LAYOUT.front.centerY), LOGO.wallOffset + 0.004);
+      shFront.material = sharpMat;
+
+      glow.intensity = 0.65;
+      hint('Logo: SVG načteno na zadní i přední stěně ✔');
+    };
+    img.src = imageSrc;
+  }
+}
+
+/* -----------------------------
+   8) UI bindings
+------------------------------*/
+if (btnLoadEl){
+  btnLoadEl.addEventListener("click", ()=>{
+    const it = selected || framesOf(currentWall)[0] || allFrames()[0];
+    if (!it) { alert("Neexistuje žádný rám."); return; }
+    const input = (imgUrlEl?.value || '').trim();
+    loadIntoFrameSmart(input, it);
+  });
+}
+if (btnPlacardEl){
+  btnPlacardEl.addEventListener("click", ()=>{
+    const it = selected || framesOf(currentWall)[0] || allFrames()[0];
+    if (!it) { alert("Neexistuje žádný rám."); return; }
+    it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
+    it.data.url   = (linkEl?.value  || "").trim();
+    drawPlacard(it.placard, it.data);
+    savePlacardData(it.wall, it.idx, it.data);
+    hint("Cedulka uložena a aktualizována.");
+  });
+}
+if (btnAddEl){
+  btnAddEl.addEventListener("click", ()=>{
+    const it = addFrameOnWall(currentWall, null);
+    if (!it) return;
+    if (mode === MODE.ADMIN) selectFrame(it);
+    hint(`Přidán nový rám na stěnu: ${currentWall}.`);
+  });
+}
+if (btnResetCam){
+  btnResetCam.addEventListener("click", ()=>{
+    camera.target.set(0, ROOM.H*0.48, 0);
+    camera.radius = 11.5;
+  });
+}
+if (btnApplyLay){
+  btnApplyLay.addEventListener("click", applyLayoutFromUI);
+}
+if (btnDemoEl){
+  btnDemoEl.addEventListener("click", async ()=>{
+    const DEMO = [
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#e8e8e8'/><circle cx='50' cy='50' r='32' fill='#222'/></svg>`),
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#d0e8ff'/><rect x='20' y='20' width='60' height='60' fill='#0044aa'/></svg>`),
+      "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#ffe9d6'/><path d='M15 85 L85 15' stroke='#c24' stroke-width='10'/></svg>`)
+    ];
+    const arr = allFrames();
+    for (let i=0;i<Math.min(DEMO.length,arr.length);i++){
+      await loadSVGOrDataIntoTexture(DEMO[i], arr[i].frame);
+      arr[i].data.title = "DEMO "+(i+1);
+      drawPlacard(arr[i].placard, arr[i].data);
+      savePlacardData(arr[i].wall, arr[i].idx, arr[i].data);
+    }
+    hint("DEMO obrázky vloženy ✔");
+  });
+}
+if (lxSpaceEl){
+  lxSpaceEl.addEventListener("input", ()=> hint("Mezera: "+lxSpaceEl.value+" m"));
+}
+
+/* -----------------------------
+   9) SAFE BOOT – až po DOM + Babylon
+------------------------------*/
+(function startWhenReady(){
+  function ready(){ return !!(window.BABYLON && document.getElementById('renderCanvas')); }
+  if (!ready()){
+    document.addEventListener('DOMContentLoaded', ()=>{
+      setTimeout(()=> ready() ? boot() : console.error('Babylon/Canvas still not ready'), 0);
+    });
+  } else boot();
+
+  function boot(){
+    engine = createEngine();
+    scene  = createScene();
+    engine.runRenderLoop(()=> scene.render());
+    window.addEventListener("resize", ()=> engine.resize());
+    setMode(MODE.VIEW);
+  }
+})();
