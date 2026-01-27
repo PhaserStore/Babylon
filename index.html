@@ -1,199 +1,52 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="cs">
 <head>
-<meta charset="utf-8">
-<title>Virtual Gallery</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background: #111;
-  font-family: system-ui;
-  color: #fff;
-}
-
-#ui {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  background: rgba(0,0,0,0.6);
-  padding: 10px;
-  border-radius: 10px;
-}
-
-#ui input {
-  margin: 2px;
-}
-
-body.view #ui {
-  display: none;
-}
-
-canvas {
-  display: block;
-}
-
-.led {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 10px;
-  background: linear-gradient(90deg, red, orange, yellow, green, blue, violet);
-  animation: ledScroll 2s linear infinite;
-}
-
-@keyframes ledScroll {
-  0% { background-position: 0 0; }
-  100% { background-position: 200% 0; }
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Babylon Gallery</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Babylon.js (produkčně doporučeno hostovat sám; CDN je OK pro demo) -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
-<body class="view">
+<body>
+  <!-- Overlay UI pro výběr zdroje fotek -->
+  <div id="toolbar">
+    <div class="group">
+      <label>Zdroj obrázků:</label>
+      <select id="sourceSelect">
+        <option value="github" selected>GitHub /assets</option>
+        <option value="url">URL seznam</option>
+        <option value="upload">Lokální soubory</option>
+      </select>
+    </div>
 
-<div class="led"></div>
+    <div id="githubInputs" class="group">
+      <input id="ghOwner" placeholder="owner (např. Ulet)" />
+      <input id="ghRepo" placeholder="repo (např. Babylon)" />
+      <input id="ghBranch" placeholder="branch (např. main)" value="main" />
+      <button id="btnLoadGithub">Načíst /assets</button>
+    </div>
 
-<div id="ui">
-  <b>ADMIN</b><br>
-  <input id="url" placeholder="URL obrázku / videa" size="40">
-  <button id="load">Načíst</button><br>
-  <small>+/- scale · ← → ↑ ↓ posun · R rotace · F flip · A admin · V view</small>
-</div>
+    <div id="urlInputs" class="group hidden">
+      <textarea id="urlList" placeholder="vložit URL (1 na řádek)"></textarea>
+      <button id="btnLoadUrls">Načíst URL</button>
+    </div>
 
-<canvas id="c"></canvas>
+    <div id="uploadInputs" class="group hidden">
+      <input id="filePicker" type="file" accept="image/*" multiple />
+    </div>
 
-<script src="https://cdn.babylonjs.com/babylon.js"></script>
-<script>
-// režimy
-const MODE = { ADMIN: "admin", VIEW: "view" };
-let mode = MODE.VIEW;
+    <div class="group">
+      <button id="btnToggleEdit">Režim úpravy rámu: Vyp</button>
+      <button id="btnFlipH">Zrcadlit H</button>
+      <button id="btnFlipV">Zrcadlit V</button>
+      <span class="hint">Zoom kolečkem / pinch, posun tahem</span>
+    </div>
+  </div>
 
-// BabylonJS setup
-const canvas = document.getElementById("c");
-const engine = new BABYLON.Engine(canvas, true);
-const scene = new BABYLON.Scene(engine);
-scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.05, 1);
-
-const cam = new BABYLON.ArcRotateCamera("cam",-Math.PI/2, Math.PI/2.3, 12, new BABYLON.Vector3(0,3,0), scene);
-cam.attachControl(canvas, true);
-cam.lowerRadiusLimit = 2;
-
-new BABYLON.HemisphericLight("l", new BABYLON.Vector3(0,1,0), scene);
-
-// místnost
-const ROOM = { W:16, D:28, H:5 };
-BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene);
-const backWall = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
-backWall.position.z = -ROOM.D/2;
-backWall.position.y = ROOM.H/2;
-
-// obrazy/videa
-let selected = null;
-const frames = [];
-
-function isVideo(u){ return u.match(/\.(mp4|webm)$/i); }
-
-function applyTransform(it){
-  const t = it.transform;
-  it.mesh.scaling.x = t.flipX ? -t.scale : t.scale;
-  it.mesh.scaling.y = t.scale;
-  it.mesh.rotation.z = t.rotation;
-  it.mesh.position.x = it.base.x + t.offsetX;
-  it.mesh.position.y = it.base.y + t.offsetY;
-}
-
-function loadImage(url,it){
-  const tex = new BABYLON.Texture(url, scene);
-  const mat = new BABYLON.StandardMaterial("m",scene);
-  mat.diffuseTexture = tex;
-  mat.emissiveTexture = tex;
-  mat.disableLighting = true;
-  it.mesh.material = mat;
-}
-
-function loadVideo(url,it){
-  const v = document.createElement("video");
-  v.src = url;
-  v.loop = true;
-  v.muted = true;
-  v.autoplay = true;
-  const tex = new BABYLON.VideoTexture("v",v,scene,true,true);
-  const mat = new BABYLON.StandardMaterial("vm",scene);
-  mat.diffuseTexture = tex;
-  mat.emissiveTexture = tex;
-  mat.disableLighting = true;
-  it.mesh.material = mat;
-}
-
-function addFrame(x,y,z,data){
-  const p = BABYLON.MeshBuilder.CreatePlane("p",{size:1.2},scene);
-  p.position.set(x,y,z);
-  p.rotation.y = Math.PI;
-  p.isPickable = true;
-  const it = {
-    mesh: p,
-    base: p.position.clone(),
-    transform: data.transform
-  };
-  frames.push(it);
-  if(isVideo(data.src)) loadVideo(data.src,it);
-  else loadImage(data.src,it);
-  applyTransform(it);
-}
-
-// načtení obrázků z assets/
-async function loadGallery(){
-  const images = ["assets/one.jpg"]; // sem můžeš přidat další soubory
-  const y = ROOM.H * 0.55;
-  images.forEach((src,i)=>{
-    const data = {
-      src: src,
-      transform: { scale: 1, rotation: 0, flipX: false, offsetX:0, offsetY:0 }
-    };
-    addFrame(-4 + i*2, y, -ROOM.D/2 + 0.02, data);
-  });
-}
-
-// interakce
-scene.onPointerObservable.add(e=>{
-  if(mode!==MODE.ADMIN) return;
-  if(e.pickInfo.hit){
-    selected = frames.find(f => f.mesh === e.pickInfo.pickedMesh);
-  }
-});
-
-window.addEventListener("keydown", e=>{
-  if(e.key==="a"){mode=MODE.ADMIN; document.body.className="admin";}
-  if(e.key==="v"){mode=MODE.VIEW; document.body.className="view";}
-  if(!selected || mode!==MODE.ADMIN) return;
-  const t = selected.transform;
-  if(e.key==="+") t.scale+=0.05;
-  if(e.key==="-" && t.scale>0.1) t.scale-=0.05;
-  if(e.key==="ArrowLeft") t.offsetX-=0.05;
-  if(e.key==="ArrowRight") t.offsetX+=0.05;
-  if(e.key==="ArrowUp") t.offsetY+=0.05;
-  if(e.key==="ArrowDown") t.offsetY-=0.05;
-  if(e.key==="r") t.rotation+=0.1;
-  if(e.key==="f") t.flipX=!t.flipX;
-  applyTransform(selected);
-});
-
-document.getElementById("load").onclick = ()=>{
-  if(!selected) return;
-  const u = document.getElementById("url").value;
-  selected.transform = {scale:1,rotation:0,flipX:false,offsetX:0,offsetY:0};
-  if(isVideo(u)) loadVideo(u,selected);
-  else loadImage(u,selected);
-};
-
-loadGallery();
-engine.runRenderLoop(()=>scene.render());
-window.addEventListener("resize",()=>engine.resize());
-</script>
+  <canvas id="renderCanvas"></canvas>
+  <script src="script.js"></script>
 </body>
 </html>
+``
