@@ -402,5 +402,5 @@ function buildGalleryLogo(){
   const LOGO = {
     url: 'assets/phaser.svg',
     scale: 0.44,
-    blur: 10,
+    blur: 3,
     yOffset:
