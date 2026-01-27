@@ -4,55 +4,60 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Babylon Gallery</title>
+
+  <!-- CSS -->
   <link rel="stylesheet" href="style.css" />
-  <!-- Babylon.js (produkčně doporučeno hostovat sám; CDN je OK pro demo) -->
+
+  <!-- Babylon.js (CDN; pro produkci můžeš hostovat sám) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 <body>
-  <!-- Overlay UI pro výběr zdroje fotek -->
-  <div id="toolbar">
-    <div class="group">
-      <label>Zdroj obrázků:</label>
-      <select id="sourceSelect">
-        <option value="github" selected>GitHub /assets</option>
-        <option value="url">URL seznam</option>
-        <option value="upload">Lokální soubory</option>
-      </select>
-    </div>
-<!-- === SoundCloud: overlay pro ADMIN mód === -->
-<div id="sc-wrap">
-  <iframe id="sc-iframe" allow="autoplay"></iframe>
-</div>
 
-<!-- === SoundCloud: skrytý iframe pro VIEW mód (vytváří se/ničí z JS) === -->
-<!-- <iframe id="sc-hidden" allow="autoplay"></iframe>  (vytváří JS, není nutno zde) -->
-    <div id="githubInputs" class="group">
-      <input id="ghOwner" placeholder="owner (např. Ulet)" />
+  <!-- Toolbar (ADMIN zobrazený až po stisku A) -->
+  <div id="toolbar" style="display:none">
+    <strong>ADMIN</strong>
+
+    <label>Zdroj:</label>
+    <select id="sourceSelect">
+      <option value="github" selected>GitHub /assets</option>
+      <option value="url">URL seznam</option>
+      <option value="upload">Upload</option>
+    </select>
+
+    <span id="githubInputs">
+      <input id="ghOwner" placeholder="owner (např. PhaserStore)" />
       <input id="ghRepo" placeholder="repo (např. Babylon)" />
       <input id="ghBranch" placeholder="branch (např. main)" value="main" />
       <button id="btnLoadGithub">Načíst /assets</button>
-    </div>
+    </span>
 
-    <div id="urlInputs" class="group hidden">
-      <textarea id="urlList" placeholder="vložit URL (1 na řádek)"></textarea>
+    <span id="urlInputs" class="hidden">
+      <textarea id="urlList" placeholder="vložit URL (1 na řádek)" rows="1" cols="28"></textarea>
       <button id="btnLoadUrls">Načíst URL</button>
-    </div>
+    </span>
 
-    <div id="uploadInputs" class="group hidden">
+    <span id="uploadInputs" class="hidden">
       <input id="filePicker" type="file" accept="image/*" multiple />
-    </div>
+    </span>
 
-    <div class="group">
-      <button id="btnToggleEdit">Režim úpravy rámu: Vyp</button>
-      <button id="btnFlipH">Zrcadlit H</button>
-      <button id="btnFlipV">Zrcadlit V</button>
-      <span class="hint">Zoom kolečkem / pinch, posun tahem</span>
-    </div>
+    <button id="btnToggleEdit">Režim úpravy rámu: Vyp</button>
+    <button id="btnFlipH">Zrcadlit H</button>
+    <button id="btnFlipV">Zrcadlit V</button>
+
+    <input id="inputSoundCloud" placeholder="SoundCloud URL (playlist/track)" style="width:320px" />
+    <button id="btnSaveSoundCloud">Uložit SC</button>
   </div>
 
+  <!-- SoundCloud overlay (ADMIN mód) -->
+  <div id="sc-wrap" style="display:none">
+    <iframe id="sc-iframe" allow="autoplay"></iframe>
+  </div>
+
+  <!-- Plátno Babylon.js -->
   <canvas id="renderCanvas"></canvas>
+
+  <!-- Hlavní skript -->
   <script src="script.js"></script>
 </body>
 </html>
-``
