@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Virtual Gallery — LED · Layout · URL loader</title>
 
-  <!-- (volitelné) hint pro prohlížeč, aby si přednačetl SVG logo -->
+  <!-- (volitelné) načtení SVG dopředu, ať se rychle zobrazí -->
   <link rel="preload" href="assets/phaser.svg" as="image" type="image/svg+xml" />
 
   <style>
@@ -33,21 +33,21 @@
 <body class="view">
   <!-- ===== UI (ADMIN – zobrazí se až po klávese A; zpět V) ===== -->
   <div id="ui">
-    <!-- Zdrojové URL obrázku (rychlé testování bez assetů) -->
+    <!-- Zdrojové URL obrázku -->
     <div class="group">
       <label>URL <input id="imgUrl" size="38" placeholder="https://... (.avif/.jpg/.png/.webp)"></label>
       <button id="btnLoad">Načíst do vybraného rámu</button>
       <button id="btnDemo">Načíst DEMO bez URL</button>
     </div>
 
-    <!-- Titulek a skrytá URL pro cedulku (JS uloží do localStorage per stěna+index) -->
+    <!-- Cedulka (titulek + skrytá URL) -->
     <div class="group">
       <label>Název <input id="title" placeholder="Název díla" size="16"></label>
       <label>Skrytá URL <input id="link" placeholder="https://..." size="18"></label>
       <button id="btnPlacard">Aktualizovat cedulku</button>
     </div>
 
-    <!-- VÝBĚR STĚNY + layout aktuální stěny -->
+    <!-- VÝBĚR STĚNY + layout aktivní stěny -->
     <div class="group">
       <label>Stěna
         <select id="wallSelect">
@@ -76,12 +76,10 @@
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- BabylonJS (engine) -->
-  https://cdn.babylonjs.com/babylon.js</script>
+  <!-- ✅ Tohle je klíčové: korektní script tag s SRC -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
 
-  <!-- Tvůj aplikační skript s logikou (může být inline nebo externí) -->
-  <!-- Pokud používáš externí soubor, odkomentuj řádek níže a přidej script.js do rootu -->
-  <!-- <script src="script.js"></script> -->
-  <!-- Pokud vkládáš inline kód, vlož ho sem do <script>...</script> -->
+  <!-- Tvůj aplikační skript (ten, co jsi vložil do repo jako script.js) -->
+  <script src="script.js"></script>
 </body>
 </html>
