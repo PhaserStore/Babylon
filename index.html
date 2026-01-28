@@ -29,6 +29,92 @@
     label{display:flex;gap:6px;align-items:center}
   </style>
 </head>
+<script>
+  /******************************************************************
+   * 1) Sem si napoj vlastní zdroj pravdy z admin módu
+   *    - vrať prosím JS objekt (ne string)
+   ******************************************************************/
+  function getGalleryData() {
+    // ⬇⬇⬇ UPRAV PODLE TOHO, KDE MÁŠ DATA V ADMIN MÓDU ⬇⬇⬇
+    // Příklady:
+    // return window.currentFrames; // pokud máš globální stav
+    // return buildExportFromScene(); // pokud generuješ z Babylon scény
+
+    // Dočasný fallback – načti poslední známý JSON z lokálního uložiště
+    // (pro první test si tam můžeš něco uložit ručně)
+    const draft = localStorage.getItem('draftGalleryJson');
+    if (draft) {
+      try { return JSON.parse(draft); } catch(e) {}
+    }
+
+    // Poslední možnost: smajlík a prázdné pole
+    return [];
+  }
+
+  /******************************************************************
+   * 2) Pomocné funkce – minifikace JSON a otevření Issue
+   ******************************************************************/
+  function toMinifiedJsonString(obj) {
+    // minifikovaný JSON (bez odsazení) = menší URL
+    return JSON.stringify(obj);
+  }
+
+  function openPrefilledIssueWithJson(jsonString) {
+    // Title, volitelně label
+    const title  = encodeURIComponent('Update gallery');
+    // Můžeš přidat i label (musí existovat): const labels = encodeURIComponent('save-json');
+    const body   = encodeURIComponent(jsonString);
+
+    // Pozn.: Pokud bude JSON opravdu velký a URL by byla moc dlouhá,
+    // můžeme přejít na OAuth flow nebo dělit export po stěnách.
+    const url = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+
+    window.open(url, '_blank');
+  }
+
+  /******************************************************************
+   * 3) Drátování tlačítka Publish
+   ******************************************************************/
+  document.getElementById('publishBtn').addEventListener('click', async () => {
+    try {
+      const dataObj = getGalleryData();
+      const minified = toMinifiedJsonString(dataObj);
+
+      // rychlá validace
+      JSON.parse(minified);
+
+      // Ulož si to i lokálně jako "draft" (není nutné)
+      localStorage.setItem('draftGalleryJson', minified);
+
+      // otevři novou Issue s JSONem v těle
+      openPrefilledIssueWithJson(minified);
+    } catch (e) {
+      console.error(e);
+      alert('Export selhal – zkontroluj, že getGalleryData() vrací validní data (JS objekt).');
+    }
+  });
+
+  /******************************************************************
+   * 4) (Volitelné) Loader – web si tahá data z data/gallery.json
+   *    Pokud už ve svém scriptu načítáš gallery.json, tenhle blok klidně vynech.
+   ******************************************************************/
+  async function loadGallery() {
+    try {
+      const res = await fetch('./data/gallery.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      // Dej si data do globálu, ať je admin může použít jako výchozí
+      window.galleryData = data;
+      // TODO: Tady zavolej svůj kód pro vykreslení rámů ve scéně (Babylon)
+      // setupFrames(data);
+      console.log('Načteno data/gallery.json:', data);
+    } catch (e) {
+      console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
+    }
+  }
+
+  loadGallery();
+</script>
 
 <body class="view">
   <!-- ===== UI (ADMIN – zobrazí se až po klávese A) ===== -->
