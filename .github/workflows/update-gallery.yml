@@ -1,0 +1,49 @@
+name: Update gallery.json from Issue
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write   # commit do repo
+  issues: write     # komentář / zavření issue
+
+jobs:
+  update-gallery:
+    # Spustí se, když je issue s labelem 'save-json' NEBO když title začíná na 'Update gallery'
+    if: contains(github.event.issue.labels.*.name, 'save-json') || startsWith(github.event.issue.title, 'Update gallery')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure data folder exists
+        run: mkdir -p data
+
+      - name: Write JSON from issue body
+        # zapíše přesně obsah Issue body do souboru (očekáváme čisté JSON)
+        run: |
+          cat > data/gallery.json <<'EOF'
+          ${{ github.event.issue.body }}
+          EOF
+
+      - name: Validate & pretty-print JSON (jq)
+        run: |
+          # Ověří formát JSON a zároveň jej "hezky" naformátuje
+          jq . data/gallery.json > data/gallery.json.tmp
+          mv data/gallery.json.tmp data/gallery.json
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gallery.json
+          git commit -m "Auto-update data/gallery.json from issue #${{ github.event.issue.number }}"
+          git push
+
+      - name: Close issue with comment
+        uses: peter-evans/close-issue@v3
+        with:
+          comment: |
+            ✅ Uloženo do `data/gallery.json` a commitnuto automaticky. Díky!
