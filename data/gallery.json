@@ -1,7 +1,7 @@
 {
   "soundcloud": "https://soundcloud.com/vertigo01/sets/detroit-techno",
  {
-  "room": { "width": 32, "height": 12, "depth": 48 },
+  "room": { "width": 32, "height": 22, "depth": 48 },
   "frames": {
     "defaultFrame": { "outerWidth": 6, "outerHeight": 4, "imageInset": 0.25, "plaqueHeight": 0.5 },
     "walls": [
