@@ -526,22 +526,21 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       img.src = url + "?v=" + Date.now();
     });
   }
-// === MULTI‑WALL PATCH (vložit těsně nad sekci BOOT) ==========================
+<script>
+// === MULTI‑WALL + SAFE ZONE + CENTER + SAVE (one‑shot patch) ================
 (function(){
 
-  // 0) Rozšíření místnosti o levou/pravou stěnu (wrap původního buildRoom)
+  // 0) Rozšíření místnosti o levá/pravá stěna (wrap původního buildRoom)
   const _origBuildRoom = buildRoom;
   buildRoom = function(){
     _origBuildRoom();
 
-    // levá stěna
     if(!scene.getMeshByName("leftWall")){
       const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
       left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
       left.rotation.y = -Math.PI/2;
       left.material = unlit("#242424");
     }
-    // pravá stěna
     if(!scene.getMeshByName("rightWall")){
       const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
       right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
@@ -550,9 +549,9 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
     }
   };
 
-  // 1) UI – doplnění výběru stěny (není nutná změna HTML)
+  // 1) UI – Stěna + Počet + Ochranná zóna + Centrovat + Uložit
   const firstGroup = document.querySelector('#ui .group');
-  if(firstGroup && !document.getElementById('wallSel')){
+  if (firstGroup && !document.getElementById('wallSel')) {
     const wrap = document.createElement('label');
     wrap.style.display='flex'; wrap.style.gap='6px'; wrap.style.alignItems='center';
     wrap.innerHTML = 'Stěna <select id="wallSel"><option value="back">Zadní</option><option value="front">Přední</option><option value="left">Levá</option><option value="right">Pravá</option></select>';
@@ -560,10 +559,25 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
   }
   const wallSel = document.getElementById('wallSel');
 
-  // 2) Konfigurace stěn + layouty + kolekce rámů
-  const WALL = { BACK:'back', FRONT:'front', LEFT:'left', RIGHT:'right' };
+  const groups = document.querySelectorAll('#ui .group');
+  if (groups[2] && !document.getElementById('countInput')) {
+    const ctr = document.createElement('div');
+    ctr.className = 'group';
+    ctr.innerHTML = `
+      <label>Počet <input id="countInput" type="number" min="1" max="30" value="6" style="width:72px"></label>
+      <label>Ochranná zóna (m) <input id="safeInput" type="number" step="0.1" min="0" value="0.80" style="width:84px"></label>
+      <button id="btnCenter">Přesně centrovat</button>
+      <button id="btnSaveLayout">Uložit layout</button>
+    `;
+    groups[2].after(ctr);
+  }
+  const countInput   = document.getElementById('countInput');
+  const safeInput    = document.getElementById('safeInput');
+  const btnCenter    = document.getElementById('btnCenter');
+  const btnSave      = document.getElementById('btnSaveLayout');
 
-  // Osa řazení, fixní souřadnice a rotace tak, aby rám "koukal" do místnosti
+  // 2) Stěny, konfigurace, layouty a kolekce rámů
+  const WALL = { BACK:'back', FRONT:'front', LEFT:'left', RIGHT:'right' };
   const WALL_CONF = {
     [WALL.BACK]:  { axis:'x', fixedZ: -ROOM.D/2 + 0.03, rotY: Math.PI     },
     [WALL.FRONT]: { axis:'x', fixedZ:  ROOM.D/2 - 0.03, rotY: 0           },
@@ -571,58 +585,80 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
     [WALL.RIGHT]: { axis:'z', fixedX:  ROOM.W/2 - 0.03, rotY:  Math.PI/2  }
   };
 
-  // Výchozí layouty (Zadní čte tvoje původní slidery; ostatní mají defaulty)
+  // Layouty (zadní čte tvoje slidery; safe = ochranná zóna)
   const LAYOUTS = {
-    [WALL.BACK]:  { centerY: ROOM.H*0.55, start: parseFloat(lxStartEl.value), end: parseFloat(lxEndEl.value), spacing: parseFloat(lxSpaceEl.value) },
-    [WALL.FRONT]: { centerY: ROOM.H*0.55, start: -6.5, end: 6.5, spacing: 2.2 },
-    [WALL.LEFT]:  { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2 },
-    [WALL.RIGHT]: { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2 }
+    [WALL.BACK]:  { centerY: ROOM.H*0.55, start: parseFloat(lxStartEl.value), end: parseFloat(lxEndEl.value), spacing: parseFloat(lxSpaceEl.value), safe: 0.80 },
+    [WALL.FRONT]: { centerY: ROOM.H*0.55, start: -6.5, end: 6.5, spacing: 2.2, safe: 0.80 },
+    [WALL.LEFT]:  { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2, safe: 0.80 },
+    [WALL.RIGHT]: { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2, safe: 0.80 }
   };
 
-  // Napojíme původní "frames" na zadní stěnu, nové stěny mají vlastní pole
+  // Kolekce rámů (zadní = existující "frames")
   const framesByWall = { [WALL.BACK]: frames, [WALL.FRONT]: [], [WALL.LEFT]: [], [WALL.RIGHT]: [] };
 
-  // Aktivní stěna řízená UI
   let activeWall = WALL.BACK;
   if (wallSel) wallSel.value = activeWall;
 
-  // 3) Pozice pro danou stěnu + přepočet všech rámů dané stěny
-  function framePosOnWall(wall, idx){
-    const cfg = WALL_CONF[wall];
-    const lay = LAYOUTS[wall];
-    const coord = lay.start + lay.spacing * idx;
-    if (lay.start <= lay.end ? (coord > lay.end) : (coord < lay.end)) return null;
-
-    if (cfg.axis === 'x') return new BABYLON.Vector3(coord, lay.centerY, cfg.fixedZ);
-    else                  return new BABYLON.Vector3(cfg.fixedX, lay.centerY, coord);
+  // 3) SAFE rozsah (podle stěny)
+  function allowedRange(wall){
+    const safe = Math.max(0, parseFloat(LAYOUTS[wall].safe || 0));
+    if (WALL_CONF[wall].axis === 'x'){
+      return { min: -ROOM.W/2 + safe, max: ROOM.W/2 - safe, length: ROOM.W - 2*safe };
+    }else{
+      return { min: -ROOM.D/2 + safe, max: ROOM.D/2 - safe, length: ROOM.D - 2*safe };
+    }
   }
 
+  // 4) Pozice na stěně podle layoutu (respektuje SAFE)
+  function framePosOnWall(wall, idx){
+    const cfg = WALL_CONF[wall], lay = LAYOUTS[wall];
+    const coord = lay.start + lay.spacing * idx;
+    const { min, max } = allowedRange(wall);
+    if (coord < min || coord > max) return null;
+    return (cfg.axis === 'x')
+      ? new BABYLON.Vector3(coord, lay.centerY, cfg.fixedZ)
+      : new BABYLON.Vector3(cfg.fixedX, lay.centerY, coord);
+  }
+
+  // 5) Centrovaný start/end pro daný count + spacing v SAFE rozsahu
+  function clampCentered(wall, count){
+    const lay = LAYOUTS[wall];
+    const { length, min, max } = allowedRange(wall);
+    if (count <= 0) return;
+    if (count === 1){ lay.start = lay.end = (min+max)/2; return; }
+
+    // celková „šířka“ mezi středy = spacing * (count-1); když je moc, zmenšíme spacing
+    let sp = lay.spacing;
+    const need = sp * (count - 1);
+    if (need > length){ sp = length / (count - 1); lay.spacing = sp; }
+    const total = sp * (count - 1);
+    lay.start = (min+max)/2 - total/2;
+    lay.end   = lay.start + total;
+  }
+
+  // 6) Přepočet pozic všech rámů dané stěny
   function rebuildFramePositionsMW(wall){
-    const cfg = WALL_CONF[wall];
-    const arr = framesByWall[wall];
+    const cfg = WALL_CONF[wall], arr = framesByWall[wall], lay = LAYOUTS[wall];
     for(let i=0;i<arr.length;i++){
-      const it = arr[i];
-      const p = framePosOnWall(wall, i);
+      const it = arr[i], p = framePosOnWall(wall, i);
       if(!p){ [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(false)); continue; }
       [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(true));
 
-      // BOX
       it.box.position.copyFrom(p);
       it.box.rotation.y = cfg.rotY;
 
-      // FRAME – posun pár cm "ven" dle stěny, aby neblikalo se zdí
+      // pár cm před stěnu
       const fx = cfg.fixedX ? (cfg.rotY===Math.PI/2 ? 0.03 : (cfg.rotY===-Math.PI/2 ? -0.03 : 0)) : 0;
       const fz = cfg.fixedZ ? (cfg.rotY===0 ? 0.03 : (cfg.rotY===Math.PI ? -0.03 : 0)) : 0;
       it.frame.position.copyFrom(p.add(new BABYLON.Vector3(fx, 0, fz)));
       it.frame.rotation.y = cfg.rotY;
 
-      // CEDULKA
       it.placard.position.copyFrom(p.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02)));
       it.placard.rotation.y = cfg.rotY;
     }
   }
 
-  // 4) Vytvoření rámu na zadané stěně
+  // 7) Přidávání/ubírání podle požadovaného počtu
   function addFrameMW(wall, pos){
     const cfg = WALL_CONF[wall];
 
@@ -648,8 +684,20 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
     framesByWall[wall].push(it);
     return it;
   }
+  function setFrameCount(wall, count){
+    count = Math.max(1, Math.min(30, Math.floor(count||1)));
+    const arr = framesByWall[wall];
+    while (arr.length < count){
+      const idx = arr.length;
+      const p = framePosOnWall(wall, idx) || new BABYLON.Vector3(0, LAYOUTS[wall].centerY, 0);
+      addFrameMW(wall, p);
+    }
+    while (arr.length > count){
+      const it = arr.pop(); it.frame.dispose(); it.box.dispose(); it.placard.dispose();
+    }
+  }
 
-  // 5) Napojení UI: výběr stěny + Apply Layout + Přidat rám
+  // 8) UI logika – aktivní stěna, aplikace layoutu, přidávání, centrování, safe, uložení
   if (wallSel){
     wallSel.addEventListener('change', ()=>{
       activeWall = wallSel.value;
@@ -657,11 +705,13 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       lxStartEl.value = lay.start;
       lxEndEl.value   = lay.end;
       lxSpaceEl.value = lay.spacing;
+      countInput.value= framesByWall[activeWall].length || 1;
+      safeInput.value = lay.safe.toFixed(2);
       hint(`Aktivní stěna: ${activeWall}`);
     });
   }
 
-  // Přepíšeme handler "Použít layout" (bez zásahu do HTML)
+  // “Použít layout” – respektuje SAFE
   (function(){
     const btn = $("btnApplyLayout"); if (!btn) return;
     btn.replaceWith(btn.cloneNode(true));
@@ -671,28 +721,91 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       lay.start   = parseFloat(lxStartEl.value);
       lay.end     = parseFloat(lxEndEl.value);
       lay.spacing = parseFloat(lxSpaceEl.value);
+      // přepočítej tak, aby vše bylo v SAFE rozsahu, ať nic neleze do rohů
+      const cnt = framesByWall[activeWall].length || 1;
+      clampCentered(activeWall, cnt);   // zároveň necháme krásně souměrné okraje
       rebuildFramePositionsMW(activeWall);
-      hint(`Layout aplikován pro stěnu: ${activeWall}`);
+      hint(`Layout aplikován (souměrné okraje + SAFE) pro stěnu: ${activeWall}`);
     });
   })();
 
-  // Přepíšeme handler "Přidat rám"
+  // “Přidat rám” – na aktivní stěnu, hned přepočet centrovaně
   (function(){
     const btn = $("btnAdd"); if (!btn) return;
     btn.replaceWith(btn.cloneNode(true));
     const btnNew = $("btnAdd");
     btnNew.addEventListener("click", ()=>{
-      const nextIdx = framesByWall[activeWall].length;
-      const p = framePosOnWall(activeWall, nextIdx);
-      if(!p){ alert("Už není místo v nastaveném úseku zvolené stěny."); return; }
-      const it = addFrameMW(activeWall, p);
+      const lay = LAYOUTS[activeWall];
+      lay.spacing = parseFloat(lxSpaceEl.value);
+      const newCount = (framesByWall[activeWall].length||0) + 1;
+      setFrameCount(activeWall, newCount);
+      clampCentered(activeWall, newCount);
       rebuildFramePositionsMW(activeWall);
-      if (mode === MODE.ADMIN) selectFrame(it);
-      hint(`Přidán rám na stěnu: ${activeWall}`);
+      countInput.value = newCount;
+      if (mode === MODE.ADMIN) selectFrame(framesByWall[activeWall][newCount-1]);
+      hint(`Přidán rám (souměrně + SAFE) na stěnu: ${activeWall}`);
     });
   })();
 
-  // 6) Picking: rozšíření na všechny stěny (wrap původního setupPicking)
+  // Změna “Počet” – držíme SAFE + centrování
+  if (countInput){
+    countInput.addEventListener('change', ()=>{
+      const cnt = Math.max(1, Math.min(30, parseInt(countInput.value||'1',10)));
+      setFrameCount(activeWall, cnt);
+      LAYOUTS[activeWall].spacing = parseFloat(lxSpaceEl.value);
+      clampCentered(activeWall, cnt);
+      rebuildFramePositionsMW(activeWall);
+      hint(`Počet rámů: ${cnt} (souměrné okraje + SAFE)`);
+    });
+  }
+
+  // Změna “Ochranná zóna” – okamžitý přepočet
+  if (safeInput){
+    safeInput.addEventListener('change', ()=>{
+      LAYOUTS[activeWall].safe = Math.max(0, parseFloat(safeInput.value||'0'));
+      const cnt = framesByWall[activeWall].length || 1;
+      clampCentered(activeWall, cnt);
+      rebuildFramePositionsMW(activeWall);
+      hint(`Ochranná zóna: ${LAYOUTS[activeWall].safe.toFixed(2)} m`);
+    });
+  }
+
+  // “Přesně centrovat” – souměrné okraje podle počtu & mezery & SAFE
+  if (btnCenter){
+    btnCenter.addEventListener('click', ()=>{
+      const cnt = Math.max(1, Math.min(30, parseInt(countInput.value||'1',10)));
+      setFrameCount(activeWall, cnt);
+      LAYOUTS[activeWall].safe    = Math.max(0, parseFloat(safeInput.value||'0'));
+      LAYOUTS[activeWall].spacing = parseFloat(lxSpaceEl.value);
+      clampCentered(activeWall, cnt);
+      rebuildFramePositionsMW(activeWall);
+      lxStartEl.value = LAYOUTS[activeWall].start.toFixed(2);
+      lxEndEl.value   = LAYOUTS[activeWall].end.toFixed(2);
+      hint(`Vycentrováno: ${cnt} rámů, mezera ${LAYOUTS[activeWall].spacing.toFixed(2)} m, okraj ${LAYOUTS[activeWall].safe.toFixed(2)} m`);
+    });
+  }
+
+  // “Uložit layout” – stáhne JSON s ROOM, LAYOUTS a daty cedulek
+  if (btnSave){
+    btnSave.addEventListener('click', ()=>{
+      const payload = {
+        room: ROOM,
+        layouts: LAYOUTS,
+        frames: Object.fromEntries(Object.entries(framesByWall).map(
+          ([wall, arr]) => [wall, arr.map(it => ({ title: it.data.title, url: it.data.url }))]
+        )),
+        savedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `gallery-layout-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      hint("Layout uložen do JSON ✔");
+    });
+  }
+
+  // Picking – rozšíření pro všechny stěny + přepnutí aktivní stěny na vybraný rám
   const _origSetupPicking = setupPicking;
   setupPicking = function(){
     _origSetupPicking();
@@ -701,21 +814,18 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       if (!pi.pickInfo?.hit) return;
       const mesh = pi.pickInfo.pickedMesh;
 
-      // Klik na cedulku = otevři URL
       for (const wall of Object.values(WALL)){
         for (const it of framesByWall[wall]){
-          if (mesh === it.placard && it.data.url){
-            window.open(it.data.url,"_blank","noopener"); return;
-          }
+          if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
         }
       }
-      // Výběr rámu v ADMIN módu
       if (mode === MODE.ADMIN){
         for (const wall of Object.values(WALL)){
           for (const it of framesByWall[wall]){
             if (mesh===it.frame || mesh===it.box){
-              activeWall = wall;
-              if (wallSel) wallSel.value = wall;
+              activeWall = wall; if (wallSel) wallSel.value = wall;
+              countInput.value = framesByWall[wall].length || 1;
+              safeInput.value  = LAYOUTS[wall].safe.toFixed(2);
               selectFrame(it);
               return;
             }
@@ -725,14 +835,13 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
     }, BABYLON.PointerEventTypes.POINTERPICK);
   };
 
-  // 7) Po inicializaci rámů na zadní stěně rovnou přepočti (pro jistotu)
-  const _origBuildInitialFrames = buildInitialFrames;
-  buildInitialFrames = function(){
-    _origBuildInitialFrames();           // vytvoří zádní stěnu tvým původním způsobem
-    rebuildFramePositionsMW(WALL.BACK);  // sladí s aktuálními slidery
-  };
+  // Inicializační hodnoty v UI (podle zadní stěny)
+  if (countInput) countInput.value = framesByWall[activeWall].length || 6;
+  if (safeInput)  safeInput.value  = LAYOUTS[activeWall].safe.toFixed(2);
 
-})(); // === /MULTI‑WALL PATCH ==================================================
+})(); // === /PATCH ==============================================================
+</script>
+``
   /* =========================
      BOOT
   ========================= */
