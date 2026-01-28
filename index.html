@@ -445,9 +445,9 @@ function buildGalleryLogo(){
     }
 
     // Zadní stěna (záporné Z) – čelem do místnosti
-    placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, 0,        0);
-    // Přední stěna (kladné Z) – čelem do místnosti (otočeno o 180°)
-    placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, Math.PI,  1);
+placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
+// Přední stěna (kladné Z) – čelem do místnosti
+placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
 
     hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
   };
