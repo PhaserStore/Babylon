@@ -526,7 +526,213 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       img.src = url + "?v=" + Date.now();
     });
   }
+// === MULTI‑WALL PATCH (vložit těsně nad sekci BOOT) ==========================
+(function(){
 
+  // 0) Rozšíření místnosti o levou/pravou stěnu (wrap původního buildRoom)
+  const _origBuildRoom = buildRoom;
+  buildRoom = function(){
+    _origBuildRoom();
+
+    // levá stěna
+    if(!scene.getMeshByName("leftWall")){
+      const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
+      left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+      left.rotation.y = -Math.PI/2;
+      left.material = unlit("#242424");
+    }
+    // pravá stěna
+    if(!scene.getMeshByName("rightWall")){
+      const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
+      right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+      right.rotation.y =  Math.PI/2;
+      right.material = unlit("#242424");
+    }
+  };
+
+  // 1) UI – doplnění výběru stěny (není nutná změna HTML)
+  const firstGroup = document.querySelector('#ui .group');
+  if(firstGroup && !document.getElementById('wallSel')){
+    const wrap = document.createElement('label');
+    wrap.style.display='flex'; wrap.style.gap='6px'; wrap.style.alignItems='center';
+    wrap.innerHTML = 'Stěna <select id="wallSel"><option value="back">Zadní</option><option value="front">Přední</option><option value="left">Levá</option><option value="right">Pravá</option></select>';
+    firstGroup.appendChild(wrap);
+  }
+  const wallSel = document.getElementById('wallSel');
+
+  // 2) Konfigurace stěn + layouty + kolekce rámů
+  const WALL = { BACK:'back', FRONT:'front', LEFT:'left', RIGHT:'right' };
+
+  // Osa řazení, fixní souřadnice a rotace tak, aby rám "koukal" do místnosti
+  const WALL_CONF = {
+    [WALL.BACK]:  { axis:'x', fixedZ: -ROOM.D/2 + 0.03, rotY: Math.PI     },
+    [WALL.FRONT]: { axis:'x', fixedZ:  ROOM.D/2 - 0.03, rotY: 0           },
+    [WALL.LEFT]:  { axis:'z', fixedX: -ROOM.W/2 + 0.03, rotY: -Math.PI/2  },
+    [WALL.RIGHT]: { axis:'z', fixedX:  ROOM.W/2 - 0.03, rotY:  Math.PI/2  }
+  };
+
+  // Výchozí layouty (Zadní čte tvoje původní slidery; ostatní mají defaulty)
+  const LAYOUTS = {
+    [WALL.BACK]:  { centerY: ROOM.H*0.55, start: parseFloat(lxStartEl.value), end: parseFloat(lxEndEl.value), spacing: parseFloat(lxSpaceEl.value) },
+    [WALL.FRONT]: { centerY: ROOM.H*0.55, start: -6.5, end: 6.5, spacing: 2.2 },
+    [WALL.LEFT]:  { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2 },
+    [WALL.RIGHT]: { centerY: ROOM.H*0.55, start: -ROOM.D/2 + 2.0, end: ROOM.D/2 - 2.0, spacing: 2.2 }
+  };
+
+  // Napojíme původní "frames" na zadní stěnu, nové stěny mají vlastní pole
+  const framesByWall = { [WALL.BACK]: frames, [WALL.FRONT]: [], [WALL.LEFT]: [], [WALL.RIGHT]: [] };
+
+  // Aktivní stěna řízená UI
+  let activeWall = WALL.BACK;
+  if (wallSel) wallSel.value = activeWall;
+
+  // 3) Pozice pro danou stěnu + přepočet všech rámů dané stěny
+  function framePosOnWall(wall, idx){
+    const cfg = WALL_CONF[wall];
+    const lay = LAYOUTS[wall];
+    const coord = lay.start + lay.spacing * idx;
+    if (lay.start <= lay.end ? (coord > lay.end) : (coord < lay.end)) return null;
+
+    if (cfg.axis === 'x') return new BABYLON.Vector3(coord, lay.centerY, cfg.fixedZ);
+    else                  return new BABYLON.Vector3(cfg.fixedX, lay.centerY, coord);
+  }
+
+  function rebuildFramePositionsMW(wall){
+    const cfg = WALL_CONF[wall];
+    const arr = framesByWall[wall];
+    for(let i=0;i<arr.length;i++){
+      const it = arr[i];
+      const p = framePosOnWall(wall, i);
+      if(!p){ [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(false)); continue; }
+      [it.frame,it.box,it.placard].forEach(m=>m.setEnabled(true));
+
+      // BOX
+      it.box.position.copyFrom(p);
+      it.box.rotation.y = cfg.rotY;
+
+      // FRAME – posun pár cm "ven" dle stěny, aby neblikalo se zdí
+      const fx = cfg.fixedX ? (cfg.rotY===Math.PI/2 ? 0.03 : (cfg.rotY===-Math.PI/2 ? -0.03 : 0)) : 0;
+      const fz = cfg.fixedZ ? (cfg.rotY===0 ? 0.03 : (cfg.rotY===Math.PI ? -0.03 : 0)) : 0;
+      it.frame.position.copyFrom(p.add(new BABYLON.Vector3(fx, 0, fz)));
+      it.frame.rotation.y = cfg.rotY;
+
+      // CEDULKA
+      it.placard.position.copyFrom(p.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02)));
+      it.placard.rotation.y = cfg.rotY;
+    }
+  }
+
+  // 4) Vytvoření rámu na zadané stěně
+  function addFrameMW(wall, pos){
+    const cfg = WALL_CONF[wall];
+
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+0.08,height:FRAME_SIZE.H+0.08,depth:0.05},scene);
+    box.position = pos.clone(); box.rotation.y = cfg.rotY;
+    box.material = unlit("#383838"); box.isPickable = true;
+
+    const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H},scene);
+    const fx = cfg.fixedX ? (cfg.rotY===Math.PI/2 ? 0.03 : (cfg.rotY===-Math.PI/2 ? -0.03 : 0)) : 0;
+    const fz = cfg.fixedZ ? (cfg.rotY===0 ? 0.03 : (cfg.rotY===Math.PI ? -0.03 : 0)) : 0;
+    f.position = pos.add(new BABYLON.Vector3(fx, 0, fz));
+    f.rotation.y = cfg.rotY; f.isPickable = true;
+    f.material  = lightGrayPlaceholderMat("KLIKNOUT → VYBRAT");
+
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac",{width:FRAME_SIZE.W,height:0.22},scene);
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
+    plac.rotation.y = cfg.rotY; plac.isPickable = true;
+
+    const data = { title:"(bez názvu)", url:"", wall };
+    drawPlacard(plac, data);
+
+    const it = { frame:f, box, placard:plac, data };
+    framesByWall[wall].push(it);
+    return it;
+  }
+
+  // 5) Napojení UI: výběr stěny + Apply Layout + Přidat rám
+  if (wallSel){
+    wallSel.addEventListener('change', ()=>{
+      activeWall = wallSel.value;
+      const lay = LAYOUTS[activeWall];
+      lxStartEl.value = lay.start;
+      lxEndEl.value   = lay.end;
+      lxSpaceEl.value = lay.spacing;
+      hint(`Aktivní stěna: ${activeWall}`);
+    });
+  }
+
+  // Přepíšeme handler "Použít layout" (bez zásahu do HTML)
+  (function(){
+    const btn = $("btnApplyLayout"); if (!btn) return;
+    btn.replaceWith(btn.cloneNode(true));
+    const btnNew = $("btnApplyLayout");
+    btnNew.addEventListener("click", ()=>{
+      const lay = LAYOUTS[activeWall];
+      lay.start   = parseFloat(lxStartEl.value);
+      lay.end     = parseFloat(lxEndEl.value);
+      lay.spacing = parseFloat(lxSpaceEl.value);
+      rebuildFramePositionsMW(activeWall);
+      hint(`Layout aplikován pro stěnu: ${activeWall}`);
+    });
+  })();
+
+  // Přepíšeme handler "Přidat rám"
+  (function(){
+    const btn = $("btnAdd"); if (!btn) return;
+    btn.replaceWith(btn.cloneNode(true));
+    const btnNew = $("btnAdd");
+    btnNew.addEventListener("click", ()=>{
+      const nextIdx = framesByWall[activeWall].length;
+      const p = framePosOnWall(activeWall, nextIdx);
+      if(!p){ alert("Už není místo v nastaveném úseku zvolené stěny."); return; }
+      const it = addFrameMW(activeWall, p);
+      rebuildFramePositionsMW(activeWall);
+      if (mode === MODE.ADMIN) selectFrame(it);
+      hint(`Přidán rám na stěnu: ${activeWall}`);
+    });
+  })();
+
+  // 6) Picking: rozšíření na všechny stěny (wrap původního setupPicking)
+  const _origSetupPicking = setupPicking;
+  setupPicking = function(){
+    _origSetupPicking();
+    scene.onPointerObservable.add((pi)=>{
+      if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+      if (!pi.pickInfo?.hit) return;
+      const mesh = pi.pickInfo.pickedMesh;
+
+      // Klik na cedulku = otevři URL
+      for (const wall of Object.values(WALL)){
+        for (const it of framesByWall[wall]){
+          if (mesh === it.placard && it.data.url){
+            window.open(it.data.url,"_blank","noopener"); return;
+          }
+        }
+      }
+      // Výběr rámu v ADMIN módu
+      if (mode === MODE.ADMIN){
+        for (const wall of Object.values(WALL)){
+          for (const it of framesByWall[wall]){
+            if (mesh===it.frame || mesh===it.box){
+              activeWall = wall;
+              if (wallSel) wallSel.value = wall;
+              selectFrame(it);
+              return;
+            }
+          }
+        }
+      }
+    }, BABYLON.PointerEventTypes.POINTERPICK);
+  };
+
+  // 7) Po inicializaci rámů na zadní stěně rovnou přepočti (pro jistotu)
+  const _origBuildInitialFrames = buildInitialFrames;
+  buildInitialFrames = function(){
+    _origBuildInitialFrames();           // vytvoří zádní stěnu tvým původním způsobem
+    rebuildFramePositionsMW(WALL.BACK);  // sladí s aktuálními slidery
+  };
+
+})(); // === /MULTI‑WALL PATCH ==================================================
   /* =========================
      BOOT
   ========================= */
