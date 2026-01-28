@@ -526,8 +526,10 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       img.src = url + "?v=" + Date.now();
     });
   }
-<script>
-// === MULTI‑WALL + SAFE ZONE + CENTER + SAVE (one‑shot patch) ================
+
+ /* =========================
+    MULTI‑WALL + SAFE ZONE + CENTER + SAVE (one‑shot patch) 
+========================= */
 (function(){
 
   // 0) Rozšíření místnosti o levá/pravá stěna (wrap původního buildRoom)
