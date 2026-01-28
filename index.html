@@ -331,30 +331,26 @@
     ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
   }
 
-  /* =========================
-     LOGO – jednoduchá varianta
-  ========================= */
-  function buildGalleryLogo(){
-    const tex = new BABYLON.DynamicTexture("logo",{width:512,height:128},scene,true);
-    const c = tex.getContext();
-    c.fillStyle = "#000"; c.fillRect(0,0,512,128);
-    c.fillStyle = "#daff3e"; c.font = "bold 64px system-ui"; c.textAlign="center"; c.textBaseline="middle";
-    c.fillText("VIRTUAL GALLERY", 256, 64);
-    tex.update();
+  // --- LOGO CONFIG & GENERATOR ---
 
-    const mat = new BABYLON.StandardMaterial("logoMat", scene);
-    mat.diffuseTexture = tex;
-    mat.opacityTexture = tex;
-    mat.disableLighting = true;
-    mat.emissiveColor = new BABYLON.Color3(1,1,1);
+window.ROOM        = window.ROOM        || { W: 18, D: 20, H: 6 };
+window.WALL_LAYOUT = window.WALL_LAYOUT || { centerY: 1.30 };
+window.FRAME_SIZE  = window.FRAME_SIZE  || { H: 1.00 };
+window.hint        = window.hint        || console.log;
 
-    const p = BABYLON.MeshBuilder.CreatePlane("logo",{width:ROOM.W*0.42,height:ROOM.W*0.42/4},scene);
-    p.position.set(0, WALL_LAYOUT.centerY + FRAME_SIZE.H*0.95 + 0.40, -ROOM.D/2 + 0.25);
-    p.rotation.y = Math.PI;
-    p.material = mat;
-    glow.addIncludedOnlyMesh(p);
-  }
+const GLOW_BLUR_PX      = 18;
+const FRONT_BACK_OFFSET = 0.25;
 
+const GALLERY_LOGO_SVG = ` ... TVÉ SVG ... `;
+const GALLERY_ASPECT = ŠÍŘKA / VÝŠKA;
+
+const SECOND_LOGO_SVG = ` ... DRUHÉ SVG ... `;
+const SECOND_ASPECT = ŠÍŘKA / VÝŠKA;
+
+// kompletní funkce buildLogoPair()  ← tu vlož celou
+function buildLogoPair({...}) {
+    ...
+}
   /* =========================
      UI BINDINGS
   ========================= */
