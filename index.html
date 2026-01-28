@@ -332,11 +332,14 @@
   }
 
   /* =========================
-     LOGO – inline SVG (ostrý + glow, přední i zadní stěna)
-  ========================= */
+   LOGO – inline SVG (ostrý + glow, přední i zadní stěna)
+========================= */
 
-  // ——— 1) VLOŽ SVÉ SVG: přepiš obsah mezi backticky tak, aby začínal <svg ...> a končil </svg>
-  const GALLERY_LOGO_SVG = `
+/** 1) VLOŽ SVÉ SVG:
+ *    Přepiš obsah mezi backticky tak, aby začínal <svg ...> a končil </svg>
+ *    (NE HTML entity typu &lt;svg&gt;).
+ */
+const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
@@ -358,91 +361,102 @@
   </g>
 </svg>`;
 
-  // ——— 2) Poměr stran z viewBoxu (šířka / výška). Když změníš SVG, přepočítej:
-  const LOGO_ASPECT = 941.43 / 272.86; // ≈ 3.4515
+/** 2) Poměr stran z viewBoxu (šířka / výška).
+ *   Pokud vyměníš SVG, přepočítej!
+ */
+const LOGO_ASPECT = 941.43 / 272.86; // ≈ 3.4515
 
-  // ——— 3) Měřítko / offset (můžeš upravit)
-  const LOGO_SCALE = 0.40;           // 0..1 vůči šířce stěny
-  const FRONT_BACK_OFFSET = 0.25;    // vzdálenost od stěny (m)
-  const LOGO_HEIGHT_M = null;        // zadej číslo (m), pokud chceš fixní výšku (pak ignoruje aspect)
+/** 3) Parametry pro umístění a vzhled */
+const LOGO_SCALE = 0.40;           // šířka loga = % šířky stěny (0..1)
+const FRONT_BACK_OFFSET = 0.25;    // odsazení loga od stěny (m)
+const LOGO_HEIGHT_M = null;        // pokud zadáš číslo (m), ignoruje se LOGO_ASPECT a drží se pevná výška
+const GLOW_BLUR_PX = 18;           // měkkost neonu
 
-  function buildGalleryLogo(){
-    // SVG -> IMG
-    const img = new Image();
-    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
+/** 4) Guard: kdyby se do GALLERY_LOGO_SVG omylem dostaly HTML entity (&lt; &gt; &amp;), převést na raw */
+function normalizeSvgString(s){
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
 
-    img.onload = () => {
-      // --- ostrá textura ---
-      const SIZE = 1024;
-      const dt = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
-      const ctx = dt.getContext();
-      ctx.clearRect(0,0,SIZE,SIZE);
+function buildGalleryLogo(){
+  // SVG -> IMG (data: URL)
+  const img = new Image();
+  img.src = "data:image/svg+xml;utf8," + encodeURIComponent(normalizeSvgString(GALLERY_LOGO_SVG));
 
-      const maxW = SIZE * 0.92;
-      const w = maxW;
-      const h = Math.round(maxW / LOGO_ASPECT);
-      const x = Math.round((SIZE - w)/2);
-      const y = Math.round((SIZE - h)/2);
-      ctx.drawImage(img, x, y, w, h);
-      dt.update();
+  img.onload = () => {
+    const SIZE = 1024;
 
-      // --- glow textura (rozmazaná) ---
-      const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
-      const gc = glowDT.getContext();
-      gc.clearRect(0,0,SIZE,SIZE);
-      gc.filter = `blur(${GLOW_BLUR_PX}px)`;
-      gc.drawImage(img, x, y, w, h);
-      glowDT.update();
+    // --- ostrá textura ---
+    const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
+    const ctx = dt.getContext();
+    ctx.clearRect(0,0,SIZE,SIZE);
 
-      // --- materiály ---
-      const sharpMat = new BABYLON.StandardMaterial("logoSharp", scene);
-      sharpMat.disableLighting = true;
-      sharpMat.diffuseTexture = dt;
-      sharpMat.opacityTexture = dt;
-      sharpMat.emissiveColor = new BABYLON.Color3(1,1,1);
-      sharpMat.backFaceCulling = false;
+    const maxW = SIZE * 0.92;
+    const w = maxW;
+    const h = Math.round(maxW / LOGO_ASPECT);
+    const x = Math.round((SIZE - w)/2);
+    const y = Math.round((SIZE - h)/2);
+    ctx.fillStyle = "rgba(0,0,0,0)"; ctx.fillRect(0,0,SIZE,SIZE);
+    ctx.drawImage(img, x, y, w, h);
+    dt.update();
 
-      const glowMat = new BABYLON.StandardMaterial("logoGlow", scene);
-      glowMat.disableLighting = true;
-      glowMat.emissiveTexture = glowDT;
-      glowMat.opacityTexture  = glowDT;
-      glowMat.emissiveColor = new BABYLON.Color3(1,1,1);
-      glowMat.backFaceCulling = false;
+    // --- glow textura (rozmazaná) ---
+    const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
+    const gc = glowDT.getContext();
+    gc.clearRect(0,0,SIZE,SIZE);
+    gc.filter = `blur(${GLOW_BLUR_PX}px)`;
+    gc.drawImage(img, x, y, w, h);
+    glowDT.update();
 
-      // --- rozměry loga (m)
-      const logoW = ROOM.W * LOGO_SCALE;
-      const logoH = (LOGO_HEIGHT_M ?? (logoW / LOGO_ASPECT));
+    // --- materiály ---
+    const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
+    sharpMat.disableLighting = true;
+    sharpMat.diffuseTexture  = dt;
+    sharpMat.opacityTexture  = dt;
+    sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+    sharpMat.backFaceCulling = false;
 
-      // výška nad rámy – střed galerie (jako dřív, jen trochu výš)
-      const yPos = WALL_LAYOUT.centerY + FRAME_SIZE.H * 0.95 + 0.40;
+    const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
+    glowMat.disableLighting  = true;
+    glowMat.emissiveTexture  = glowDT;
+    glowMat.opacityTexture   = glowDT;
+    glowMat.emissiveColor    = new BABYLON.Color3(1,1,1);
+    glowMat.backFaceCulling  = false;
 
-      function placeLogo(z, rotY, idx){
-        // glow mesh – nalepený na stěnu
-        const g = BABYLON.MeshBuilder.CreatePlane("logoGlow_"+idx,{width:logoW,height:logoH},scene);
-        g.position.set(0, yPos, z - Math.sign(z)*0.005);
-        g.rotation.y = rotY;
-        g.material = glowMat;
-        glow.addIncludedOnlyMesh(g);
+    // --- rozměry loga (m)
+    const logoW = ROOM.W * LOGO_SCALE;
+    const logoH = (LOGO_HEIGHT_M ?? (logoW / LOGO_ASPECT));
 
-        // ostrý mesh – o pár mm vpředu
-        const s = BABYLON.MeshBuilder.CreatePlane("logoSharp_"+idx,{width:logoW,height:logoH},scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005);
-        s.rotation.y = rotY;
-        s.material = sharpMat;
-      }
+    // výška nad rámy – střed galerie (tvoje logika)
+    const yPos = WALL_LAYOUT.centerY + FRAME_SIZE.H * 0.95 + 0.40;
 
-      // Zadní stěna (čelem do místnosti) + přední stěna
-      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
-      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,      1);
+    function placeLogo(z, rotY, idx){
+      // glow mesh – lehce nalepený na stěnu
+      const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
+      g.position.set(0, yPos, z - Math.sign(z)*0.005);
+      g.rotation.y = rotY;
+      g.material   = glowMat;
+      glow.addIncludedOnlyMesh(g);
 
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
-    };
+      // ostrý mesh – o pár mm vpředu (vyhne se Z-fightu)
+      const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
+      s.position.set(0, yPos, z + Math.sign(z)*0.005);
+      s.rotation.y = rotY;
+      s.material   = sharpMat;
+    }
 
-    img.onerror = () => {
-      console.error("Logo SVG nešlo dekódovat.");
-      hint("Chyba: logo SVG nešlo dekódovat.");
-    };
-  }
+    // Zadní stěna (záporné Z) – čelem do místnosti
+    placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, 0,        0);
+    // Přední stěna (kladné Z) – čelem do místnosti (otočeno o 180°)
+    placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, Math.PI,  1);
+
+    hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
+  };
+
+  img.onerror = (e) => {
+    console.error("Logo SVG nešlo dekódovat.", e);
+    hint("Chyba: logo SVG nešlo dekódovat. Zkontroluj, že začíná <svg …> (ne &lt;svg).");
+  };
+}
 
   /* =========================
      UI BINDINGS
