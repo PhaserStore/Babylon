@@ -940,5 +940,34 @@ placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
   window.addEventListener("resize", ()=> engine.resize());
   setMode(MODE.VIEW); // start ve VIEW
   </script>
+  ...
+    <!-- ostatní skripty -->
+    
+    <script>
+        // sem vložíš celý normalizeAssetUrl a createPictureFrame
+        function normalizeAssetUrl(u) {
+          if (!u) return u;
+          if (!/^https?:\/\//i.test(u)) return u;
+
+          const m = u.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
+          if (m) {
+            const [, owner, repo, branch, path] = m;
+            return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+          }
+
+          if (/^https?:\/\/raw\.githubusercontent\.com\//i.test(u)) return u;
+          if (/^https?:\/\/cdn\.jsdelivr\.net\//i.test(u)) return u;
+          return u;
+        }
+
+        function createPictureFrame(scene, url) {
+          const texUrl = normalizeAssetUrl(url);
+          const mat = new BABYLON.StandardMaterial("mat", scene);
+          mat.diffuseTexture = new BABYLON.Texture(texUrl, scene);
+        }
+    </script>
+
+</body>
+</html>
 </body>
 </html>
