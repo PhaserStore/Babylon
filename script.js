@@ -1,89 +1,198 @@
-function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
-function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
+// === Konfigurace ===
+const DEBUG_IMG = false;   // true = log do konzole, false = absolutní ticho
+const USE_PLACEHOLDER_ON_FAIL = true; // zda vykreslit neutrální zástupný obrázek
 
-async function loadImageUrlIntoTexture(url, frame){
-  try{
+// === Pomocné funkce ===
+function blobToImg(blob) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error("IMG decode failed"));
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+function dataUrlToImg(dataUrl) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error("DataURL decode failed"));
+    img.src = dataUrl;
+  });
+}
+
+// Volitelný tichý placeholder (šachovnice) – ať rám nezůstane „prázdný“.
+function drawPlaceholder(ctx, w, h) {
+  const tile = 32;
+  for (let y = 0; y < h; y += tile) {
+    for (let x = 0; x < w; x += tile) {
+      const even = ((x / tile) + (y / tile)) % 2 === 0;
+      ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
+      ctx.fillRect(x, y, tile, tile);
+    }
+  }
+}
+
+// Bezpečný unlit materiál (předpokládám dostupné pomocné funkce z tvého projektu)
+function applyTextureToTarget(dt, target) {
+  // Podpora: front + back
+  if (target && target.frameFront && target.frameBack) {
+    target.frameFront.material = unlitTexWithLevel(dt, 1.0);
+    target.frameBack.material  = unlitTexWithLevel(dt, 0.65);
+  } else if (target && target.material !== undefined) {
+    target.material = unlitTexWithLevel ? unlitTexWithLevel(dt, 1.0) : unlitTex(dt);
+  }
+}
+
+// Vykreslení do DynamicTexture podle tvé utility drawFitted(...)
+function textureFromBitmapLike(bmp) {
+  const dt = new BABYLON.DynamicTexture("imgDT", { width: 1024, height: 1024 }, scene, true);
+  const ctx = dt.getContext();
+  drawFitted(ctx, bmp, FRAME_SIZE.W, FRAME_SIZE.H);
+  dt.update();
+  return dt;
+}
+
+// === Sjednocená funkce pro načtení URL obrázku do materiálu ===
+// Vrací: Promise<DynamicTexture|null> (null při tichém selhání)
 async function loadImageUrlIntoTexture(url, target) {
   try {
-const resp = await fetch(url, { mode:"cors", cache:"no-store" });
-    if(!resp.ok) throw new Error("HTTP");
-    const ct = resp.headers.get("content-type")||"";
-    if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
+    const resp = await fetch(url, { mode: "cors", cache: "no-store" });
 
-    // === Pokud obrázek neexistuje / 404 / CORS problém → tiše přeskočit ===
     if (!resp.ok) {
-      console.warn("Obrázek nelze načíst:", url);
-      return; // ← žádný alert!
+      if (DEBUG_IMG) console.warn("HTTP není OK:", resp.status, url);
+      if (USE_PLACEHOLDER_ON_FAIL) {
+        const dt = new BABYLON.DynamicTexture("imgDT_fail", { width: 1024, height: 1024 }, scene, true);
+        const ctx = dt.getContext();
+        drawPlaceholder(ctx, FRAME_SIZE.W, FRAME_SIZE.H);
+        dt.update();
+        applyTextureToTarget(dt, target);
+        return dt;
+      }
+      return null; // tichý pád
     }
 
     const ct = resp.headers.get("content-type") || "";
     if (!ct.startsWith("image/")) {
-      console.warn("URL nevrací obrázek:", url);
-      return;
+      if (DEBUG_IMG) console.warn("URL nevrací image/*:", ct, url);
+      if (USE_PLACEHOLDER_ON_FAIL) {
+        const dt = new BABYLON.DynamicTexture("imgDT_notimg", { width: 1024, height: 1024 }, scene, true);
+        const ctx = dt.getContext();
+        drawPlaceholder(ctx, FRAME_SIZE.W, FRAME_SIZE.H);
+        dt.update();
+        applyTextureToTarget(dt, target);
+        return dt;
+      }
+      return null;
     }
 
-const blob = await resp.blob();
-let bmp;
-try { bmp = await createImageBitmap(blob, { premultiplyAlpha:"premultiply" }); }
-catch { bmp = await blobToImg(blob); }
+    const blob = await resp.blob();
 
-    const dt = new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
-    const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-    frame.material = unlitTex(dt); hint("Obrázek načten ✔");
-  }catch(e){
-    console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL).");
-    const dt = new BABYLON.DynamicTexture("imgDT", { width:1024, height:1024 }, scene, true);
-    const ctx = dt.getContext();
-    drawFitted(ctx, bmp, FRAME_SIZE.W, FRAME_SIZE.H);
-    dt.update();
-
-    // Podpora: front + back
-    if (target.frameFront && target.frameBack) {
-      target.frameFront.material = unlitTexWithLevel(dt, 1.0);
-      target.frameBack.material  = unlitTexWithLevel(dt, 0.65); // zadní strana
-    } else {
-      target.material = unlitTexWithLevel(dt, 1.0);
+    let bmp;
+    try {
+      // Rychlejší cesta
+      bmp = await createImageBitmap(blob, { premultiplyAlpha: "premultiply" });
+    } catch {
+      // Fallback přes <img>
+      bmp = await blobToImg(blob);
     }
 
-  } catch(e) {
-    // NIC nehlásit, jen tichý fallback.
-    console.warn("Chyba při načítání obrázku:", url, e);
+    const dt = textureFromBitmapLike(bmp);
+    applyTextureToTarget(dt, target);
+
+    // Tichý „úspěch“ – žádné hinty/toasty
+    if (DEBUG_IMG) console.info("Obrázek načten:", url);
+    return dt;
+
+  } catch (e) {
+    if (DEBUG_IMG) console.warn("Chyba při načítání obrázku:", url, e);
+    if (USE_PLACEHOLDER_ON_FAIL) {
+      const dt = new BABYLON.DynamicTexture("imgDT_err", { width: 1024, height: 1024 }, scene, true);
+      const ctx = dt.getContext();
+      drawPlaceholder(ctx, FRAME_SIZE.W, FRAME_SIZE.H);
+      dt.update();
+      applyTextureToTarget(dt, target);
+      return dt;
+    }
+    return null;
+  }
 }
+
+// === SVG nebo data:image/* → textura ===
+async function loadSVGOrDataIntoTexture(dataUrl, target) {
+  try {
+    const bmp = await dataUrlToImg(dataUrl);
+    const dt = textureFromBitmapLike(bmp);
+    applyTextureToTarget(dt, target);
+    if (DEBUG_IMG) console.info("DataURL/SVG načteno.");
+    return dt;
+  } catch (e) {
+    if (DEBUG_IMG) console.warn("Chyba při dekódování DataURL/SVG:", e);
+    if (USE_PLACEHOLDER_ON_FAIL) {
+      const dt = new BABYLON.DynamicTexture("imgDT_data_fail", { width: 1024, height: 1024 }, scene, true);
+      const ctx = dt.getContext();
+      drawPlaceholder(ctx, FRAME_SIZE.W, FRAME_SIZE.H);
+      dt.update();
+      applyTextureToTarget(dt, target);
+      return dt;
+    }
+    return null;
+  }
 }
-async function loadSVGOrDataIntoTexture(dataUrl, frame){
-  const bmp = await dataUrlToImg(dataUrl);
-  const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
-  const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-  frame.material = unlitTex(dt); hint("Obrázek/SVG načten ✔");
+
+// === Smart loader (URL / data:image / <svg ...>) ===
+// Žádné alerty; vrací null při prázdém vstupu nebo chybě.
+async function loadIntoFrameSmart(inputText, item) {
+  if (!item) {
+    item = (framesOf && currentWall ? (framesOf(currentWall)[0] || allFrames()[0]) : null);
+  }
+  if (!item) return null;
+
+  const s = (inputText || "").trim();
+  if (!s) return null;
+
+  if (s.startsWith("<svg")) {
+    return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8," + encodeURIComponent(s), item.frame || item);
+  }
+  if (s.startsWith("data:image/")) {
+    return loadSVGOrDataIntoTexture(s, item.frame || item);
+  }
+  return loadImageUrlIntoTexture(s, item.frame || item);
 }
-async function loadIntoFrameSmart(inputText, item){
-  if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
-  if(!item){ item = framesOf(currentWall)[0] || allFrames()[0]; }
-  if(!item){ alert("Neexistuje žádný rám."); return; }
-  const s = inputText.trim();
-  if (s.startsWith("<svg"))        return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s), item.frame);
-  if (s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s, item.frame);
-  return loadImageUrlIntoTexture(s, item.frame);
-}
-function autoAssignLocalAssets(){
-  const arr = framesOf('back');
-  const local = ["assets/one.jpg","assets/two.jpg"];
-  local.forEach((url, i)=>{
+
+// === Lokální aktiva – tichý mód ===
+function autoAssignLocalAssets() {
+  const arr = framesOf ? framesOf('back') : [];
+  const local = ["assets/one.jpg", "assets/two.jpg"];
+
+  local.forEach((url, i) => {
     const it = arr[i]; if (!it) return;
+
     const img = new Image();
-    img.onload = ()=>{
-      const dt=new BABYLON.DynamicTexture("imgDT"+i,{width:1024,height:1024},scene,true);
-      const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-      it.frame.material = unlitTex(dt);
-      it.data.title = url.split("/").pop();
-      drawPlacard(it.placard, it.data);
-      savePlacardData(it.wall, it.idx, it.data);
+    img.onload = () => {
+      const dt = new BABYLON.DynamicTexture("imgDT" + i, { width: 1024, height: 1024 }, scene, true);
+      const ctx = dt.getContext();
+      drawFitted(ctx, img, FRAME_SIZE.W, FRAME_SIZE.H);
+      dt.update();
+
+      it.frame.material = unlitTex ? unlitTex(dt) : unlitTexWithLevel(dt, 1.0);
+
+      if (it.data) {
+        it.data.title = url.split("/").pop();
+        if (typeof drawPlacard === "function") drawPlacard(it.placard, it.data);
+        if (typeof savePlacardData === "function") savePlacardData(it.wall, it.idx, it.data);
+      }
     };
-    img.onerror = ()=>{};
+    img.onerror = () => {
+      if (DEBUG_IMG) console.warn("Lokální asset nelze načíst:", url);
+      if (USE_PLACEHOLDER_ON_FAIL) {
+        const dt = new BABYLON.DynamicTexture("imgDT_local_fail_" + i, { width: 1024, height: 1024 }, scene, true);
+        const ctx = dt.getContext();
+        drawPlaceholder(ctx, FRAME_SIZE.W, FRAME_SIZE.H);
+        dt.update();
+        it.frame.material = unlitTex ? unlitTex(dt) : unlitTexWithLevel(dt, 1.0);
+      }
+    };
     img.src = url + "?v=" + Date.now();
   });
 }
-``
-/* -----------------------------
-  7) SVG logo "phaser" – zadní i přední stěna
-------------------------------*/
