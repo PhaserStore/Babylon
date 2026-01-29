@@ -27,7 +27,7 @@ window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.t
 const canvas = $("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
 
-// iPhone / mobilní Safari – snížit DPI pro stabilitu paměti
+// iPhone / mobilní Safari – snížení DPI pro stabilitu paměti
 try{
   const dpr = window.devicePixelRatio || 1;
   if (dpr > 2) engine.setHardwareScalingLevel(2 / dpr);
@@ -74,11 +74,11 @@ function createScene(){
 ========================= */
 function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
 function unlitTex(tex){
+  // Unlit, jen přední strana → žádné zrcadlení
   const m=new BABYLON.StandardMaterial("mt",scene);
   m.disableLighting = true;
   m.diffuseTexture  = tex;
-  m.emissiveColor   = new BABYLON.Color3(1,1,1); // „neutrální“ svit bez světel
-  m.backFaceCulling = true;                      // KLÍČ: vykreslujeme jen přední stranu
+  m.backFaceCulling = true;   // kreslit jen přední stranu (FRONTSIDE)
   return m;
 }
 
@@ -117,7 +117,7 @@ function buildLED(){
 const FRAME_SIZE = { W: 1.2, H: 1.2 };
 const FRAME_BOX_BORDER = 0.08;
 
-// vektor směrem do místnosti z rotace kolem Y (front face plane = +Z)
+// vektor směrem do místnosti dle rotace Y (front face plane = +Z)
 function inwardForward(rotY){ return new BABYLON.Vector3(Math.sin(rotY), 0, Math.cos(rotY)); }
 
 function lightGrayPlaceholderMat(text){
@@ -138,11 +138,12 @@ function drawPlacard(plac,data){
 }
 
 function addFrame(pos, rotY=0, wall='front'){
+  // Box – vizuální okraj okolo obrazu
   const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.05},scene);
   box.position = pos.clone(); box.rotation.y = rotY;
   box.material = unlit("#383838"); box.isPickable = true;
 
-  // PŘEDNÍ STRANA VŽDY DOVNITŘ: FRONTSIDE + backFaceCulling = true
+  // PŘEDNÍ STRANA DOVNITŘ: FRONTSIDE + backFaceCulling=true
   const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE},scene);
   const inward = inwardForward(rotY);
   f.position = pos.add(inward.scale(0.03));
@@ -281,7 +282,16 @@ const GALLERY_LOGO_SVG = `
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <!-- (zkráceno: stejná vektorizace jako dřív) -->
+    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
   </g>
   <g>
     <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
@@ -312,7 +322,7 @@ function buildGalleryLogo(){
 
     const sharpMat = unlitTex(dt);
     const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
-    glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture = glowDT;
+    glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture   = glowDT;
     glowMat.emissiveColor    = new BABYLON.Color3(1,1,1); glowMat.backFaceCulling  = true;
 
     const logoW = ROOM.W * LOGO_SCALE;
@@ -320,10 +330,10 @@ function buildGalleryLogo(){
     const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.40;
 
     function placeLogo(z, rotY, idx){
-      const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
+      const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
       g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
 
-      const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
+      const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
       s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
     }
     placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
@@ -510,6 +520,39 @@ $("btnDemo").addEventListener("click", ()=>{
 });
 
 /* =========================
+   Publish to GitHub Issue (jen v ADMIN módu)
+========================= */
+const publishBtn = $("publishBtn");
+if (publishBtn){
+  publishBtn.addEventListener('click', () => {
+    if (document.body.classList.contains('view')) {
+      alert('Publish je dostupný jen v ADMIN módu (klávesa A).');
+      return;
+    }
+    try {
+      const out = { front: [], back: [], left: [], right: [] };
+      for (const wall of Object.keys(framesByWall)) {
+        out[wall] = (framesByWall[wall] || []).map(it => ({
+          img:     it.data.src      || '',
+          imgData: it.data.srcData  || '',
+          label:   it.data.title    || '',
+          href:    it.data.url      || ''
+        }));
+      }
+      const minified = JSON.stringify(out);
+      localStorage.setItem('draftGalleryJson', minified);
+      const title = encodeURIComponent('Update gallery');
+      const body  = encodeURIComponent(minified);
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      console.error(e);
+      alert('Export selhal – zkontroluj, že data jsou validní.');
+    }
+  });
+}
+
+/* =========================
    BOOT
 ========================= */
 createScene();
@@ -523,4 +566,16 @@ createFixedFramesForWall('back',  7,  YCENTER, SAFE, CORNER_SAFE);
 createFixedFramesForWall('left',  13, YCENTER, SAFE, CORNER_SAFE);
 createFixedFramesForWall('right', 13, YCENTER, SAFE, CORNER_SAFE);
 
-assignDataAllWalls((window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA, /*quiet*/true);
+// Pokud existuje ./data/gallery.json, zkus ho načíst (quiet mód). Jinak DEMO.
+(async function loadGallery(){
+  try{
+    const res = await fetch('./data/gallery.json', { cache:'no-store' });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    window.galleryData = data;
+    assignDataAllWalls(data, /*quiet*/true);
+  }catch(e){
+    // fallback: demo
+    assignDataAllWalls(DATA, /*quiet*/true);
+  }
+})();
