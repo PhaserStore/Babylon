@@ -69,18 +69,40 @@
 
   <!-- ===== Publish (Issue s JSONem) ===== -->
   <script>
+    // === SERIALIZACE: aktuální stav galerie do JSON ===
+    function collectGalleryData() { // NEW
+      const out = { front: [], back: [], left: [], right: [] };
+      for (const wall of Object.keys(framesByWall)) {
+        out[wall] = (framesByWall[wall] || []).map(it => ({
+          img:   it.data.src   || '',
+          label: it.data.title || '',
+          href:  it.data.url   || ''
+        }));
+      }
+      return out;
+    }
+
     function getGalleryData() {
+      // Nejprve se pokusíme vzít aktuální stav scény (preferováno)
+      try { 
+        if (window.framesByWall) return collectGalleryData(); 
+      } catch(e) {}
+      // Záloha: poslední draft z localStorage (není ideální)
       const draft = localStorage.getItem('draftGalleryJson');
       if (draft) { try { return JSON.parse(draft); } catch(e) {} }
-      return [];
+      return {};
     }
     function toMinifiedJsonString(obj) { return JSON.stringify(obj); }
-    function openPrefilledIssueWithJson(jsonString) {
+
+    // === GitHub Issue URL – FIX: používat skutečné & (ne &amp;) ===
+    function openPrefilledIssueWithJson(jsonString) { // FIX
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      // Pozn.: pokud JSON bude příliš dlouhý, URL může být moc velká. Pak je lepší použít Gist / API s tokenem.
       window.open(url, '_blank');
     }
+
     document.getElementById('publishBtn').addEventListener('click', async () => {
       try {
         const dataObj = getGalleryData();
@@ -93,6 +115,8 @@
         alert('Export selhal – zkontroluj, že getGalleryData() vrací validní data (JS objekt).');
       }
     });
+
+    // Načtení data/gallery.json (pokud existuje) a aplikace do scény
     async function loadGallery() {
       try {
         const res = await fetch('./data/gallery.json', { cache: 'no-store' });
@@ -100,6 +124,8 @@
         const data = await res.json();
         window.galleryData = data;
         console.log('Načteno data/gallery.json:', data);
+        // pokud už je scéna, rovnou data aplikujeme
+        if (window.assignDataAllWalls) assignDataAllWalls(data); // NEW
       } catch (e) {
         console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
       }
@@ -177,7 +203,14 @@
      ROOM + LED (vizuál zachován)
   ========================= */
   function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
-  function unlitTex(tex){ const m=new BABYLON.StandardMaterial("mt",scene); m.diffuseTexture=tex; m.emissiveColor=new BABYLON.Color3(1,1,1); m.disableLighting=true; return m; }
+  function unlitTex(tex){ 
+    const m=new BABYLON.StandardMaterial("mt",scene); 
+    m.disableLighting = true;
+    m.diffuseTexture  = tex;
+    m.emissiveTexture = tex;              // NEW – „svítící“ bez vlivu světel
+    m.backFaceCulling = false;            // NEW – viditelné a správně směrem dovnitř i pro stěny
+    return m; 
+  }
 
   function buildRoom(){
     const floor   = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene); floor.material = unlit("#151515");
@@ -213,6 +246,7 @@
      FRAMES + CEDULKY – jednotka
   ========================= */
   const FRAME_SIZE = { W: 1.2, H: 1.2 };
+  const FRAME_BOX_BORDER = 0.08; // šířka boxu okolo rámu (viz původní)
   function lightGrayPlaceholderMat(text){
     const dt=new BABYLON.DynamicTexture("ph2",{width:512,height:512},scene,true);
     const c=dt.getContext();
@@ -229,12 +263,13 @@
     c.fillText(data.title||"(bez názvu)",512,128);
     dt.update(); plac.material=unlitTex(dt);
   }
-  function addFrame(pos, rotY=0){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+0.08,height:FRAME_SIZE.H+0.08,depth:0.05},scene);
+
+  function addFrame(pos, rotY=0, wall='front'){ // wall: 'front'|'back'|'left'|'right'  // NEW
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.05},scene);
     box.position = pos.clone(); box.rotation.y = rotY;
     box.material = unlit("#383838"); box.isPickable = true;
 
-    const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H},scene);
+    const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE},scene);
     const fx = (rotY=== Math.PI/2 ? 0.03 : (rotY===-Math.PI/2 ? -0.03 : 0));
     const fz = (rotY=== 0        ? 0.03 : (rotY=== Math.PI  ? -0.03 : 0));
     f.position = pos.add(new BABYLON.Vector3(fx,0,fz));
@@ -245,10 +280,26 @@
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
     plac.rotation.y = rotY; plac.isPickable = true;
 
-    const data = { title: "(bez názvu)", url: "" };
+    const data = { title: "(bez názvu)", url: "", src: "" }; // NEW: src se uloží při načtení obrázku
     drawPlacard(plac, data);
 
-    return { frame:f, box, placard:plac, data };
+    return { frame:f, box, placard:plac, data, wall }; // NEW wall uložen
+  }
+
+  // Textura musí být vždy správně „dovnitř“ a nesmí být zrcadlená
+  function ensureFacingInwardMaterial(mesh, wall){ // NEW
+    const mat = mesh.material;
+    if (!mat) return;
+    // Defaultně 1; pro levé/pravé stěny vynutíme normalizovanou orientaci
+    if (mat.diffuseTexture) {
+      mat.diffuseTexture.uScale = (wall==='left' || wall==='right') ? -1 : 1;
+      mat.diffuseTexture.vScale = 1;
+    }
+    if (mat.emissiveTexture) {
+      mat.emissiveTexture.uScale = (wall==='left' || wall==='right') ? -1 : 1;
+      mat.emissiveTexture.vScale = 1;
+    }
+    mat.backFaceCulling = false;
   }
 
   /* =========================
@@ -300,7 +351,7 @@
   }
 
   /* =========================
-     LOADING OBRÁZKŮ
+     LOADING OBRÁZKŮ – dovnitř + zachování orientace
   ========================= */
   function drawFitted(ctx,bmp,frameW,frameH){
     const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
@@ -312,7 +363,7 @@
   function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
   function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
 
-  async function loadImageUrlIntoTexture(url, frame){
+  async function loadImageUrlIntoTexture(url, item){
     try{
       const resp=await fetch(url,{mode:"cors",cache:"no-store"});
       if(!resp.ok) throw new Error("HTTP");
@@ -322,21 +373,31 @@
       try{ bmp=await createImageBitmap(blob,{premultiplyAlpha:"premultiply"});}catch{ bmp=await blobToImg(blob); }
       const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
       const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-      frame.material = unlitTex(dt); hint("Obrázek načten ✔");
+      const mat = unlitTex(dt);
+      item.frame.material = mat;
+      ensureFacingInwardMaterial(item.frame, item.wall); // NEW
+      item.data.src = url;                                // NEW
+      autosave();                                         // NEW
+      hint("Obrázek načten ✔");
     }catch(e){ console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL)."); }
   }
-  async function loadSVGOrDataIntoTexture(dataUrl, frame){
+  async function loadSVGOrDataIntoTexture(dataUrl, item){
     const bmp = await dataUrlToImg(dataUrl);
     const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
     const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-    frame.material = unlitTex(dt); hint("Obrázek/SVG načten ✔");
+    const mat = unlitTex(dt);
+    item.frame.material = mat;
+    ensureFacingInwardMaterial(item.frame, item.wall); // NEW
+    item.data.src = dataUrl;                           // NEW
+    autosave();                                        // NEW
+    hint("Obrázek/SVG načten ✔");
   }
   async function loadIntoFrameSmart(inputText, item){
     if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
     const s=inputText.trim();
-    if(s.startsWith("<svg")) return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s),item.frame);
-    if(s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s,item.frame);
-    return loadImageUrlIntoTexture(s,item.frame);
+    if(s.startsWith("<svg")) return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s),item);
+    if(s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s,item);
+    return loadImageUrlIntoTexture(s,item);
   }
 
   /* =========================
@@ -413,10 +474,45 @@
   }
 
   /* =========================
-     MULTI‑WALL FIX – SAFE 0.8, 7/7/13/13, stejná výška
+     MULTI‑WALL LAYOUT – SAFE + CORNER_SAFE, pravidelné rozmístění
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
-  function createFixedFramesForWall(wall, count, centerY, safe){
+
+  // NEW: dodatečná ochranná zóna v rozích (navíc k SAFE)
+  const SAFE = 0.8;           // původní bezpečný odstup od okrajů stěn
+  const CORNER_SAFE = 0.6;    // dodatečná zóna v rozích
+
+  function distributeCenters(min, max, count, frameW){
+    // Rozloží centra rámů mezi min..max, respektuje reálné šířky rámů.
+    if (count <= 1) return [ (min+max)/2 ];
+
+    const span = max - min;
+    const totalFramesWidth = count * frameW;
+    let gap = (span - totalFramesWidth) / (count - 1);
+
+    // Pokud je místa méně, zmenšíme mezery rovnoměrně, ale ne do záporu
+    const MIN_GAP = 0.05; // minimální mezera (5 cm)
+    if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
+
+    const centers = [];
+    let x = min + frameW/2;
+    for (let i = 0; i < count; i++) {
+      centers.push(x);
+      x += frameW + gap;
+    }
+
+    // Kontrola: pokud i tak končíme za maxem (např. při extrémně krátké stěně),
+    // přepneme na fallback: čistě rovnoměrné rozdělení center (může být těsné).
+    if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
+      const step = (max - min) / (count - 1);
+      centers.length = 0;
+      for (let i=0;i<count;i++) centers.push(min + i*step);
+    }
+
+    return centers;
+  }
+
+  function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
     const rotY =
       wall==='front' ? Math.PI :
       wall==='back'  ? 0 :
@@ -425,27 +521,28 @@
 
     const axisX  = (wall==='front'||wall==='back');
     const length = axisX ? ROOM.W : ROOM.D;
-    const min = -length/2 + safe;
-    const max =  length/2 - safe;
 
-    const xs = [];
-    if (count<=1) { xs.push(0); }
-    else {
-      const step = (max - min) / (count - 1);
-      for(let i=0;i<count;i++) xs.push(min + i*step);
-    }
+    // Ochranné zóny: základní SAFE + dodatečná v rozích CORNER_SAFE
+    const min = -length/2 + safeWall + cornerSafe;
+    const max =  length/2 - safeWall + -cornerSafe;
 
+    // Rozložení center s ohledem na šířku reálného rámu
+    const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
+
+    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); }); // cleanup při re-layoutu
     framesByWall[wall] = [];
-    xs.forEach(val=>{
+
+    centers.forEach(val=>{
       const pos = axisX
         ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
         : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
-      framesByWall[wall].push( addFrame(pos, rotY) );
+      const it = addFrame(pos, rotY, wall);
+      framesByWall[wall].push(it);
     });
   }
 
   /* =========================
-     DATA – doplň si obrázky/cedulky/URL
+     DATA – DEMO + načtení
   ========================= */
   const DATA = {
     front: [
@@ -471,15 +568,19 @@
   };
 
   function assignDataAllWalls(data){
-    const loadLocal = (url, targetFrame)=>{
+    const loadLocal = (url, targetItem)=>{
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = ()=>{
         const dt=new BABYLON.DynamicTexture("imgDT"+Math.random(),{width:1024,height:1024},scene,true);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-        targetFrame.material = unlitTex(dt);
+        const mat = unlitTex(dt);
+        targetItem.frame.material = mat;
+        ensureFacingInwardMaterial(targetItem.frame, targetItem.wall); // NEW
+        targetItem.data.src = url;                                      // NEW
+        autosave();                                                     // NEW
       };
-      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetFrame); };
+      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
       img.src = url;
     };
 
@@ -489,7 +590,7 @@
       const n = Math.min(items.length, arr.length);
       for (let i=0;i<n;i++){
         const it = arr[i], d = items[i];
-        if (d.img)  loadLocal(d.img, it.frame);
+        if (d.img)  loadLocal(d.img, it);
         it.data.title = d.label || "(bez názvu)";
         it.data.url   = d.href || "";
         drawPlacard(it.placard, it.data);
@@ -497,8 +598,16 @@
     });
   }
 
+  // Autosave do localStorage (pro Publish)
+  function autosave(){ // NEW
+    try{
+      const data = collectGalleryData();
+      localStorage.setItem('draftGalleryJson', JSON.stringify(data));
+    }catch(e){ /* ignore */ }
+  }
+
   /* =========================
-     UI – zůstává, ale přidat rychlé akce
+     UI – zůstává, pár úprav
   ========================= */
   $("btnLoad").addEventListener("click", ()=>{
     const it = selected || framesByWall.back[0] || framesByWall.front[0] || framesByWall.left[0] || framesByWall.right[0];
@@ -512,17 +621,33 @@
     it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
     it.data.url   = (linkEl?.value  || "").trim();
     drawPlacard(it.placard, it.data);
+    autosave(); // NEW
     hint("Cedulka aktualizována.");
   });
   $("btnAdd").addEventListener("click", ()=>{
     alert("Přidávání je vypnuto – rámy jsou definované pevně pro každou stěnu (7/7/13/13).");
   });
   $("btnApplyLayout").addEventListener("click", ()=>{
-    alert("Layout je řízen pevně (SAFE 0.8 m, centrováno). Počty: 7/7/13/13.");
+    // Re-layout se stávajícími počty (7/7/13/13), ale s aktuálními SAFE a CORNER_SAFE
+    const YCENTER = ROOM.H * 0.55;
+    createFixedFramesForWall('front', 7,  YCENTER, SAFE, CORNER_SAFE);
+    createFixedFramesForWall('back',  7,  YCENTER, SAFE, CORNER_SAFE);
+    createFixedFramesForWall('left',  13, YCENTER, SAFE, CORNER_SAFE);
+    createFixedFramesForWall('right', 13, YCENTER, SAFE, CORNER_SAFE);
+
+    // Po relayoutu znovu aplikujeme data (ze serializovaného stavu nebo DATA)
+    const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
+    assignDataAllWalls(data);
+    hint("Layout znovu aplikován (SAFE + CORNER_SAFE).");
   });
   $("btnResetCam").addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
+  });
+  $("btnDemo").addEventListener("click", ()=>{ // NEW
+    assignDataAllWalls(DATA);
+    autosave();
+    hint("DEMO data nahrána.");
   });
 
   /* =========================
@@ -533,16 +658,15 @@
   window.addEventListener("resize", ()=> engine.resize());
   setMode(MODE.VIEW); // start ve VIEW
 
-  // Fixní parametry: SAFE 0.8 m + stejná výška
-  const SAFE = 0.8;
+  // Fixní parametry: SAFE + CORNER_SAFE + stejná výška
   const YCENTER = ROOM.H * 0.55;
-  createFixedFramesForWall('front', 7,  YCENTER, SAFE);
-  createFixedFramesForWall('back',  7,  YCENTER, SAFE);
-  createFixedFramesForWall('left',  13, YCENTER, SAFE);
-  createFixedFramesForWall('right', 13, YCENTER, SAFE);
+  createFixedFramesForWall('front', 7,  YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('back',  7,  YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('left',  13, YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('right', 13, YCENTER, SAFE, CORNER_SAFE);
 
-  // Naplnit obrázky + cedulky + klikací URL
-  assignDataAllWalls(DATA);
+  // Naplnit obrázky + cedulky + klikací URL (DEMO nebo data z ./data/gallery.json)
+  assignDataAllWalls((window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA);
 
   </script>
 </body>
