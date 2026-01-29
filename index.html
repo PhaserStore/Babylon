@@ -22,10 +22,10 @@
     button:hover{background:#575757}
     textarea{min-width:320px;min-height:80px}
     #hint{flex-basis:100%;font-size:12px;color:#ccc}
-    body.view #ui{display:none}
+    body.view #ui{display:none} /* VIEW mód = čistá výstava (UI nevidět) */
     label{display:flex;gap:6px;align-items:center}
 
-    /* Publish jen v ADMIN módu */
+    /* Publish btn – vidět jen v ADMIN módu */
     #publishBtn{
       position:fixed;top:12px;right:12px;z-index:9999;padding:8px 12px;
       display:none;
@@ -33,9 +33,9 @@
     body.admin #publishBtn{ display:inline-flex; }
   </style>
 
-  <!-- Babylon.js -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <!-- Babylon.js + GUI -->
+  https://cdn.babylonjs.com/babylon.js</script>
+  https://cdn.babylonjs.com/gui/babylon.gui.min.js</script>
 </head>
 
 <body class="view">
@@ -58,7 +58,6 @@
 
     <div class="group">
       <button id="btnResetCam">🎥 Reset kamery</button>
-      <button id="btnMore">➕ Přidat další stěny</button>
     </div>
 
     <div id="hint">A = ADMIN · V = VIEW · Klik na rám = výběr (modrý lem). Dvojklik = přiblížení. Klik na cedulku = skrytá URL.</div>
@@ -71,7 +70,9 @@
   <script>
   "use strict";
 
-  /* ================ MODE ================ */
+  /* =========================
+     MODE: A (admin) / V (view)
+  ========================= */
   const MODE = { ADMIN: "admin", VIEW: "view" };
   let mode = MODE.VIEW;
 
@@ -89,16 +90,21 @@
   }
   window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.toLowerCase(); if(k==='a') setMode(MODE.ADMIN); if(k==='v') setMode(MODE.VIEW); });
 
-  /* ============== ENGINE / SCENE / CAMERA ============== */
+  /* =========================
+     ENGINE / SCENE / CAMERA
+  ========================= */
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
+
+  // iPhone / mobilní Safari – snížení DPI pro stabilitu paměti
   try{
     const dpr = window.devicePixelRatio || 1;
-    if (dpr > 2) engine.setHardwareScalingLevel(2 / dpr); // mobilní Safari stabilita
+    if (dpr > 2) engine.setHardwareScalingLevel(2 / dpr);
   }catch{}
 
   let scene, camera, glow, hl;
 
+  // Rozměry místnosti
   const ROOM = { W: 16, D: 30, H: 5.6 };
   const MIN_RADIUS = 1.6, MAX_RADIUS = 40;
 
@@ -119,37 +125,39 @@
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize:48 });
-    glow.intensity = 0.35;      // jemnější glow, aby „nepřepaloval“
+    glow.intensity = 0.45;
 
     hl = new BABYLON.HighlightLayer("hl", scene);
 
     buildRoom();
     buildLED();
-    buildLogoSimple();          // logo bez glow duplikátů (čisté a ostré)
+    buildLogoPhaser();
 
     setupPicking();
     setupDoubleClickZoom();
     return scene;
   }
 
-  /* ====================== ROOM + LED ====================== */
+  /* =========================
+     ROOM + LED
+  ========================= */
   function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
   function unlitTex(tex){ const m=new BABYLON.StandardMaterial("mt",scene); m.disableLighting=true; m.diffuseTexture=tex; m.backFaceCulling=true; return m; }
 
   function buildRoom(){
     BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene).material = unlit("#141414");
     const back    = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
-    back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#262626");
+    back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#252628");
     const front   = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.rotation.y = Math.PI; front.material = unlit("#262626");
+    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.rotation.y = Math.PI; front.material = unlit("#252628");
     const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
     ceiling.position.y = ROOM.H; ceiling.rotation.x = Math.PI; ceiling.material = unlit("#0f0f10");
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0); left.rotation.y = -Math.PI/2; left.material = unlit("#242424");
+    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0); left.rotation.y = -Math.PI/2; left.material = unlit("#232425");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0); right.rotation.y =  Math.PI/2; right.material = unlit("#242424");
+    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0); right.rotation.y =  Math.PI/2; right.material = unlit("#232425");
   }
 
   function buildLED(){
@@ -168,46 +176,53 @@
     [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
-  /* ====================== LOGO (ostrý 1 plane) ====================== */
-  const GALLERY_LOGO_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
-  <defs><style>.a{fill:#daff3e}</style></defs>
-  <g>
-    <path class="a" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="a" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
+  /* =========================
+     LOGO – ostré (emissive), bez přepalu
+  ========================= */
+  const LOGO_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 180" preserveAspectRatio="xMidYMid meet">
+  <rect width="600" height="180" fill="none"/>
+  <text x="50%" y="55%" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="90" text-anchor="middle" fill="#daff3e" letter-spacing="2">phaser</text>
 </svg>`;
-  function buildLogoSimple(){
+  function buildLogoPhaser(){
     const img = new Image();
-    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
+    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(LOGO_SVG);
     img.onload = () => {
       const SIZE = 1024;
       const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
       const ctx = dt.getContext();
-      const maxW = SIZE * 0.65;
-      const w = maxW, h = Math.round(maxW / (941.43/272.86));
+      const maxW = SIZE * 0.70;
+      const w = maxW, h = Math.round(maxW / (600/180));
       const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
       ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
 
-      const mat = unlitTex(dt);
-      const plane = BABYLON.MeshBuilder.CreatePlane("logo", { width: ROOM.W*0.42, height: 2.2, sideOrientation:BABYLON.Mesh.FRONTSIDE }, scene);
-      plane.position.set(0, ROOM.H*0.72, -ROOM.D/2 + 0.06); // malý offset dopředu
-      plane.rotation.y = 0;
-      plane.material = mat;
+      const mat = new BABYLON.StandardMaterial("logoMat", scene);
+      mat.disableLighting  = true;
+      mat.emissiveTexture  = dt;
+      mat.opacityTexture   = dt;
+      mat.emissiveColor    = new BABYLON.Color3(1,1,1);
+      mat.backFaceCulling  = true;
+
+      const p = BABYLON.MeshBuilder.CreatePlane("logo", { width: ROOM.W*0.42, height: 2.2, sideOrientation:BABYLON.Mesh.FRONTSIDE }, scene);
+      p.position.set(0, ROOM.H*0.72, -ROOM.D/2 + 0.08);
+      p.rotation.y = 0;
+      p.material = mat;
     };
   }
 
-  /* ====================== FRAMES ====================== */
+  /* =========================
+     FRAMES – 7/7/13/13, světlé rámy + světlé cedulky
+  ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
   const FRAME_SIZE = { W: 1.2, H: 1.2 };
   const FRAME_BOX_BORDER = 0.08;
+  const FRAME_OFFSET = 0.06;                     // odsazení od zdi (bez z‑fightingu)
   const SAFE = 0.8, CORNER_SAFE = 0.6;
-  const FRAME_OFFSET = 0.06; // větší odsazení od zdi (bez z-fightingu)
 
   function lightGrayPlaceholderMat(text){
     const dt=new BABYLON.DynamicTexture("ph2",{width:512,height:512},scene,true);
     const c=dt.getContext();
-    c.fillStyle="#cbcbcb"; c.fillRect(0,0,512,512);
+    c.fillStyle="#d7d7d7"; c.fillRect(0,0,512,512);   // světle šedé pozadí
     c.fillStyle="#222";    c.font="bold 32px system-ui"; c.textAlign="center"; c.textBaseline="middle";
     c.fillText(text,256,256);
     dt.update(); return unlitTex(dt);
@@ -215,8 +230,8 @@
   function drawPlacard(plac,data){
     const dt=new BABYLON.DynamicTexture("pl",{width:1024,height:256},scene,true);
     const c=dt.getContext();
-    c.fillStyle="#222"; c.fillRect(0,0,1024,256);
-    c.fillStyle="#e6e6e6"; c.font="bold 56px system-ui"; c.textAlign="center"; c.textBaseline="middle";
+    c.fillStyle="#d7d7d7"; c.fillRect(0,0,1024,256);  // světle šedé pozadí cedulky
+    c.fillStyle="#111";    c.font="bold 56px system-ui"; c.textAlign="center"; c.textBaseline="middle";
     c.fillText(data.title||"(bez názvu)",512,128);
     dt.update(); plac.material=unlitTex(dt);
   }
@@ -224,9 +239,13 @@
   function inwardForward(rotY){ return new BABYLON.Vector3(Math.sin(rotY), 0, Math.cos(rotY)); }
 
   function addFrame(pos, rotY=0, wall='back'){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.05},scene);
+    // box = světlý rám
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.06},scene);
     box.position = pos.clone(); box.rotation.y = rotY;
-    box.material = unlit("#383838"); box.isPickable = true;
+    const boxMat = new BABYLON.StandardMaterial("frameBoxMat",scene);
+    boxMat.disableLighting = true;
+    boxMat.diffuseColor = new BABYLON.Color3(0.75,0.78,0.82); // světle šedá
+    box.material = boxMat; box.isPickable = true;
 
     const f = BABYLON.MeshBuilder.CreatePlane("frame",{width:FRAME_SIZE.W,height:FRAME_SIZE.H, sideOrientation:BABYLON.Mesh.FRONTSIDE},scene);
     const inward = inwardForward(rotY);
@@ -251,28 +270,39 @@
     let gap = (span - totalFramesWidth) / (count - 1);
     const MIN_GAP = 0.05;
     if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
-    const centers = [];
-    let x = min + frameW/2;
+    const centers = []; let x = min + frameW/2;
     for (let i=0;i<count;i++){ centers.push(x); x += frameW + gap; }
     return centers;
   }
 
-  function createFramesBackWall(count=7){
-    const centerY = ROOM.H * 0.55;
-    const rotY = 0; // back wall -> front face do +Z
-    const length = ROOM.W;
-    const min = -length/2 + SAFE + CORNER_SAFE;
-    const max =  length/2 - SAFE - CORNER_SAFE;
-    framesByWall.back.forEach(it=>{ it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
-    framesByWall.back = [];
+  function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
+    const rotY =
+      wall==='front' ? Math.PI :
+      wall==='back'  ? 0 :
+      wall==='left'  ? Math.PI/2 :
+      wall==='right' ? -Math.PI/2 : 0;
+
+    const axisX  = (wall==='front'||wall==='back');
+    const length = axisX ? ROOM.W : ROOM.D;
+
+    const min = -length/2 + safeWall + cornerSafe;
+    const max =  length/2 - safeWall - cornerSafe;
+
+    (framesByWall[wall]||[]).forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+    framesByWall[wall] = [];
+
     const centers = distributeCenters(min,max,count,FRAME_SIZE.W);
-    centers.forEach(x=>{
-      const pos = new BABYLON.Vector3(x, centerY, -ROOM.D/2 + 0.01);
-      framesByWall.back.push( addFrame(pos, rotY, 'back') );
+    centers.forEach(val=>{
+      const pos = axisX
+        ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.01 : -ROOM.D/2 + 0.01))
+        : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.01 : -ROOM.W/2 + 0.01), centerY, val);
+      framesByWall[wall].push( addFrame(pos, rotY, wall) );
     });
   }
 
-  /* ====================== PICKING / ZOOM ====================== */
+  /* =========================
+     VÝBĚR / PICKING + ZOOM
+  ========================= */
   let selected = null;
   function clearSelection(){ if(!selected) return; selected.box.renderOutline=false; hl.removeAllMeshes(); selected=null; }
   function selectFrame(it){
@@ -290,14 +320,18 @@
       if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
       if (!pi.pickInfo?.hit) return;
       const mesh = pi.pickInfo.pickedMesh;
-      for(const it of framesByWall.back){
-        if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
-        if (mode === MODE.ADMIN && (mesh===it.frame||mesh===it.box)){ selectFrame(it); return; }
+
+      for (const wall of Object.keys(framesByWall)){
+        for(const it of framesByWall[wall]){
+          if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
+          if (mode === MODE.ADMIN && (mesh===it.frame||mesh===it.box)){ selectFrame(it); return; }
+        }
       }
     }, BABYLON.PointerEventTypes.POINTERPICK);
   }
   function setupDoubleClickZoom(){
-    canvas.addEventListener("dblclick", ()=>{
+    const canvasEl = document.getElementById('renderCanvas');
+    canvasEl.addEventListener("dblclick", ()=>{
       const pick=scene.pick(scene.pointerX,scene.pointerY);
       if(!pick?.hit) return;
       camera.target=pick.pickedPoint.clone();
@@ -305,7 +339,9 @@
     });
   }
 
-  /* ====================== IMAGE LOADING ====================== */
+  /* =========================
+     LOADING OBRÁZKŮ + SNAPSHOT
+  ========================= */
   function drawFitted(ctx,bmp,frameW,frameH){
     const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
     if(r>targetR){ dh=1024; dw=Math.round(dh*r); dx=Math.round((1024-dw)/2);} else{ dw=1024; dh=Math.round(dw/r); dy=Math.round((1024-dh)/2);}
@@ -320,8 +356,7 @@
     try{
       const resp=await fetch(url,{mode:"cors",cache:"no-store"}); if(!resp.ok) throw new Error("HTTP "+resp.status);
       const ct=resp.headers.get("content-type")||""; if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
-      const blob=await resp.blob();
-      const bmp=await blobToImg(blob);
+      const blob=await resp.blob(); const bmp=await blobToImg(blob);
       const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
       const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
       item.frame.material = unlitTex(dt);
@@ -353,93 +388,67 @@
     return loadImageUrlIntoTexture(s,item);
   }
 
-  /* ====================== DEMO DATA + AUTOSAVE ====================== */
-  const DATA = {
-    back: [
-      { img:"./assets/one.jpg",   label:"Back A", href:"https://example.com/a" },
-      { img:"./assets/two.jpg",   label:"Back B", href:"https://example.com/b" },
-      { img:"./assets/three.jpg", label:"Back C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" },
-      { img:"./assets/two.jpg",   label:"Back E", href:"https://example.com/e" },
-      { img:"./assets/three.jpg", label:"Back F", href:"https://example.com/f" },
-      { img:"./assets/one.jpg",   label:"Back G", href:"https://example.com/g" }
-    ]
-  };
-
-  function assignDataBackWall(data){
-    const arr = framesByWall.back;
-    const items = (data && data.back) ? data.back : [];
-    const n = Math.min(items.length, arr.length);
-    for (let i=0;i<n;i++){
-      const it = arr[i], d = items[i];
-      if (d.img) {
-        const img = new Image(); img.crossOrigin = "anonymous";
-        img.onload = ()=>{
-          const dt=new BABYLON.DynamicTexture("imgDT"+Math.random(),{width:1024,height:1024},scene,true);
-          const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-          it.frame.material = unlitTex(dt);
-          it.data.src = d.img;
-          const snap = dynamicTextureToDataUrl(dt); if (snap) it.data.srcData = snap;
-          autosave();
-        };
-        img.onerror = ()=> loadImageUrlIntoTexture(d.img, it);
-        img.src = d.img;
-      }
-      it.data.title = d.label || "(bez názvu)";
-      it.data.url   = d.href || "";
-      drawPlacard(it.placard, it.data);
-    }
+  /* =========================
+     DEMO DATA (s fallbacky z webu)
+  ========================= */
+  const DEMO_WEB = [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/1024px-Fronalpstock_big.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Blue_Flower.jpg/1024px-Blue_Flower.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/1024px-Golde33443.jpg"
+  ];
+  function demoFillAll(){
+    const all = [...framesByWall.front, ...framesByWall.back, ...framesByWall.left, ...framesByWall.right];
+    all.forEach((it, idx)=>{
+      // 1) lokální assets pokud jsou, 2) web fallback
+      const local = ["./assets/one.jpg","./assets/two.jpg","./assets/three.jpg"][idx%3];
+      const url   = local;
+      const img = new Image(); img.crossOrigin="anonymous";
+      img.onload = ()=>{
+        const dt=new BABYLON.DynamicTexture("imgDT"+Math.random(),{width:1024,height:1024},scene,true);
+        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+        it.frame.material = unlitTex(dt);
+        it.data.src = url;
+        const snap = dynamicTextureToDataUrl(dt); if (snap) it.data.srcData = snap;
+        it.data.title = it.data.title || "DEMO";
+        drawPlacard(it.placard, it.data);
+      };
+      img.onerror = ()=> loadImageUrlIntoTexture(DEMO_WEB[idx%DEMO_WEB.length], it);
+      img.src = url;
+    });
+    autosave();
+    hint("DEMO data nahrána.");
   }
 
+  /* =========================
+     AUTOSAVE + PUBLISH (ADMIN)
+  ========================= */
   function autosave(){
     try{
-      const out = { back: [] };
-      out.back = (framesByWall.back || []).map(it => ({
-        img:     it.data.src || '',
-        imgData: it.data.srcData || '',
-        label:   it.data.title || '',
-        href:    it.data.url || ''
-      }));
+      const out = { front:[], back:[], left:[], right:[] };
+      for (const wall of Object.keys(framesByWall)) {
+        out[wall] = (framesByWall[wall] || []).map(it => ({
+          img:     it.data.src || '',
+          imgData: it.data.srcData || '',
+          label:   it.data.title || '',
+          href:    it.data.url || ''
+        }));
+      }
       localStorage.setItem('draftGalleryJson', JSON.stringify(out));
     }catch(e){}
   }
 
-  /* ====================== UI ====================== */
-  $("btnLoad").addEventListener("click", ()=>{
-    const it = selected || framesByWall.back[0];
-    if(!it){ alert("Neexistuje žádný rám."); return; }
-    const input = imgUrlEl.value.trim();
-    loadIntoFrameSmart(input, it);
-  });
-  $("btnPlacard").addEventListener("click", ()=>{
-    const it=selected || framesByWall.back[0];
-    if(!it){ alert("Neexistuje žádný rám."); return; }
-    it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
-    it.data.url   = (linkEl?.value  || "").trim();
-    drawPlacard(it.placard, it.data);
-    autosave();
-    hint("Cedulka aktualizována.");
-  });
-  $("btnResetCam").addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius=11.5;
-  });
-  $("btnDemo").addEventListener("click", ()=>{
-    assignDataBackWall(DATA);
-    autosave();
-    hint("DEMO data nahrána.");
-  });
-  $("btnMore").addEventListener("click", ()=>{
-    alert("Až potvrdíš, že zadní stěna je OK, rozšířím na 7/7/13/13 + rozích SAFE zóny.");
-  });
-
-  /* ====================== Publish (ADMIN only) ====================== */
   $("publishBtn").addEventListener('click', () => {
     if (document.body.classList.contains('view')) { alert('Publish je dostupný jen v ADMIN módu (klávesa A).'); return; }
     try {
-      const out = { back: (framesByWall.back||[]).map(it => ({
-        img: it.data.src||'', imgData: it.data.srcData||'', label: it.data.title||'', href: it.data.url||''
-      }))};
+      const out = { front:[], back:[], left:[], right:[] };
+      for (const wall of Object.keys(framesByWall)) {
+        out[wall] = (framesByWall[wall] || []).map(it => ({
+          img:     it.data.src || '',
+          imgData: it.data.srcData || '',
+          label:   it.data.title || '',
+          href:    it.data.url || ''
+        }));
+      }
       const minified = JSON.stringify(out);
       localStorage.setItem('draftGalleryJson', minified);
       const title = encodeURIComponent('Update gallery');
@@ -452,14 +461,46 @@
     }
   });
 
-  /* ====================== BOOT ====================== */
+  /* =========================
+     UI – akce
+  ========================= */
+  $("btnLoad").addEventListener("click", ()=>{
+    const walls = ["back","front","left","right"];
+    let it = null;
+    for (const w of walls){ if (framesByWall[w][0]){ it = it || (selected || framesByWall[w][0]); } }
+    if(!it){ alert("Neexistuje žádný rám."); return; }
+    const input = imgUrlEl.value.trim();
+    loadIntoFrameSmart(input, it);
+  });
+  $("btnPlacard").addEventListener("click", ()=>{
+    const it = selected || framesByWall.back[0] || framesByWall.front[0];
+    if(!it){ alert("Neexistuje žádný rám."); return; }
+    it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
+    it.data.url   = (linkEl?.value  || "").trim();
+    drawPlacard(it.placard, it.data);
+    autosave();
+    hint("Cedulka aktualizována.");
+  });
+  $("btnResetCam").addEventListener("click", ()=>{
+    camera.target.set(0, ROOM.H*0.48, 0);
+    camera.radius=11.5;
+  });
+  $("btnDemo").addEventListener("click", demoFillAll);
+
+  /* =========================
+     BOOT: scéna + layout 7/7/13/13
+  ========================= */
   createScene();
   engine.runRenderLoop(()=> scene.render());
   window.addEventListener("resize", ()=> engine.resize());
-  setMode(MODE.VIEW);
+  setMode(MODE.VIEW); // start ve VIEW
 
-  createFramesBackWall(7);     // jen zadní stěna → hned uvidíš rámy
-  assignDataBackWall(DATA);    // demo obrázky (pokud máš ./assets/...)
+  const YCENTER = ROOM.H * 0.55;
+  createFixedFramesForWall('front', 7,  YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('back',  7,  YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('left',  13, YCENTER, SAFE, CORNER_SAFE);
+  createFixedFramesForWall('right', 13, YCENTER, SAFE, CORNER_SAFE);
+
   </script>
 </body>
 </html>
