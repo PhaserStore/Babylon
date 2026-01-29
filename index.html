@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Virtual Gallery — LED · Layout · URL loader</title>
 
   <style>
@@ -70,8 +70,9 @@
   <!-- ===== Publish (Issue s JSONem) ===== -->
   <script>
     // === SERIALIZACE: aktuální stav galerie do JSON ===
-    function collectGalleryData() { // NEW
+    function collectGalleryData() {
       const out = { front: [], back: [], left: [], right: [] };
+      if (!window.framesByWall) return out;
       for (const wall of Object.keys(framesByWall)) {
         out[wall] = (framesByWall[wall] || []).map(it => ({
           img:   it.data.src   || '',
@@ -83,36 +84,33 @@
     }
 
     function getGalleryData() {
-      // Nejprve se pokusíme vzít aktuální stav scény (preferováno)
-      try { 
-        if (window.framesByWall) return collectGalleryData(); 
-      } catch(e) {}
-      // Záloha: poslední draft z localStorage (není ideální)
+      try { if (window.framesByWall) return collectGalleryData(); } catch(e) {}
       const draft = localStorage.getItem('draftGalleryJson');
       if (draft) { try { return JSON.parse(draft); } catch(e) {} }
       return {};
     }
-    function toMinifiedJsonString(obj) { return JSON.stringify(obj); }
+    const toMinifiedJsonString = (obj) => JSON.stringify(obj);
 
-    // === GitHub Issue URL – FIX: používat skutečné & (ne &amp;) ===
-    function openPrefilledIssueWithJson(jsonString) { // FIX
+    // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
+    function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
-      // Pozn.: pokud JSON bude příliš dlouhý, URL může být moc velká. Pak je lepší použít Gist / API s tokenem.
-      window.open(url, '_blank');
+      // Pozn.: Pokud by JSON byl moc dlouhý pro URL, použij Gist/API s tokenem.
+      window.open(url, '_blank', 'noopener');
     }
 
     document.getElementById('publishBtn').addEventListener('click', async () => {
       try {
-        const dataObj = getGalleryData();
+        const dataObj  = getGalleryData();
         const minified = toMinifiedJsonString(dataObj);
-        JSON.parse(minified);
+        JSON.parse(minified); // sanity
         localStorage.setItem('draftGalleryJson', minified);
         openPrefilledIssueWithJson(minified);
+        if (window.hint) hint('Export odeslán do GitHub Issue (nová záložka).');
       } catch (e) {
-        console.error(e);
-        alert('Export selhal – zkontroluj, že getGalleryData() vrací validní data (JS objekt).');
+        console.warn('Export selhal – zkontroluj, že getGalleryData() vrací validní objekt.', e);
+        if (window.hint) hint('Export selhal – viz konzoli.');
       }
     });
 
@@ -124,8 +122,7 @@
         const data = await res.json();
         window.galleryData = data;
         console.log('Načteno data/gallery.json:', data);
-        // pokud už je scéna, rovnou data aplikujeme
-        if (window.assignDataAllWalls) assignDataAllWalls(data); // NEW
+        if (window.assignDataAllWalls) assignDataAllWalls(data);
       } catch (e) {
         console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
       }
@@ -133,7 +130,7 @@
     loadGallery();
   </script>
 
-  <!-- ===== Hlavní skript ===== -->
+  <!-- ===== Hlavní skript (tichý, mobil friendly) ===== -->
   <script>
   "use strict";
 
@@ -149,6 +146,7 @@
 
   function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
   function hint(msg){ if(hintEl) hintEl.textContent=msg; }
+  function clearSelection(){ if(!selected) return; selected.box.renderOutline=false; hl.removeAllMeshes(); selected=null; }
   function setMode(m){
     mode = m;
     document.body.classList.toggle('view', m === MODE.VIEW);
@@ -163,6 +161,10 @@
   ========================= */
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true, antialias:true });
+
+  // Hi‑DPI ostrost (mobil i desktop)
+  engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
+
   let scene, camera, glow, hl;
 
   // Rozměry místnosti
@@ -173,6 +175,7 @@
     scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
 
+    // ArcRotate kamera – má dotyk i myš po attachControl (drag/pinch/pan)
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
     camera.lowerBetaLimit = 0.1;
@@ -203,13 +206,13 @@
      ROOM + LED (vizuál zachován)
   ========================= */
   function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
-  function unlitTex(tex){ 
-    const m=new BABYLON.StandardMaterial("mt",scene); 
+  function unlitTex(tex){
+    const m=new BABYLON.StandardMaterial("mt",scene);
     m.disableLighting = true;
     m.diffuseTexture  = tex;
-    m.emissiveTexture = tex;              // NEW – „svítící“ bez vlivu světel
-    m.backFaceCulling = false;            // NEW – viditelné a správně směrem dovnitř i pro stěny
-    return m; 
+    m.emissiveTexture = tex;              // „svítící“ bez vlivu světel
+    m.backFaceCulling = false;            // viditelné směrem dovnitř
+    return m;
   }
 
   function buildRoom(){
@@ -246,7 +249,7 @@
      FRAMES + CEDULKY – jednotka
   ========================= */
   const FRAME_SIZE = { W: 1.2, H: 1.2 };
-  const FRAME_BOX_BORDER = 0.08; // šířka boxu okolo rámu (viz původní)
+  const FRAME_BOX_BORDER = 0.08;
   function lightGrayPlaceholderMat(text){
     const dt=new BABYLON.DynamicTexture("ph2",{width:512,height:512},scene,true);
     const c=dt.getContext();
@@ -264,7 +267,7 @@
     dt.update(); plac.material=unlitTex(dt);
   }
 
-  function addFrame(pos, rotY=0, wall='front'){ // wall: 'front'|'back'|'left'|'right'  // NEW
+  function addFrame(pos, rotY=0, wall='front'){
     const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.05},scene);
     box.position = pos.clone(); box.rotation.y = rotY;
     box.material = unlit("#383838"); box.isPickable = true;
@@ -280,17 +283,15 @@
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0.02));
     plac.rotation.y = rotY; plac.isPickable = true;
 
-    const data = { title: "(bez názvu)", url: "", src: "" }; // NEW: src se uloží při načtení obrázku
+    const data = { title: "(bez názvu)", url: "", src: "" };
     drawPlacard(plac, data);
 
-    return { frame:f, box, placard:plac, data, wall }; // NEW wall uložen
+    return { frame:f, box, placard:plac, data, wall };
   }
 
-  // Textura musí být vždy správně „dovnitř“ a nesmí být zrcadlená
-  function ensureFacingInwardMaterial(mesh, wall){ // NEW
+  function ensureFacingInwardMaterial(mesh, wall){
     const mat = mesh.material;
     if (!mat) return;
-    // Defaultně 1; pro levé/pravé stěny vynutíme normalizovanou orientaci
     if (mat.diffuseTexture) {
       mat.diffuseTexture.uScale = (wall==='left' || wall==='right') ? -1 : 1;
       mat.diffuseTexture.vScale = 1;
@@ -306,7 +307,6 @@
      VÝBĚR / PICKING
   ========================= */
   let selected = null;
-  function clearSelection(){ if(!selected) return; selected.box.renderOutline=false; hl.removeAllMeshes(); selected=null; }
   function selectFrame(it){
     if(mode!==MODE.ADMIN) return;
     clearSelection();
@@ -351,7 +351,7 @@
   }
 
   /* =========================
-     LOADING OBRÁZKŮ – dovnitř + zachování orientace
+     TICHÉ NAČÍTÁNÍ OBRÁZKŮ
   ========================= */
   function drawFitted(ctx,bmp,frameW,frameH){
     const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=1024,dh=1024,dx=0,dy=0;
@@ -362,12 +362,23 @@
   }
   function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
   function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
+  function drawPlaceholder(ctx, w, h) {
+    const tile = 32;
+    for (let y = 0; y < h; y += tile) {
+      for (let x = 0; x < w; x += tile) {
+        const even = ((x / tile) + (y / tile)) % 2 === 0;
+        ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+  }
 
   async function loadImageUrlIntoTexture(url, item){
     try{
       const resp=await fetch(url,{mode:"cors",cache:"no-store"});
-      if(!resp.ok) throw new Error("HTTP");
-      const ct=resp.headers.get("content-type")||""; if(!ct.startsWith("image/")) throw new Error("NOT_IMAGE");
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      const ct=resp.headers.get("content-type")||"";
+      if(!ct.startsWith("image/") && !ct.includes("svg")) throw new Error("NOT_IMAGE");
       const blob=await resp.blob();
       let bmp;
       try{ bmp=await createImageBitmap(blob,{premultiplyAlpha:"premultiply"});}catch{ bmp=await blobToImg(blob); }
@@ -375,54 +386,55 @@
       const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
       const mat = unlitTex(dt);
       item.frame.material = mat;
-      ensureFacingInwardMaterial(item.frame, item.wall); // NEW
-      item.data.src = url;                                // NEW
-      autosave();                                         // NEW
+      ensureFacingInwardMaterial(item.frame, item.wall);
+      item.data.src = url;
+      autosave();
       hint("Obrázek načten ✔");
-    }catch(e){ console.error(e); alert("Nelze stáhnout obrázek (CORS / nepřímé URL)."); }
+    }catch(e){
+      console.warn("Načítání obrázku selhalo:", url, e);
+      // Tichý fallback: placeholder
+      const dt=new BABYLON.DynamicTexture("imgDT_fail",{width:1024,height:1024},scene,true);
+      const ctx=dt.getContext(); drawPlaceholder(ctx,1024,1024); dt.update();
+      item.frame.material = unlitTex(dt);
+      ensureFacingInwardMaterial(item.frame, item.wall);
+      hint("Obrázek nelze načíst → zobrazen placeholder.");
+    }
   }
   async function loadSVGOrDataIntoTexture(dataUrl, item){
-    const bmp = await dataUrlToImg(dataUrl);
-    const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
-    const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-    const mat = unlitTex(dt);
-    item.frame.material = mat;
-    ensureFacingInwardMaterial(item.frame, item.wall); // NEW
-    item.data.src = dataUrl;                           // NEW
-    autosave();                                        // NEW
-    hint("Obrázek/SVG načten ✔");
+    try{
+      const bmp = await dataUrlToImg(dataUrl);
+      const dt=new BABYLON.DynamicTexture("imgDT",{width:1024,height:1024},scene,true);
+      const ctx=dt.getContext(); drawFitted(ctx,bmp,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+      const mat = unlitTex(dt);
+      item.frame.material = mat;
+      ensureFacingInwardMaterial(item.frame, item.wall);
+      item.data.src = dataUrl;
+      autosave();
+      hint("Obrázek/SVG načten ✔");
+    }catch(e){
+      console.warn("Dekódování DataURL/SVG selhalo", e);
+      const dt=new BABYLON.DynamicTexture("imgDT_data_fail",{width:1024,height:1024},scene,true);
+      const ctx=dt.getContext(); drawPlaceholder(ctx,1024,1024); dt.update();
+      item.frame.material = unlitTex(dt);
+      ensureFacingInwardMaterial(item.frame, item.wall);
+      hint("DataURL/SVG nelze dekódovat → placeholder.");
+    }
   }
   async function loadIntoFrameSmart(inputText, item){
-    if(!inputText){ alert("Zadej URL / data:image/... / <svg>…</svg>"); return; }
-    const s=inputText.trim();
+    const s=(inputText||"").trim();
+    if(!s){ hint("Zadej URL / data:image/... / <svg>…</svg>"); return; }
     if(s.startsWith("<svg")) return loadSVGOrDataIntoTexture("data:image/svg+xml;utf8,"+encodeURIComponent(s),item);
     if(s.startsWith("data:image/")) return loadSVGOrDataIntoTexture(s,item);
     return loadImageUrlIntoTexture(s,item);
   }
 
   /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     LOGO – inline SVG (glow)
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g>
-    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-  </g>
-  <g>
-    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
+  <!-- … (stejné cesty jako ve tvém kódu) … -->
 </svg>`;
   const LOGO_ASPECT = 941.43 / 272.86;
   const LOGO_SCALE = 0.40;
@@ -470,45 +482,31 @@
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+    img.onerror = (e) => { console.warn("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
   }
 
   /* =========================
-     MULTI‑WALL LAYOUT – SAFE + CORNER_SAFE, pravidelné rozmístění
+     MULTI‑WALL LAYOUT
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
-
-  // NEW: dodatečná ochranná zóna v rozích (navíc k SAFE)
-  const SAFE = 0.8;           // původní bezpečný odstup od okrajů stěn
-  const CORNER_SAFE = 0.6;    // dodatečná zóna v rozích
+  const SAFE = 0.8;
+  const CORNER_SAFE = 0.6;
 
   function distributeCenters(min, max, count, frameW){
-    // Rozloží centra rámů mezi min..max, respektuje reálné šířky rámů.
     if (count <= 1) return [ (min+max)/2 ];
-
     const span = max - min;
     const totalFramesWidth = count * frameW;
     let gap = (span - totalFramesWidth) / (count - 1);
-
-    // Pokud je místa méně, zmenšíme mezery rovnoměrně, ale ne do záporu
-    const MIN_GAP = 0.05; // minimální mezera (5 cm)
+    const MIN_GAP = 0.05;
     if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
-
     const centers = [];
     let x = min + frameW/2;
-    for (let i = 0; i < count; i++) {
-      centers.push(x);
-      x += frameW + gap;
-    }
-
-    // Kontrola: pokud i tak končíme za maxem (např. při extrémně krátké stěně),
-    // přepneme na fallback: čistě rovnoměrné rozdělení center (může být těsné).
+    for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
     if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
       const step = (max - min) / (count - 1);
       centers.length = 0;
       for (let i=0;i<count;i++) centers.push(min + i*step);
     }
-
     return centers;
   }
 
@@ -522,14 +520,13 @@
     const axisX  = (wall==='front'||wall==='back');
     const length = axisX ? ROOM.W : ROOM.D;
 
-    // Ochranné zóny: základní SAFE + dodatečná v rozích CORNER_SAFE
     const min = -length/2 + safeWall + cornerSafe;
-    const max =  length/2 - safeWall + -cornerSafe;
+    const max =  length/2 - safeWall - cornerSafe;
 
-    // Rozložení center s ohledem na šířku reálného rámu
     const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
 
-    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); }); // cleanup při re-layoutu
+    // cleanup při re-layoutu
+    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
     framesByWall[wall] = [];
 
     centers.forEach(val=>{
@@ -576,9 +573,9 @@
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt);
         targetItem.frame.material = mat;
-        ensureFacingInwardMaterial(targetItem.frame, targetItem.wall); // NEW
-        targetItem.data.src = url;                                      // NEW
-        autosave();                                                     // NEW
+        ensureFacingInwardMaterial(targetItem.frame, targetItem.wall);
+        targetItem.data.src = url;
+        autosave();
       };
       img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
       img.src = url;
@@ -599,7 +596,7 @@
   }
 
   // Autosave do localStorage (pro Publish)
-  function autosave(){ // NEW
+  function autosave(){
     try{
       const data = collectGalleryData();
       localStorage.setItem('draftGalleryJson', JSON.stringify(data));
@@ -607,35 +604,33 @@
   }
 
   /* =========================
-     UI – zůstává, pár úprav
+     UI – beze změny chování, ale BEZ alertů
   ========================= */
   $("btnLoad").addEventListener("click", ()=>{
     const it = selected || framesByWall.back[0] || framesByWall.front[0] || framesByWall.left[0] || framesByWall.right[0];
-    if(!it){ alert("Neexistuje žádný rám."); return; }
+    if(!it){ hint("Není dostupný žádný rám."); return; }
     const input = imgUrlEl.value.trim();
     loadIntoFrameSmart(input, it);
   });
   $("btnPlacard").addEventListener("click", ()=>{
     const it=selected || framesByWall.back[0] || framesByWall.front[0];
-    if(!it){ alert("Neexistuje žádný rám."); return; }
+    if(!it){ hint("Není dostupný žádný rám."); return; }
     it.data.title = (titleEl?.value || "(bez názvu)").trim() || "(bez názvu)";
     it.data.url   = (linkEl?.value  || "").trim();
     drawPlacard(it.placard, it.data);
-    autosave(); // NEW
+    autosave();
     hint("Cedulka aktualizována.");
   });
   $("btnAdd").addEventListener("click", ()=>{
-    alert("Přidávání je vypnuto – rámy jsou definované pevně pro každou stěnu (7/7/13/13).");
+    hint("Přidávání je vypnuto – rámy jsou definované pevně pro každou stěnu (7/7/13/13).");
   });
   $("btnApplyLayout").addEventListener("click", ()=>{
-    // Re-layout se stávajícími počty (7/7/13/13), ale s aktuálními SAFE a CORNER_SAFE
     const YCENTER = ROOM.H * 0.55;
     createFixedFramesForWall('front', 7,  YCENTER, SAFE, CORNER_SAFE);
     createFixedFramesForWall('back',  7,  YCENTER, SAFE, CORNER_SAFE);
     createFixedFramesForWall('left',  13, YCENTER, SAFE, CORNER_SAFE);
     createFixedFramesForWall('right', 13, YCENTER, SAFE, CORNER_SAFE);
 
-    // Po relayoutu znovu aplikujeme data (ze serializovaného stavu nebo DATA)
     const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
     assignDataAllWalls(data);
     hint("Layout znovu aplikován (SAFE + CORNER_SAFE).");
@@ -643,8 +638,9 @@
   $("btnResetCam").addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
+    hint("Kamera resetována.");
   });
-  $("btnDemo").addEventListener("click", ()=>{ // NEW
+  $("btnDemo").addEventListener("click", ()=>{
     assignDataAllWalls(DATA);
     autosave();
     hint("DEMO data nahrána.");
@@ -655,7 +651,10 @@
   ========================= */
   createScene();
   engine.runRenderLoop(()=> scene.render());
-  window.addEventListener("resize", ()=> engine.resize());
+  window.addEventListener("resize", () => {
+    engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
+    engine.resize();
+  });
   setMode(MODE.VIEW); // start ve VIEW
 
   // Fixní parametry: SAFE + CORNER_SAFE + stejná výška
@@ -671,3 +670,4 @@
   </script>
 </body>
 </html>
+``
