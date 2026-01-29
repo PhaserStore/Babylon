@@ -43,9 +43,9 @@
       "href": "https://example.com/a"
     },
     {
-      "img": "./assets/two.jpg",
-      "label": "Back B",
-      "href": "https://example.com/b"
+      "img": "https://everpress.imgix.net/img/campaign/original/6976bce779d500.39474436.png?w=1173&h=1173&auto=format&bg=000000&fit=fill&q=80&dpr=2",
+      "label": "t shirt",
+      "href": "https://everpress.com/the-future-phaser-collection"
     },
     {
       "img": "",
