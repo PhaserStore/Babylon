@@ -34,7 +34,7 @@
     body.admin #publishBtn{ display:inline-flex; }
   </style>
 
-  <!-- Babylon.js + GUI -->
+  <!-- Babylon.js + GUI (SPRÁVNÉ skript tagy) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
@@ -72,72 +72,7 @@
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- Publish + loader (držíme v HTML kvůli early-boot) -->
-  <script>
-    // === SERIALIZACE: aktuální stav galerie do JSON ===
-    function collectGalleryData() {
-      const out = { front: [], back: [], left: [], right: [] };
-      if (!window.framesByWall) return out;
-      for (const wall of Object.keys(framesByWall)) {
-        out[wall] = (framesByWall[wall] || []).map(it => ({
-          img:     it.data.src      || '',
-          imgData: it.data.srcData  || '',
-          label:   it.data.title    || '',
-          href:    it.data.url      || ''
-        }));
-      }
-      return out;
-    }
-    function getGalleryData() {
-      try { if (window.framesByWall) return collectGalleryData(); } catch(e) {}
-      const draft = localStorage.getItem('draftGalleryJson');
-      if (draft) { try { return JSON.parse(draft); } catch(e) {} }
-      return {};
-    }
-    function openPrefilledIssueWithJson(jsonString) {
-      const title = encodeURIComponent('Update gallery');
-      const body  = encodeURIComponent(jsonString);
-      // DŮLEŽITÉ: &body= (žádné HTML entity)
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
-      window.open(url, '_blank', 'noopener');
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('publishBtn');
-      btn.addEventListener('click', () => {
-        if (document.body.classList.contains('view')) {
-          alert('Publish je dostupný jen v ADMIN módu (klávesa A).');
-          return;
-        }
-        try {
-          const dataObj = getGalleryData();
-          const minified = JSON.stringify(dataObj);
-          JSON.parse(minified);
-          localStorage.setItem('draftGalleryJson', minified);
-          openPrefilledIssueWithJson(minified);
-        } catch (e) {
-          console.error(e);
-          alert('Export selhal – zkontroluj, že getGalleryData() vrací validní data (JS objekt).');
-        }
-      });
-    });
-
-    // — Načtení ./data/gallery.json (je-li) —
-    async function loadGallery() {
-      try {
-        const res = await fetch('./data/gallery.json', { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        window.galleryData = data;
-        console.log('Načteno data/gallery.json:', data);
-        if (window.assignDataAllWalls) assignDataAllWalls(data, /*quiet*/true);
-      } catch (e) {
-        console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
-      }
-    }
-    loadGallery();
-  </script>
-
-  <!-- Main script -->
+  <!-- Tvůj hlavní skript -->
   <script src="./script.js"></script>
 </body>
 </html>
