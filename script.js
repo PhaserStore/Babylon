@@ -1,6 +1,7 @@
 // === Konfigurace ===
-const DEBUG_IMG = false;   // true = log do konzole, false = absolutní ticho
-const USE_PLACEHOLDER_ON_FAIL = true; // zda vykreslit neutrální zástupný obrázek
+const DEBUG_IMG = false;
+const USE_PLACEHOLDER_ON_FAIL = false;
+``
 
 // === Pomocné funkce ===
 function blobToImg(blob) {
