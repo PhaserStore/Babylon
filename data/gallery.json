@@ -1,4 +1,20 @@
 {
+  "settings": {
+    "safeWall": 0.8,
+    "cornerSafe": 0.6,
+    "frame": {
+      "width": 1.2,
+      "height": 1.2,
+      "border": 0.08,
+      "color": "#383838"
+    },
+    "counts": {
+      "front": 7,
+      "back": 7,
+      "left": 13,
+      "right": 13
+    }
+  },
   "front": [],
   "back": [],
   "left": [],
