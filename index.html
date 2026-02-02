@@ -755,25 +755,25 @@
     $("cntRight").value   = "6";
 }
 
-  /* =========================
-     BOOT
-  ========================= */
-  createScene();
-  engine.runRenderLoop(()=> scene.render());
-  window.addEventListener("resize", () => {
-    applyHardwareScale();
-    engine.resize();
-  });
-  setMode(MODE.VIEW);
+ /* =========================
+   BOOT
+========================= */
+createScene();
+engine.runRenderLoop(()=> scene.render());
+window.addEventListener("resize", () => {
+  applyHardwareScale();
+  engine.resize();
+});
+setMode(MODE.VIEW);
 
-  // (volitelně) při vývoji vyčisti starý draft; ve finále můžeš odstranit
-  try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
+// (volitelně) při vývoji vyčisti starý draft; ve finále můžeš odstranit
+try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
 
-  // Defaulty + hned aplikovat layout
-  setDefaultsFromScreenshot();
-  applyLayoutFromUI();
+// !!! SEM TO PATŘÍ !!!
+setDefaultsFromScreenshot();
+applyLayoutFromUI();
 
-  </script>
+</script>
 </body>
 </html>
 ``
