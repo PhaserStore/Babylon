@@ -205,14 +205,16 @@
   /* =========================
      ROOM + LED (vizuál zachován)
   ========================= */
+  function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
+
+  // >>> OPRAVA: výchozí jednostranný materiál (zadní strana se nevykresluje)
   function unlitTex(tex, { doubleSided = false } = {}){
-  const m = new BABYLON.StandardMaterial("mt", scene);
-  m.disableLighting  = true;
-  m.diffuseTexture   = tex;
-  m.emissiveTexture  = tex;      // „svítící“ bez vlivu světel (zachováno)
-  m.backFaceCulling  = !doubleSided; // výchozí = JEDNOSTRANNÉ
-  return m;
-}
+    const m = new BABYLON.StandardMaterial("mt", scene);
+    m.disableLighting  = true;
+    m.diffuseTexture   = tex;
+    m.emissiveTexture  = tex;      // „svítící“ bez vlivu světel (zachováno)
+    m.backFaceCulling  = !doubleSided; // výchozí = JEDNOSTRANNÉ
+    return m;
   }
 
   function buildRoom(){
@@ -289,18 +291,14 @@
     return { frame:f, box, placard:plac, data, wall };
   }
 
+  // >>> OPRAVA: žádné překlápění UV a žádné nucené oboustranné materiály
   function ensureFacingInwardMaterial(mesh, wall){
     const mat = mesh.material;
     if (!mat) return;
-    if (mat.diffuseTexture) {
-      mat.diffuseTexture.uScale = (wall==='left' || wall==='right') ? -1 : 1;
-      mat.diffuseTexture.vScale = 1;
-    }
-    if (mat.emissiveTexture) {
-      mat.emissiveTexture.uScale = (wall==='left' || wall==='right') ? -1 : 1;
-      mat.emissiveTexture.vScale = 1;
-    }
-    mat.backFaceCulling = false;
+
+    if (mat.diffuseTexture)  { mat.diffuseTexture.uScale  = 1; mat.diffuseTexture.vScale  = 1; }
+    if (mat.emissiveTexture) { mat.emissiveTexture.uScale = 1; mat.emissiveTexture.vScale = 1; }
+    // Materiál ponechán JEDNOSTRANNÝ (viz unlitTex) – chceme viditelnost jen zevnitř.
   }
 
   /* =========================
@@ -687,4 +685,3 @@
   </script>
 </body>
 </html>
-``
