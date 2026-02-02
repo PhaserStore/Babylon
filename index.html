@@ -86,11 +86,11 @@
     function collectGalleryData() {
       const out = {
         settings: {
-          safeWall: +document.getElementById('safeWall').value || 1,
-          cornerSafe: +document.getElementById('cornerSafe').value || 1,
+          safeWall: +document.getElementById('safeWall').value || 0.8,
+          cornerSafe: +document.getElementById('cornerSafe').value || 0.6,
           frame: {
-            width: +document.getElementById('frmW').value || 2,
-            height: +document.getElementById('frmH').value || 2,
+            width: +document.getElementById('frmW').value || 1.6,
+            height: +document.getElementById('frmH').value || 1.6,
             border: +document.getElementById('frmBorder').value || 0.08,
             color: document.getElementById('frmColor').value || '#383838'
           },
