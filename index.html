@@ -180,7 +180,7 @@
      ENGINE / SCENE / CAMERA
   ========================= */
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
-  const TEX_SIZE  = IS_MOBILE ? 512 : 1024;
+  const TEX_SIZE  = IS_MOBILE ? 1024 : 2048;  // vyšší kvalita na mobilech i desktopu
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:false, stencil:false, antialias:true });
 
