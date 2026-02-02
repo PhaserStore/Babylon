@@ -43,13 +43,13 @@
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="0.8" style="width:80px"></label>
-      <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="0.6" style="width:80px"></label>
+      <!-- UPRAVENO: výchozí hodnoty podle screenshotu -->
+      <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" style="width:80px"></label>
+      <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" style="width:80px"></label>
     </div>
 
     <div class="group">
       <strong>Počty rámů:</strong>
-      <!-- Snížené počty pro mobilní stabilitu -->
       <label>Front&nbsp;<input id="cntFront" type="number" step="1" min="0" value="4" style="width:70px"></label>
       <label>Back&nbsp;<input  id="cntBack"  type="number" step="1" min="0" value="4" style="width:70px"></label>
       <label>Left&nbsp;<input  id="cntLeft"  type="number" step="1" min="0" value="6" style="width:70px"></label>
@@ -58,9 +58,9 @@
 
     <div class="group">
       <strong>Rám:</strong>
-      <!-- Větší rámy – zaplní stěnu při menším počtu kusů -->
-      <label>Šířka&nbsp;<input id="frmW" type="number" step="0.05" value="1.6" style="width:80px"></label>
-      <label>Výška&nbsp;<input id="frmH" type="number" step="0.05" value="1.6" style="width:80px"></label>
+      <!-- UPRAVENO: rám 2 × 2 -->
+      <label>Šířka&nbsp;<input id="frmW" type="number" step="0.05" value="2" style="width:80px"></label>
+      <label>Výška&nbsp;<input id="frmH" type="number" step="0.05" value="2" style="width:80px"></label>
       <label>Lišta&nbsp;<input id="frmBorder" type="number" step="0.02" value="0.08" style="width:80px"></label>
       <label>Barva&nbsp;<input id="frmColor" type="color" value="#383838"></label>
     </div>
@@ -82,18 +82,18 @@
     function collectGalleryData() {
       const out = {
         settings: {
-          safeWall: +document.getElementById('safeWall').value || 0.8,
-          cornerSafe: +document.getElementById('cornerSafe').value || 0.6,
+          safeWall: +document.getElementById('safeWall').value || 1,
+          cornerSafe: +document.getElementById('cornerSafe').value || 1,
           frame: {
-            width: +document.getElementById('frmW').value || 1.6,
-            height: +document.getElementById('frmH').value || 1.6,
+            width: +document.getElementById('frmW').value || 2,
+            height: +document.getElementById('frmH').value || 2,
             border: +document.getElementById('frmBorder').value || 0.08,
             color: document.getElementById('frmColor').value || '#383838'
           },
           counts: {
             front: +document.getElementById('cntFront').value || 0,
-            back:  +document.getElementById('cntBack').value || 0,
-            left:  +document.getElementById('cntLeft').value || 0,
+            back:  +document.getElementById('cntBack').value  || 0,
+            left:  +document.getElementById('cntLeft').value  || 0,
             right: +document.getElementById('cntRight').value || 0
           }
         },
@@ -332,7 +332,7 @@
   /* =========================
      FRAMES + CEDULKY – jednotka
   ========================= */
-  const FRAME_SIZE = { W: 1.6, H: 1.6 }; // výchozí větší rám
+  const FRAME_SIZE = { W: 1.6, H: 1.6 }; // výchozí – přepíše se při startu na 2×2
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#383838";
 
@@ -524,7 +524,6 @@
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <!-- (zbytek tvého SVG beze změny) -->
   </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
@@ -698,10 +697,10 @@
   $("btnApplyLayout").addEventListener("click", ()=>{
     const YCENTER = ROOM.H * 0.55;
 
-    const safeWall   = +$("safeWall").value || 0.8;
-    const cornerSafe = +$("cornerSafe").value || 0.6;
-    FRAME_SIZE.W     = +$("frmW").value || 1.6;
-    FRAME_SIZE.H     = +$("frmH").value || 1.6;
+    const safeWall   = +$("safeWall").value || 1;
+    const cornerSafe = +$("cornerSafe").value || 1;
+    FRAME_SIZE.W     = +$("frmW").value || 2;
+    FRAME_SIZE.H     = +$("frmH").value || 2;
     FRAME_BOX_BORDER = +$("frmBorder").value || 0.08;
     FRAME_COLOR      = $("frmColor").value || "#383838";
 
@@ -722,6 +721,20 @@
     hint("Kamera resetována.");
   });
 
+  // === Nastavení výchozích hodnot dle screenshotu (UI + logika) ===
+  function setDefaultsFromScreenshot() {
+    $("safeWall").value   = "1";
+    $("cornerSafe").value = "1";
+    $("frmW").value       = "2";
+    $("frmH").value       = "2";
+    $("frmBorder").value  = "0.08";
+    $("frmColor").value   = "#383838";
+    $("cntFront").value   = "4";
+    $("cntBack").value    = "4";
+    $("cntLeft").value    = "6";
+    $("cntRight").value   = "6";
+  }
+
   /* =========================
      BOOT
   ========================= */
@@ -733,14 +746,21 @@
   });
   setMode(MODE.VIEW);
 
-  // Výchozí layout po startu – čte defaulty z UI (4/4/6/6 a 1.6 × 1.6)
+  // 1) Nastav výchozí hodnoty přesně jako na screenshotu
+  setDefaultsFromScreenshot();
+
+  // 2) (volitelně) ignoruj starý draft při prvním loadu.
+  //    Chceš-li zachovat stávající draft, tento řádek smaž nebo obal podmínkou.
+  try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
+
+  // Výchozí layout po startu – čte defaulty z UI (teď už jsou 1/1 a 2×2)
   (function initialLayoutFromUI(){
     const YCENTER    = ROOM.H * 0.55;
-    const safeWall   = +$("safeWall").value   || 0.8;
-    const cornerSafe = +$("cornerSafe").value || 0.6;
+    const safeWall   = +$("safeWall").value   || 1;
+    const cornerSafe = +$("cornerSafe").value || 1;
 
-    FRAME_SIZE.W     = +$("frmW").value || 1.6;
-    FRAME_SIZE.H     = +$("frmH").value || 1.6;
+    FRAME_SIZE.W     = +$("frmW").value || 2;
+    FRAME_SIZE.H     = +$("frmH").value || 2;
 
     const cFront = +$("cntFront").value || 4;
     const cBack  = +$("cntBack").value  || 4;
@@ -756,6 +776,10 @@
   // Naplnit obrázky + cedulky (DEMO nebo data z ./data/gallery.json)
   assignDataAllWalls((window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA);
 
+  // Po startu rovnou ulož aktuální stav do draftu, aby Publish → GitHub bral tyto hodnoty
+  autosave();
+
   </script>
 </body>
 </html>
+``
