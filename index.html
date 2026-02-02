@@ -540,7 +540,7 @@
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = 1024;
+      const SIZE = TEX_SIZE * 2;
       const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
