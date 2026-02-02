@@ -30,7 +30,7 @@
     body.view #publishBtn{display:none}
   </style>
 
-  <!-- Babylon.js + GUI -->
+  <!-- Babylon.js + GUI (OPRAVENO) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
@@ -43,7 +43,7 @@
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <!-- UPRAVENO: výchozí hodnoty podle screenshotu -->
+      <!-- VÝCHOZÍ HODNOTY DLE SCREENSHOTU -->
       <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" style="width:80px"></label>
       <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" style="width:80px"></label>
     </div>
@@ -58,7 +58,6 @@
 
     <div class="group">
       <strong>Rám:</strong>
-      <!-- UPRAVENO: rám 2 × 2 -->
       <label>Šířka&nbsp;<input id="frmW" type="number" step="0.05" value="2" style="width:80px"></label>
       <label>Výška&nbsp;<input id="frmH" type="number" step="0.05" value="2" style="width:80px"></label>
       <label>Lišta&nbsp;<input id="frmBorder" type="number" step="0.02" value="0.08" style="width:80px"></label>
@@ -278,12 +277,12 @@
     const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
     back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01);
     back.material = unlit("#2b2b2b");
-    back.rotation.y = 0; // čelem do +Z (dovnitř)
+    back.rotation.y = 0;
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
     front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
-    front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
+    front.rotation.y = Math.PI;
 
     const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
     ceiling.position.y = ROOM.H;
@@ -332,7 +331,8 @@
   /* =========================
      FRAMES + CEDULKY – jednotka
   ========================= */
-  const FRAME_SIZE = { W: 1.6, H: 1.6 }; // výchozí – přepíše se při startu na 2×2
+  // (ponecháno 1.6×1.6, ale při startu to hned přepíšeme na 2×2)
+  const FRAME_SIZE = { W: 1.6, H: 1.6 };
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#383838";
 
@@ -536,7 +536,7 @@
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = 1024; // můžeš zvýšit na TEX_SIZE nebo TEX_SIZE*2, pokud chceš ostřejší logo
+      const SIZE = 1024;
       const dt  = makeDT("logoDT", SIZE, SIZE);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
@@ -694,7 +694,7 @@
   /* =========================
      UI – jen layout a vzhled
   ========================= */
-  $("btnApplyLayout").addEventListener("click", ()=>{
+  function applyLayoutFromUI() {
     const YCENTER = ROOM.H * 0.55;
 
     const safeWall   = +$("safeWall").value || 1;
@@ -713,7 +713,8 @@
     assignDataAllWalls(data);
     autosave();
     hint("Layout aplikován.");
-  });
+  }
+  $("btnApplyLayout").addEventListener("click", applyLayoutFromUI);
 
   $("btnResetCam").addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
@@ -721,7 +722,7 @@
     hint("Kamera resetována.");
   });
 
-  // === Nastavení výchozích hodnot dle screenshotu (UI + logika) ===
+  // === Nastavení výchozích hodnot dle screenshotu (UI) ===
   function setDefaultsFromScreenshot() {
     $("safeWall").value   = "1";
     $("cornerSafe").value = "1";
@@ -746,40 +747,13 @@
   });
   setMode(MODE.VIEW);
 
-  // 1) Nastav výchozí hodnoty přesně jako na screenshotu
-  setDefaultsFromScreenshot();
-
-  // 2) (volitelně) ignoruj starý draft při prvním loadu.
-  //    Chceš-li zachovat stávající draft, tento řádek smaž nebo obal podmínkou.
+  // 1) Vyčisti případný starý draft (smaž tento řádek, pokud draft chceš zachovat)
   try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
 
-  // Výchozí layout po startu – čte defaulty z UI (teď už jsou 1/1 a 2×2)
-  (function initialLayoutFromUI(){
-    const YCENTER    = ROOM.H * 0.55;
-    const safeWall   = +$("safeWall").value   || 1;
-    const cornerSafe = +$("cornerSafe").value || 1;
-
-    FRAME_SIZE.W     = +$("frmW").value || 2;
-    FRAME_SIZE.H     = +$("frmH").value || 2;
-
-    const cFront = +$("cntFront").value || 4;
-    const cBack  = +$("cntBack").value  || 4;
-    const cLeft  = +$("cntLeft").value  || 6;
-    const cRight = +$("cntRight").value || 6;
-
-    createFixedFramesForWall('front', cFront, YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('back',  cBack,  YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('left',  cLeft,  YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('right', cRight, YCENTER, safeWall, cornerSafe);
-  })();
-
-  // Naplnit obrázky + cedulky (DEMO nebo data z ./data/gallery.json)
-  assignDataAllWalls((window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA);
-
-  // Po startu rovnou ulož aktuální stav do draftu, aby Publish → GitHub bral tyto hodnoty
-  autosave();
+  // 2) Nastav hodnoty dle screenshotu a hned aplikuj layout
+  setDefaultsFromScreenshot();
+  applyLayoutFromUI();
 
   </script>
 </body>
 </html>
-``
