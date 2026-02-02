@@ -316,34 +316,44 @@
   }
 
   function addFrame(pos, rotY=0, wall='front'){
-    // Box (lišty)
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox",{width:FRAME_SIZE.W+FRAME_BOX_BORDER,height:FRAME_SIZE.H+FRAME_BOX_BORDER,depth:0.05},scene);
-    box.position = pos.add(normalOffset(rotY, 0.0));
-    box.rotation.y = rotY;
-    box.material = makeFrameBoxMaterial();
-    box.isPickable = true;
+  // Box (lišty) – beze změny
+  const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+    width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+    height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+    depth: 0.05
+  }, scene);
+  box.position = pos.add(normalOffset(rotY, 0.0));
+  box.rotation.y = rotY;
+  box.material = makeFrameBoxMaterial();
+  box.isPickable = true;
 
-    // Obraz – pouze přední strana (zabrání zrcadlení)
-    const f = BABYLON.MeshBuilder.CreatePlane("frame",{
-      width:FRAME_SIZE.W,
-      height:FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.FRONTSIDE
-    },scene);
-    f.position = pos.add(normalOffset(rotY, 0.03));
-    f.rotation.y = rotY; f.isPickable = true;
-    f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
+  // === OBRÁZEK: rendrujeme ZADNÍ stranu směrem do místnosti ===
+  const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+    width: FRAME_SIZE.W,
+    height: FRAME_SIZE.H,
+    sideOrientation: BABYLON.Mesh.BACKSIDE   // <<< PŮVODNĚ FRONTSIDE
+  }, scene);
+  f.position = pos.add(normalOffset(rotY, 0.03));
+  f.rotation.y = rotY;                       // rotace zůstává
+  f.isPickable = true;
+  f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // Cedulka – pod obrazem, ofset ve směru normály
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac",{width:FRAME_SIZE.W,height:0.22, sideOrientation: BABYLON.Mesh.FRONTSIDE},scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
-    plac.rotation.y = rotY; plac.isPickable = true;
+  // === CEDULKA: také BACKSIDE (směrem dovnitř) ===
+  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+    width: FRAME_SIZE.W,
+    height: 0.22,
+    sideOrientation: BABYLON.Mesh.BACKSIDE   // <<< PŮVODNĚ FRONTSIDE
+  }, scene);
+  plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0))
+                   .add(normalOffset(rotY, 0.02));
+  plac.rotation.y = rotY;
+  plac.isPickable = true;
 
-    const data = { title: "(bez názvu)", url: "", src: "" };
-    drawPlacard(plac, data, rotY);
+  const data = { title: "(bez názvu)", url: "", src: "" };
+  drawPlacard(plac, data, rotY);
 
-    return { frame:f, box, placard:plac, data, wall, rotY, pos };
-  }
-
+  return { frame:f, box, placard:plac, data, wall, rotY, pos };
+}
   /* =========================
      VÝBĚR / PICKING (jen URL z cedulky)
   ========================= */
