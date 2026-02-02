@@ -92,34 +92,28 @@
     const toMinifiedJsonString = (obj) => JSON.stringify(obj);
 
     // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
-    <script>
-  function openPrefilledIssueWithJson(jsonString) {
-    const title  = encodeURIComponent('Update gallery');
-    const body   = encodeURIComponent(jsonString);
-    const labels = encodeURIComponent('gallery'); // volitelný label pro GH Action
-    const url    = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}&labels=${labels}`;
-
-    // Fallback: pokud je URL příliš dlouhá (větší galerie), zkopíruj JSON do schránky
-    if (url.length > 7000) {
-      const shortBody = encodeURIComponent([
-        'JSON je delší než limit URL.',
-        '',
-        '👉 Vlož prosím JSON ze schránky do těla issue (ideálně jako ```json ... ```).',
-        '',
-        'Cíl souboru: data/gallery.json'
-      ].join('\n'));
-
-      const shortUrl = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${shortBody}&labels=${labels}`;
-
-      try { navigator.clipboard?.writeText(jsonString); } catch (e) {}
-      window.open(shortUrl, '_blank', 'noopener');
-      if (window.hint) hint('JSON zkopírován do schránky. V Issue stiskni Ctrl+V.');
-      return;
+    function openPrefilledIssueWithJson(jsonString) {
+      const title = encodeURIComponent('Update gallery');
+      const body  = encodeURIComponent(jsonString);
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      // Pozn.: Pokud by JSON byl moc dlouhý pro URL, použij Gist/API s tokenem.
+      window.open(url, '_blank', 'noopener');
     }
 
-    window.open(url, '_blank', 'noopener');
-  }
-</script>
+    document.getElementById('publishBtn').addEventListener('click', async () => {
+      try {
+        const dataObj  = getGalleryData();
+        const minified = toMinifiedJsonString(dataObj);
+        JSON.parse(minified); // sanity
+        localStorage.setItem('draftGalleryJson', minified);
+        openPrefilledIssueWithJson(minified);
+        if (window.hint) hint('Export odeslán do GitHub Issue (nová záložka).');
+      } catch (e) {
+        console.warn('Export selhal – zkontroluj, že getGalleryData() vrací validní objekt.', e);
+        if (window.hint) hint('Export selhal – viz konzoli.');
+      }
+    });
+
     // Načtení data/gallery.json (pokud existuje) a aplikace do scény
     async function loadGallery() {
       try {
@@ -460,7 +454,7 @@
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.30;
-  const FRONT_BACK_OFFSET = 0.65;
+  const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
 
@@ -587,69 +581,45 @@
     right: Array.from({length:13}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
   };
 
-  // Helper: rozpozná, zda je URL relativní vůči aktuálnímu původu
-function isRelativeUrl(url) {
-  // Relativní je: začíná ./ nebo ../, nebo vůbec neobsahuje schéma/protokol
-  // (tedy neodpovídá ^https?://)
-  return /^\.{1,2}\//.test(url) || !/^https?:\/\//i.test(url);
-}
+  function assignDataAllWalls(data){
+    const loadLocal = (url, targetItem)=>{
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = ()=>{
+        const dt=new BABYLON.DynamicTexture("imgDT"+Math.random(),{width:1024,height:1024},scene,true);
+        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+        const mat = unlitTex(dt);
+        targetItem.frame.material = mat;
+        ensureFacingInwardMaterial(targetItem.frame, targetItem.wall);
+        targetItem.data.src = url;
+        autosave();
+      };
+      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
+      img.src = url;
+    };
 
-// === Upravená verze s "same-origin" pro relativní assets ===
-async function loadImageUrlIntoTexture(url, item) {
-  try {
-    const sameOrigin = isRelativeUrl(url);
-    const resp = await fetch(url, {
-      mode: sameOrigin ? "same-origin" : "cors",
-      cache: "no-store"
+    ["front","back","left","right"].forEach(side=>{
+      const items = data[side] || [];
+      const arr   = framesByWall[side] || [];
+      const n = Math.min(items.length, arr.length);
+      for (let i=0;i<n;i++){
+        const it = arr[i], d = items[i];
+        if (d.img)  loadLocal(d.img, it);
+        it.data.title = d.label || "(bez názvu)";
+        it.data.url   = d.href || "";
+        drawPlacard(it.placard, it.data);
+      }
     });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-
-    const ct = resp.headers.get("content-type") || "";
-    if (!ct.startsWith("image/") && !ct.includes("svg")) {
-      throw new Error("NOT_IMAGE");
-    }
-
-    const blob = await resp.blob();
-
-    // Pokus: rychlejší createImageBitmap (s fallbackem na <img/>)
-    let bmp;
-    try {
-      bmp = await createImageBitmap(blob, { premultiplyAlpha: "premultiply" });
-    } catch {
-      bmp = await blobToImg(blob);
-    }
-
-    // Vykreslení do 1024x1024 s letterbox/cover fit
-    const dt = new BABYLON.DynamicTexture("imgDT", { width: 1024, height: 1024 }, scene, true);
-    const ctx = dt.getContext();
-    drawFitted(ctx, bmp, FRAME_SIZE.W, FRAME_SIZE.H);
-    dt.update();
-
-    const mat = unlitTex(dt);
-    item.frame.material = mat;
-    ensureFacingInwardMaterial(item.frame, item.wall);
-
-    // Ulož původní zdroj (užitečné pro publish a re‑load)
-    item.data.src = url;
-    autosave();
-
-    hint("Obrázek načten ✔");
-  } catch (e) {
-    console.warn("Načítání obrázku selhalo:", url, e);
-
-    // Tichý fallback: šachovnicový placeholder
-    const dt = new BABYLON.DynamicTexture("imgDT_fail", { width: 1024, height: 1024 }, scene, true);
-    const ctx = dt.getContext();
-    drawPlaceholder(ctx, 1024, 1024);
-    dt.update();
-
-    item.frame.material = unlitTex(dt);
-    ensureFacingInwardMaterial(item.frame, item.wall);
-
-    hint("Obrázek nelze načíst → zobrazen placeholder.");
   }
-}
-``
+
+  // Autosave do localStorage (pro Publish)
+  function autosave(){
+    try{
+      const data = collectGalleryData();
+      localStorage.setItem('draftGalleryJson', JSON.stringify(data));
+    }catch(e){ /* ignore */ }
+  }
+
   /* =========================
      UI – beze změny chování, ale BEZ alertů
   ========================= */
