@@ -21,7 +21,7 @@
     input[type="color"]{padding:0 4px;height:36px;min-width:44px;border-radius:6px;background:#3a3a3a}
     button:hover{background:#575757}
     label{display:flex;gap:6px;align-items:center}
-    #hint{flex-basis:100%;font-size:12px;color:#ccc}
+    #hint{flex-basis:100%;font-size:12px;color:#ccc;white-space:pre-wrap}
     /* VIEW mód = čistá výstava (UI nevidět) */
     body.view #ui{display:none}
 
@@ -78,6 +78,10 @@
 
   <!-- ===== Publish (Issue s JSONem) ===== -->
   <script>
+    // Jednoduchý overlay chyb do hintu (usnadní debug)
+    window.addEventListener('error', (e) => { try{hint('Chyba: ' + e.message);}catch{}; });
+    window.addEventListener('unhandledrejection', (e) => { try{hint('Chyba: ' + (e.reason?.message || e.reason));}catch{}; });
+
     // === SERIALIZACE: aktuální stav galerie do JSON ===
     function collectGalleryData() {
       const out = {
@@ -99,27 +103,26 @@
         },
         front: [], back: [], left: [], right: []
       };
-      // Pokud není scéna ready, vrať jen settings
-      try {
-        if (typeof framesByWall !== 'undefined' && framesByWall) {
-          for (const wall of Object.keys(framesByWall)) {
-            out[wall] = (framesByWall[wall] || []).map(it => ({
-              img:   it.data.src   || '',
-              label: it.data.title || '',
-              href:  it.data.url   || ''
-            }));
-          }
-        }
-      } catch(e) { /* ignore */ }
+      if (!window.framesByWall) return out;
+      for (const wall of Object.keys(framesByWall)) {
+        out[wall] = (framesByWall[wall] || []).map(it => ({
+          img:   it.data.src   || '',
+          label: it.data.title || '',
+          href:  it.data.url   || ''
+        }));
+      }
       return out;
     }
 
     function getGalleryData() {
-      try { return collectGalleryData(); } catch(e) { return {}; }
+      try { if (window.framesByWall) return collectGalleryData(); } catch(e) {}
+      const draft = localStorage.getItem('draftGalleryJson');
+      if (draft) { try { return JSON.parse(draft); } catch(e) {} }
+      return {};
     }
     const toMinifiedJsonString = (obj) => JSON.stringify(obj);
 
-    // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
+    // === GitHub Issue URL – používej skutečné & (NE HTML entity) ===
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
@@ -148,7 +151,7 @@
         const data = await res.json();
         window.galleryData = data;
         console.log('Načteno data/gallery.json:', data);
-        if (window.assignDataAllWalls) window.assignDataAllWalls(data);
+        if (window.assignDataAllWalls) assignDataAllWalls(data);
       } catch (e) {
         console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
       }
@@ -247,7 +250,7 @@
     return m;
   }
 
-  // <<< Helper pro horizontální zrcadlení UV >>>
+  // Helper pro horizontální zrcadlení UV
   function mirrorTexHoriz(mat){
     if (!mat) return;
     const flip = (tex) => {
@@ -259,7 +262,7 @@
     flip(mat.emissiveTexture);
   }
 
-  // <<< Helper: DynamicTexture bez mipmap + bilinear + clamp >>>
+  // Helper: DynamicTexture bez mipmap + bilinear + clamp
   function makeDT(name, w, h) {
     const dt = new BABYLON.DynamicTexture(
       name,
@@ -282,7 +285,7 @@
     back.rotation.y = 0; // čelem do +Z (dovnitř)
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
+    front.position set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
     front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
 
@@ -292,12 +295,12 @@
     ceiling.material = unlit("#0f0f10");
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+    left.position set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
     left.rotation.y = -Math.PI/2;
     left.material = unlit("#242424");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.position set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
     right.rotation.y =  Math.PI/2;
     right.material = unlit("#242424");
   }
@@ -324,14 +327,13 @@
       glow.addIncludedOnlyMesh(m);
     };
 
-    // horní a spodní rámy + svislé rohy (správné čárky!)
+    // Opravený seznam hran (všude správné čárky)
     [
-      [xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-      [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
+      [xL,y0,zF, xR,y0,zF], [xR,y0,zF, xR,y0,zB], [xR,y0,zB, xL,y0,zB], [xL,y0,zB, xL,y0,zF],
+      [xL,y1,zF, xR,y1,zF], [xR,y1,zF, xR,y1,zB], [xR,y1,zB, xL,y1,zB], [xL,y1,zB, xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
 
-    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]]
-      .forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
+    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
   /* =========================
@@ -395,7 +397,7 @@
     box.material = makeFrameBoxMaterial();
     box.isPickable = true;
 
-    // obraz (plane směřuje dovnitř místnosti = BACKSIDE)
+    // obraz dovnitř
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
@@ -406,7 +408,7 @@
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // cedulka
+    // cedulka dovnitř
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: FRAME_SIZE.W,
       height: 0.22,
@@ -527,7 +529,9 @@
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g><path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/></g>
+  <g>
+    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+  </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.30;
@@ -539,7 +543,7 @@
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = 1024; // případně TEX_SIZE nebo TEX_SIZE*2 pro extra ostrost
+      const SIZE = 1024; // případně TEX_SIZE nebo TEX_SIZE*2
       const dt  = makeDT("logoDT", SIZE, SIZE);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
@@ -582,8 +586,6 @@
      MULTI‑WALL LAYOUT
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
-  // Zpřístupnit i přes window pro publish serializaci
-  window.framesByWall = framesByWall;
 
   function distributeCenters(min, max, count, frameW){
     if (count <= 1) return [ (min+max)/2 ];
@@ -619,7 +621,7 @@
     const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
 
     // cleanup při re-layoutu
-    (framesByWall[wall]||[]).forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
     framesByWall[wall] = [];
 
     centers.forEach(val=>{
@@ -639,16 +641,22 @@
       { img:"./assets/one.jpg",   label:"Produkt A", href:"https://everpress.com/the-future-phaser-collection2" },
       { img:"./assets/two.jpg",   label:"Produkt B", href:"https://example.com/b" },
       { img:"./assets/three.jpg", label:"Produkt C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Produkt D", href:"https://example.com/d" }
+      { img:"./assets/one.jpg",   label:"Produkt D", href:"https://example.com/d" },
+      { img:"./assets/two.jpg",   label:"Produkt E", href:"https://example.com/e" },
+      { img:"./assets/three.jpg", label:"Produkt F", href:"https://example.com/f" },
+      { img:"./assets/one.jpg",   label:"Produkt G", href:"https://example.com/g" }
     ],
     back: [
       { img:"./assets/one.jpg",   label:"Back A", href:"https://example.com/a" },
       { img:"./assets/two.jpg",   label:"Back B", href:"https://example.com/b" },
       { img:"./assets/three.jpg", label:"Back C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" }
+      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" },
+      { img:"./assets/two.jpg",   label:"Back E", href:"https://example.com/e" },
+      { img:"./assets/three.jpg", label:"Back F", href:"https://example.com/f" },
+      { img:"./assets/one.jpg",   label:"Back G", href:"https://example.com/g" }
     ],
-    left:  Array.from({length:6}, (_,i)=>({ img:"./assets/one.jpg",  label:`Levá ${i+1}`,  href:`https://example.com/left-${i+1}`  })),
-    right: Array.from({length:6}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
+    left:  Array.from({length:13}, (_,i)=>({ img:"./assets/one.jpg",  label:`Levá ${i+1}`,  href:`https://example.com/left-${i+1}`  })),
+    right: Array.from({length:13}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
   };
 
   function assignDataAllWalls(data){
@@ -681,7 +689,6 @@
       }
     });
   }
-  window.assignDataAllWalls = assignDataAllWalls;
 
   // Autosave do localStorage
   function autosave(){
@@ -716,7 +723,7 @@
   });
 
   $("btnResetCam").addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
+    camera.target set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
     hint("Kamera resetována.");
   });
