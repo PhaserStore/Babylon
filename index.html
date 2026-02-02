@@ -30,7 +30,7 @@
     body.view #publishBtn{display:none}
   </style>
 
-  <!-- Babylon.js + GUI (OPRAVENO) -->
+  <!-- Babylon.js + GUI (OK) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
@@ -43,7 +43,7 @@
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <!-- VÝCHOZÍ HODNOTY DLE SCREENSHOTU -->
+      <!-- Výchozí hodnoty dle screenshotu -->
       <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" style="width:80px"></label>
       <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" style="width:80px"></label>
     </div>
@@ -109,32 +109,29 @@
       return out;
     }
 
-    function getGalleryData() {
-      try { if (window.framesByWall) return collectGalleryData(); } catch(e) {}
-      const draft = localStorage.getItem('draftGalleryJson');
-      if (draft) { try { return JSON.parse(draft); } catch(e) {} }
-      return {};
-    }
-    const toMinifiedJsonString = (obj) => JSON.stringify(obj);
-
     // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
+      // musí být &body=, nikoliv &amp;body=
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
       window.open(url, '_blank', 'noopener');
     }
 
     document.getElementById('publishBtn').addEventListener('click', async () => {
       try {
-        const dataObj  = getGalleryData();
-        const minified = toMinifiedJsonString(dataObj);
+        // Preferuj poslední "Použít layout"
+        const dataObj = (window.lastAppliedGalleryData && Object.keys(window.lastAppliedGalleryData).length)
+          ? window.lastAppliedGalleryData
+          : collectGalleryData(); // fallback: přečti aktuální UI/stav
+
+        const minified = JSON.stringify(dataObj);
         JSON.parse(minified); // sanity
         localStorage.setItem('draftGalleryJson', minified);
         openPrefilledIssueWithJson(minified);
         if (window.hint) hint('Export odeslán do GitHub Issue (nová záložka).');
       } catch (e) {
-        console.warn('Export selhal – zkontroluj, že getGalleryData() vrací validní objekt.', e);
+        console.warn('Export selhal – zkontroluj, že collectGalleryData() vrací validní objekt.', e);
         if (window.hint) hint('Export selhal – viz konzoli.');
       }
     });
@@ -277,12 +274,12 @@
     const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
     back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01);
     back.material = unlit("#2b2b2b");
-    back.rotation.y = 0;
+    back.rotation.y = 0; // čelem do +Z (dovnitř)
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
     front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
-    front.rotation.y = Math.PI;
+    front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
 
     const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
     ceiling.position.y = ROOM.H;
@@ -484,7 +481,7 @@
       const mat = unlitTex(dt,{doubleSided:false});
       mirrorTexHoriz(mat);
       item.frame.material = mat;
-      item.data.src = url;
+      item.data.src = url; // jistota
       autosave();
     }catch(e){
       console.warn("Načítání obrázku selhalo:", url, e);
@@ -654,6 +651,8 @@
 
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
+      // zapiš zdroj ihned, aby publish měl jistotu
+      targetItem.data.src = url;
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = ()=>{
@@ -662,7 +661,6 @@
         const mat = unlitTex(dt,{doubleSided:false});
         mirrorTexHoriz(mat);
         targetItem.frame.material = mat;
-        targetItem.data.src = url;
         autosave();
       };
       img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
@@ -674,11 +672,18 @@
       const arr   = framesByWall[side] || [];
       const n = Math.min(items.length, arr.length);
       for (let i=0;i<n;i++){
-        const it = arr[i], d = items[i];
-        if (d.img)  loadLocal(d.img, it);
-        it.data.title = d.label || "(bez názvu)";
-        it.data.url   = d.href || "";
+        const it = arr[i], d = items[i] || {};
+
+        // 1) Zapiš data hned (spolehlivý export i bez čekání na obrázky)
+        it.data.src   = d.img   || it.data.src || "";
+        it.data.title = d.label || it.data.title || "(bez názvu)";
+        it.data.url   = d.href  || it.data.url || "";
+
+        // 2) Cedulka
         drawPlacard(it.placard, it.data, it.rotY);
+
+        // 3) Obrázek (asynchronně)
+        if (d.img) loadLocal(d.img, it);
       }
     });
   }
@@ -694,7 +699,7 @@
   /* =========================
      UI – jen layout a vzhled
   ========================= */
-  function applyLayoutFromUI() {
+  async function applyLayoutFromUI() {
     const YCENTER = ROOM.H * 0.55;
 
     const safeWall   = +$("safeWall").value || 1;
@@ -711,10 +716,26 @@
 
     const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
     assignDataAllWalls(data);
+
+    // Ulož poslední aplikovaný stav pro Publish + do draftu
+    try {
+      const applied = collectGalleryData();
+      window.lastAppliedGalleryData = applied;
+      localStorage.setItem('draftGalleryJson', JSON.stringify(applied));
+    } catch(e) { /* ignore */ }
+
     autosave();
     hint("Layout aplikován.");
   }
-  $("btnApplyLayout").addEventListener("click", applyLayoutFromUI);
+
+  // Debounce pro "Použít layout" (prevence dvojkliku)
+  let applying = false;
+  $("btnApplyLayout").addEventListener("click", async ()=>{
+    if (applying) return;
+    applying = true;
+    try { await applyLayoutFromUI(); }
+    finally { applying = false; }
+  });
 
   $("btnResetCam").addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
@@ -747,7 +768,7 @@
   });
   setMode(MODE.VIEW);
 
-  // 1) Vyčisti případný starý draft (smaž tento řádek, pokud draft chceš zachovat)
+  // 1) (volitelné) Vyčisti starý draft – při vývoji se hodí; ve finále můžeš smazat
   try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
 
   // 2) Nastav hodnoty dle screenshotu a hned aplikuj layout
