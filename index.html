@@ -105,7 +105,7 @@
           img:   it.data.src   || '',
           label: it.data.title || '',
           href:  it.data.url   || ''
-        })));
+        })); // <<< FIX: správné uzavření map bez extra ')'
       }
       return out;
     }
@@ -122,7 +122,7 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`; // <<< FIX: & místo &amp;
       window.open(url, '_blank', 'noopener');
     }
 
@@ -324,7 +324,7 @@
     };
 
     [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
+     [xL,y1,zF,xR,y1,zF],[xR,y1    zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
     [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
@@ -524,7 +524,6 @@
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <!-- (zbytek tvého SVG beze změny) -->
   </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
