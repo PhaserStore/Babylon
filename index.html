@@ -185,7 +185,7 @@
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:false, stencil:false, antialias:true });
 
   function applyHardwareScale(){
-    const level = IS_MOBILE ? 1.25 : 1.0;
+    const level = IS_MOBILE ? 1.0 : 1.0;
     engine.setHardwareScalingLevel(level);
   }
   applyHardwareScale();
