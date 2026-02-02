@@ -35,7 +35,8 @@
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 
-<body class="view">
+<!-- ★ Startujeme v ADMIN módu, ať vidíš UI i Publish -->
+<body class="admin">
   <!-- Publish to GitHub Issue -->
   <button id="publishBtn">Publish to GitHub</button>
 
@@ -43,7 +44,7 @@
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <!-- Výchozí hodnoty dle screenshotu -->
+      <!-- ★ Výchozí hodnoty dle požadavku -->
       <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" style="width:80px"></label>
       <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" style="width:80px"></label>
     </div>
@@ -60,6 +61,7 @@
       <strong>Rám:</strong>
       <label>Šířka&nbsp;<input id="frmW" type="number" step="0.05" value="2" style="width:80px"></label>
       <label>Výška&nbsp;<input id="frmH" type="number" step="0.05" value="2" style="width:80px"></label>
+      <!-- ★ Lišta 0.3 -->
       <label>Lišta&nbsp;<input id="frmBorder" type="number" step="0.02" value="0.3" style="width:80px"></label>
       <label>Barva&nbsp;<input id="frmColor" type="color" value="#383838"></label>
     </div>
@@ -86,7 +88,8 @@
           frame: {
             width: +document.getElementById('frmW').value || 2,
             height: +document.getElementById('frmH').value || 2,
-            border: +document.getElementById('frmBorder').value || 0.08,
+            // ★ default border = 0.3
+            border: +document.getElementById('frmBorder').value || 0.3,
             color: document.getElementById('frmColor').value || '#383838'
           },
           counts: {
@@ -112,14 +115,14 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      // V URL MUSÍ být skutečné & (ne HTML &amp;)
+      // ★ MUSÍ být skutečné &body= (NE HTML entita)
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
       window.open(url, '_blank', 'noopener');
     }
 
     document.getElementById('publishBtn').addEventListener('click', async () => {
       try {
-        // Preferuj stav po posledním "Použít layout"
+        // ★ Publikuj NAPOSLEDY POUŽITÝ layout, jinak aktuální
         const dataObj = (window.lastAppliedGalleryData && Object.keys(window.lastAppliedGalleryData).length)
           ? window.lastAppliedGalleryData
           : collectGalleryData();
@@ -158,7 +161,7 @@
      MODE: A (admin) / V (view)
   ========================= */
   const MODE = { ADMIN: "admin", VIEW: "view" };
-  let mode = MODE.VIEW;
+  let mode = MODE.ADMIN; // ★ výchozí ADMIN (kvůli Publish/viditelnému UI)
 
   const $ = (id)=>document.getElementById(id);
   const hintEl = $("hint");
@@ -327,7 +330,8 @@
   /* =========================
      FRAMES + CEDULKY – jednotka
   ========================= */
-  const FRAME_SIZE = { W: 2, H: 2 }; // přepíšeme podle UI
+  // ★ výchozí rám 2×2 a lišta 0.3 (případně přepíše UI)
+  const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.3;
   let FRAME_COLOR = "#383838";
 
@@ -649,7 +653,7 @@
 
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
-      // Zapiš zdroj IHNED (spolehlivý export i bez čekání)
+      // ★ Zapiš zdroj IHNED (spolehlivý export i bez čekání)
       targetItem.data.src = url;
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -672,15 +676,15 @@
       for (let i=0;i<n;i++){
         const it = arr[i], d = items[i] || {};
 
-        // 1) Zapiš data hned
+        // ★ Zapiš data hned (publish nebude čekat na obrázek)
         it.data.src   = d.img   || it.data.src || "";
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
 
-        // 2) Cedulka
+        // Cedulka
         drawPlacard(it.placard, it.data, it.rotY);
 
-        // 3) Obrázek do textury
+        // Obrázek (asynchronně)
         if (d.img) loadLocal(d.img, it);
       }
     });
@@ -704,7 +708,8 @@
     const cornerSafe = +$("cornerSafe").value || 1;
     FRAME_SIZE.W     = +$("frmW").value || 2;
     FRAME_SIZE.H     = +$("frmH").value || 2;
-    FRAME_BOX_BORDER = +$("frmBorder").value || 0.08;
+    // ★ default border 0.3 (když by input byl prázdný)
+    FRAME_BOX_BORDER = +$("frmBorder").value || 0.3;
     FRAME_COLOR      = $("frmColor").value || "#383838";
 
     createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
@@ -715,7 +720,7 @@
     const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
     assignDataAllWalls(data);
 
-    // Ulož poslední aplikovaný stav (pro Publish) a draft
+    // ★ Ulož poslední aplikovaný stav (pro Publish) a draft
     try {
       const applied = collectGalleryData();
       window.lastAppliedGalleryData = applied;
@@ -741,39 +746,38 @@
     hint("Kamera resetována.");
   });
 
-  // === Nastavení výchozích hodnot dle screenshotu (UI) ===
- function setDefaultsFromScreenshot() {
-    $("safeWall").value   = "1";   // Ochranná zóna
-    $("cornerSafe").value = "1";   // Rohová rezerva
-    $("frmW").value       = "2";   // Šířka rámu
-    $("frmH").value       = "2";   // Výška rámu
-    $("frmBorder").value  = "0.3"; // Lišta 0.3
+  // === Nastavení výchozích hodnot dle požadavku (UI) ===
+  function setDefaultsFromScreenshot() {
+    $("safeWall").value   = "1";
+    $("cornerSafe").value = "1";
+    $("frmW").value       = "2";
+    $("frmH").value       = "2";
+    $("frmBorder").value  = "0.3"; // ★
     $("frmColor").value   = "#383838";
     $("cntFront").value   = "4";
     $("cntBack").value    = "4";
     $("cntLeft").value    = "6";
     $("cntRight").value   = "6";
-}
+  }
 
- /* =========================
-   BOOT
-========================= */
-createScene();
-engine.runRenderLoop(()=> scene.render());
-window.addEventListener("resize", () => {
-  applyHardwareScale();
-  engine.resize();
-});
-setMode(MODE.VIEW);
+  /* =========================
+     BOOT
+  ========================= */
+  createScene();
+  engine.runRenderLoop(()=> scene.render());
+  window.addEventListener("resize", () => {
+    applyHardwareScale();
+    engine.resize();
+  });
+  setMode(MODE.ADMIN); // ★
 
-// (volitelně) při vývoji vyčisti starý draft; ve finále můžeš odstranit
-try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
+  // (volitelné) při vývoji vyčisti starý draft; ve finále můžeš odstranit
+  try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
 
-// !!! SEM TO PATŘÍ !!!
-setDefaultsFromScreenshot();
-applyLayoutFromUI();
+  // ★ Defaulty + hned aplikovat layout
+  setDefaultsFromScreenshot();
+  applyLayoutFromUI();
 
-</script>
+  </script>
 </body>
 </html>
-``
