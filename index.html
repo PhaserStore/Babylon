@@ -232,48 +232,98 @@
   }
 
   /* =========================
-     ROOM + LED
-  ========================= */
-  function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
-  function unlitTex(tex,{doubleSided=false}={}){
-    const m=new BABYLON.StandardMaterial("mt",scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = tex;
-    m.emissiveTexture = tex;
-    m.backFaceCulling = !doubleSided;   // default = pouze PŘEDNÍ strana (zabrání zrcadlení)
-    return m;
-  }
+   ROOM + LED
+========================= */
+function unlit(hex){ 
+  const m=new BABYLON.StandardMaterial("m",scene); 
+  m.diffuseColor=BABYLON.Color3.FromHexString(hex); 
+  m.disableLighting=true; 
+  return m; 
+}
 
-  function buildRoom(){
-    const floor   = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene); floor.material = unlit("#151515");
-    const back    = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);   back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#2b2b2b"); back.rotation.y = 0;        // čelem do +Z (dovnitř)
-    const front   = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);  front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.material = unlit("#2b2b2b"); front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
-    const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene); ceiling.position.y = ROOM.H; ceiling.rotation.x = Math.PI; ceiling.material = unlit("#0f0f10");
+function unlitTex(tex,{doubleSided=false}={}){
+  const m=new BABYLON.StandardMaterial("mt",scene);
+  m.disableLighting = true;
+  m.diffuseTexture  = tex;
+  m.emissiveTexture = tex;
+  m.backFaceCulling = !doubleSided;   // default = pouze PŘEDNÍ strana (zabrání zrcadlení „zadkem“)
+  return m;
+}
 
-    // boční stěny – obě čelem dovnitř
-    const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0); left.rotation.y = -Math.PI/2; left.material = unlit("#242424");
+/* === HORIZONTÁLNÍ ZRCADLENÍ TEXTURY (U) ===
+   U textur nastavíme uScale=-1 a uOffset=1,
+   aby se obsah otočil vodorovně a zároveň
+   zůstal správně zarovnaný.
+*/
+function mirrorTexHoriz(mat){
+  if (!mat) return;
+  const flip = (tex) => {
+    if (!tex) return;
+    tex.uScale  = -1;  // horizontální flip
+    tex.uOffset = 1;   // dorovnání po flipu
+  };
+  flip(mat.diffuseTexture);
+  flip(mat.emissiveTexture);
+}
 
-    const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0); right.rotation.y =  Math.PI/2; right.material = unlit("#242424");
-  }
+function buildRoom(){
+  const floor   = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene); 
+  floor.material = unlit("#151515");
 
-  function buildLED(){
-    const n=new BABYLON.TransformNode("led",scene);
-    const t=0.02, inw=0.1;
-    const xL=-ROOM.W/2+inw, xR=ROOM.W/2-inw;
-    const zF=ROOM.D/2-inw,  zB=-ROOM.D/2+inw;
-    const y0=0.04, y1=ROOM.H-0.04;
-    const mat=new BABYLON.StandardMaterial("ledMat",scene); mat.emissiveColor=BABYLON.Color3.FromHexString("#ffbdf6"); mat.disableLighting=true;
+  const back    = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);   
+  back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); 
+  back.material = unlit("#2b2b2b"); 
+  back.rotation.y = 0;        // čelem do +Z (dovnitř)
 
-    const seg=(a,b)=>{ const d=BABYLON.Vector3.Distance(a,b); const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene); m.position=BABYLON.Vector3.Center(a,b); m.lookAt(b); m.rotation.x+=Math.PI; m.material=mat; m.isPickable=false; m.parent=n; glow.addIncludedOnlyMesh(m); };
+  const front   = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);  
+  front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); 
+  front.material = unlit("#2b2b2b"); 
+  front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
 
-    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
-    ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
-  }
+  const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene); 
+  ceiling.position.y = ROOM.H; 
+  ceiling.rotation.x = Math.PI; 
+  ceiling.material = unlit("#0f0f10");
 
+  // boční stěny – obě čelem dovnitř
+  const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
+  left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0); 
+  left.rotation.y = -Math.PI/2; 
+  left.material = unlit("#242424");
+
+  const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
+  right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0); 
+  right.rotation.y =  Math.PI/2; 
+  right.material = unlit("#242424");
+}
+
+function buildLED(){
+  const n=new BABYLON.TransformNode("led",scene);
+  const t=0.02, inw=0.1;
+  const xL=-ROOM.W/2+inw, xR=ROOM.W/2-inw;
+  const zF=ROOM.D/2-inw,  zB=-ROOM.D/2+inw;
+  const y0=0.04, y1=ROOM.H-0.04;
+  const mat=new BABYLON.StandardMaterial("ledMat",scene); 
+  mat.emissiveColor=BABYLON.Color3.FromHexString("#ffbdf6"); 
+  mat.disableLighting=true;
+
+  const seg=(a,b)=>{ 
+    const d=BABYLON.Vector3.Distance(a,b); 
+    const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene); 
+    m.position=BABYLON.Vector3.Center(a,b); 
+    m.lookAt(b); 
+    m.rotation.x+=Math.PI; 
+    m.material=mat; 
+    m.isPickable=false; 
+    m.parent=n; 
+    glow.addIncludedOnlyMesh(m); 
+  };
+
+  [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
+   [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
+  ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
+  [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
+}
   /* =========================
      FRAMES + CEDULKY – jednotka
   ========================= */
