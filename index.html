@@ -99,22 +99,23 @@
         },
         front: [], back: [], left: [], right: []
       };
-      if (!window.framesByWall) return out;
-      for (const wall of Object.keys(framesByWall)) {
-        out[wall] = (framesByWall[wall] || []).map(it => ({
-          img:   it.data.src   || '',
-          label: it.data.title || '',
-          href:  it.data.url   || ''
-        })); // <<< FIX: správné uzavření map bez extra ')'
-      }
+      // Pokud není scéna ready, vrať jen settings
+      try {
+        if (typeof framesByWall !== 'undefined' && framesByWall) {
+          for (const wall of Object.keys(framesByWall)) {
+            out[wall] = (framesByWall[wall] || []).map(it => ({
+              img:   it.data.src   || '',
+              label: it.data.title || '',
+              href:  it.data.url   || ''
+            }));
+          }
+        }
+      } catch(e) { /* ignore */ }
       return out;
     }
 
     function getGalleryData() {
-      try { if (window.framesByWall) return collectGalleryData(); } catch(e) {}
-      const draft = localStorage.getItem('draftGalleryJson');
-      if (draft) { try { return JSON.parse(draft); } catch(e) {} }
-      return {};
+      try { return collectGalleryData(); } catch(e) { return {}; }
     }
     const toMinifiedJsonString = (obj) => JSON.stringify(obj);
 
@@ -122,7 +123,7 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`; // <<< FIX: & místo &amp;
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
       window.open(url, '_blank', 'noopener');
     }
 
@@ -147,7 +148,7 @@
         const data = await res.json();
         window.galleryData = data;
         console.log('Načteno data/gallery.json:', data);
-        if (window.assignDataAllWalls) assignDataAllWalls(data);
+        if (window.assignDataAllWalls) window.assignDataAllWalls(data);
       } catch (e) {
         console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
       }
@@ -323,10 +324,14 @@
       glow.addIncludedOnlyMesh(m);
     };
 
-    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-     [xL,y1,zF,xR,y1,zF],[xR,y1    zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
+    // horní a spodní rámy + svislé rohy (správné čárky!)
+    [
+      [xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
+      [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
+
+    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]]
+      .forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
   /* =========================
@@ -390,7 +395,7 @@
     box.material = makeFrameBoxMaterial();
     box.isPickable = true;
 
-    // obraz dovnitř
+    // obraz (plane směřuje dovnitř místnosti = BACKSIDE)
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
@@ -401,7 +406,7 @@
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // cedulka dovnitř
+    // cedulka
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: FRAME_SIZE.W,
       height: 0.22,
@@ -522,9 +527,7 @@
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g>
-    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
+  <g><path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/></g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.30;
@@ -536,7 +539,7 @@
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = 1024; // můžeš zvýšit na TEX_SIZE nebo TEX_SIZE*2, pokud chceš ostřejší logo
+      const SIZE = 1024; // případně TEX_SIZE nebo TEX_SIZE*2 pro extra ostrost
       const dt  = makeDT("logoDT", SIZE, SIZE);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
@@ -579,6 +582,8 @@
      MULTI‑WALL LAYOUT
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
+  // Zpřístupnit i přes window pro publish serializaci
+  window.framesByWall = framesByWall;
 
   function distributeCenters(min, max, count, frameW){
     if (count <= 1) return [ (min+max)/2 ];
@@ -614,7 +619,7 @@
     const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
 
     // cleanup při re-layoutu
-    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+    (framesByWall[wall]||[]).forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
     framesByWall[wall] = [];
 
     centers.forEach(val=>{
@@ -634,22 +639,16 @@
       { img:"./assets/one.jpg",   label:"Produkt A", href:"https://everpress.com/the-future-phaser-collection2" },
       { img:"./assets/two.jpg",   label:"Produkt B", href:"https://example.com/b" },
       { img:"./assets/three.jpg", label:"Produkt C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Produkt D", href:"https://example.com/d" },
-      { img:"./assets/two.jpg",   label:"Produkt E", href:"https://example.com/e" },
-      { img:"./assets/three.jpg", label:"Produkt F", href:"https://example.com/f" },
-      { img:"./assets/one.jpg",   label:"Produkt G", href:"https://example.com/g" }
+      { img:"./assets/one.jpg",   label:"Produkt D", href:"https://example.com/d" }
     ],
     back: [
       { img:"./assets/one.jpg",   label:"Back A", href:"https://example.com/a" },
       { img:"./assets/two.jpg",   label:"Back B", href:"https://example.com/b" },
       { img:"./assets/three.jpg", label:"Back C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" },
-      { img:"./assets/two.jpg",   label:"Back E", href:"https://example.com/e" },
-      { img:"./assets/three.jpg", label:"Back F", href:"https://example.com/f" },
-      { img:"./assets/one.jpg",   label:"Back G", href:"https://example.com/g" }
+      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" }
     ],
-    left:  Array.from({length:13}, (_,i)=>({ img:"./assets/one.jpg",  label:`Levá ${i+1}`,  href:`https://example.com/left-${i+1}`  })),
-    right: Array.from({length:13}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
+    left:  Array.from({length:6}, (_,i)=>({ img:"./assets/one.jpg",  label:`Levá ${i+1}`,  href:`https://example.com/left-${i+1}`  })),
+    right: Array.from({length:6}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
   };
 
   function assignDataAllWalls(data){
@@ -682,6 +681,7 @@
       }
     });
   }
+  window.assignDataAllWalls = assignDataAllWalls;
 
   // Autosave do localStorage
   function autosave(){
