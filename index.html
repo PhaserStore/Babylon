@@ -742,18 +742,18 @@
   });
 
   // === Nastavení výchozích hodnot dle screenshotu (UI) ===
-  function setDefaultsFromScreenshot() {
-    $("safeWall").value   = "1";
-    $("cornerSafe").value = "1";
-    $("frmW").value       = "2";
-    $("frmH").value       = "2";
-    $("frmBorder").value  = "0.08";
+ function setDefaultsFromScreenshot() {
+    $("safeWall").value   = "1";   // Ochranná zóna
+    $("cornerSafe").value = "1";   // Rohová rezerva
+    $("frmW").value       = "2";   // Šířka rámu
+    $("frmH").value       = "2";   // Výška rámu
+    $("frmBorder").value  = "0.3"; // Lišta 0.3
     $("frmColor").value   = "#383838";
     $("cntFront").value   = "4";
     $("cntBack").value    = "4";
     $("cntLeft").value    = "6";
     $("cntRight").value   = "6";
-  }
+}
 
   /* =========================
      BOOT
