@@ -205,14 +205,14 @@
   /* =========================
      ROOM + LED (vizuál zachován)
   ========================= */
-  function unlit(hex){ const m=new BABYLON.StandardMaterial("m",scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.disableLighting=true; return m; }
-  function unlitTex(tex){
-    const m=new BABYLON.StandardMaterial("mt",scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = tex;
-    m.emissiveTexture = tex;              // „svítící“ bez vlivu světel
-    m.backFaceCulling = false;            // viditelné směrem dovnitř
-    return m;
+  function unlitTex(tex, { doubleSided = false } = {}){
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting  = true;
+  m.diffuseTexture   = tex;
+  m.emissiveTexture  = tex;      // „svítící“ bez vlivu světel (zachováno)
+  m.backFaceCulling  = !doubleSided; // výchozí = JEDNOSTRANNÉ
+  return m;
+}
   }
 
   function buildRoom(){
