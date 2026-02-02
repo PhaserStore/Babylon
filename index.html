@@ -587,45 +587,69 @@
     right: Array.from({length:13}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
   };
 
-  function assignDataAllWalls(data){
-    const loadLocal = (url, targetItem)=>{
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = ()=>{
-        const dt=new BABYLON.DynamicTexture("imgDT"+Math.random(),{width:1024,height:1024},scene,true);
-        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-        const mat = unlitTex(dt);
-        targetItem.frame.material = mat;
-        ensureFacingInwardMaterial(targetItem.frame, targetItem.wall);
-        targetItem.data.src = url;
-        autosave();
-      };
-      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
-      img.src = url;
-    };
+  // Helper: rozpozná, zda je URL relativní vůči aktuálnímu původu
+function isRelativeUrl(url) {
+  // Relativní je: začíná ./ nebo ../, nebo vůbec neobsahuje schéma/protokol
+  // (tedy neodpovídá ^https?://)
+  return /^\.{1,2}\//.test(url) || !/^https?:\/\//i.test(url);
+}
 
-    ["front","back","left","right"].forEach(side=>{
-      const items = data[side] || [];
-      const arr   = framesByWall[side] || [];
-      const n = Math.min(items.length, arr.length);
-      for (let i=0;i<n;i++){
-        const it = arr[i], d = items[i];
-        if (d.img)  loadLocal(d.img, it);
-        it.data.title = d.label || "(bez názvu)";
-        it.data.url   = d.href || "";
-        drawPlacard(it.placard, it.data);
-      }
+// === Upravená verze s "same-origin" pro relativní assets ===
+async function loadImageUrlIntoTexture(url, item) {
+  try {
+    const sameOrigin = isRelativeUrl(url);
+    const resp = await fetch(url, {
+      mode: sameOrigin ? "same-origin" : "cors",
+      cache: "no-store"
     });
-  }
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
 
-  // Autosave do localStorage (pro Publish)
-  function autosave(){
-    try{
-      const data = collectGalleryData();
-      localStorage.setItem('draftGalleryJson', JSON.stringify(data));
-    }catch(e){ /* ignore */ }
-  }
+    const ct = resp.headers.get("content-type") || "";
+    if (!ct.startsWith("image/") && !ct.includes("svg")) {
+      throw new Error("NOT_IMAGE");
+    }
 
+    const blob = await resp.blob();
+
+    // Pokus: rychlejší createImageBitmap (s fallbackem na <img/>)
+    let bmp;
+    try {
+      bmp = await createImageBitmap(blob, { premultiplyAlpha: "premultiply" });
+    } catch {
+      bmp = await blobToImg(blob);
+    }
+
+    // Vykreslení do 1024x1024 s letterbox/cover fit
+    const dt = new BABYLON.DynamicTexture("imgDT", { width: 1024, height: 1024 }, scene, true);
+    const ctx = dt.getContext();
+    drawFitted(ctx, bmp, FRAME_SIZE.W, FRAME_SIZE.H);
+    dt.update();
+
+    const mat = unlitTex(dt);
+    item.frame.material = mat;
+    ensureFacingInwardMaterial(item.frame, item.wall);
+
+    // Ulož původní zdroj (užitečné pro publish a re‑load)
+    item.data.src = url;
+    autosave();
+
+    hint("Obrázek načten ✔");
+  } catch (e) {
+    console.warn("Načítání obrázku selhalo:", url, e);
+
+    // Tichý fallback: šachovnicový placeholder
+    const dt = new BABYLON.DynamicTexture("imgDT_fail", { width: 1024, height: 1024 }, scene, true);
+    const ctx = dt.getContext();
+    drawPlaceholder(ctx, 1024, 1024);
+    dt.update();
+
+    item.frame.material = unlitTex(dt);
+    ensureFacingInwardMaterial(item.frame, item.wall);
+
+    hint("Obrázek nelze načíst → zobrazen placeholder.");
+  }
+}
+``
   /* =========================
      UI – beze změny chování, ale BEZ alertů
   ========================= */
