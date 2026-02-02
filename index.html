@@ -109,11 +109,10 @@
       return out;
     }
 
-    // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      // DŮLEŽITÉ: v JS stringu musí být skutečné & (ne HTML &amp;)
+      // V URL MUSÍ být skutečné & (ne HTML &amp;)
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
       window.open(url, '_blank', 'noopener');
     }
@@ -123,7 +122,7 @@
         // Preferuj stav po posledním "Použít layout"
         const dataObj = (window.lastAppliedGalleryData && Object.keys(window.lastAppliedGalleryData).length)
           ? window.lastAppliedGalleryData
-          : collectGalleryData(); // fallback: aktuální stav
+          : collectGalleryData();
 
         const minified = JSON.stringify(dataObj);
         JSON.parse(minified); // sanity
@@ -274,12 +273,12 @@
     const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
     back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01);
     back.material = unlit("#2b2b2b");
-    back.rotation.y = 0; // čelem do +Z (dovnitř)
+    back.rotation.y = 0; // čelem do +Z
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
+    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
-    front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
+    front.rotation.y = Math.PI; // čelem do -Z
 
     const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
     ceiling.position.y = ROOM.H;
@@ -287,12 +286,12 @@
     ceiling.material = unlit("#0f0f10");
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
     left.rotation.y = -Math.PI/2;
     left.material = unlit("#242424");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
     right.rotation.y =  Math.PI/2;
     right.material = unlit("#242424");
   }
@@ -504,7 +503,7 @@
       autosave();
     }catch(e){
       console.warn("Dekódování DataURL/SVG selhalo", e);
-      const dt = makeDT("imgDT_data_fail", TEX SIZE, TEX SIZE);
+      const dt = makeDT("imgDT_data_fail", TEX_SIZE, TEX_SIZE);
       const ctx=dt.getContext(); drawPlaceholder(ctx,TEX_SIZE,TEX_SIZE); dt.update();
       const mat = unlitTex(dt,{doubleSided:false});
       mirrorTexHoriz(mat);
@@ -561,7 +560,7 @@
         g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
 
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
       // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
@@ -777,3 +776,4 @@
   </script>
 </body>
 </html>
+``
