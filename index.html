@@ -340,12 +340,18 @@ function buildLED(){
   }
 
   function lightGrayPlaceholderMat(text){
-    const dt=new BABYLON.DynamicTexture("ph2",{width:TEX_SIZE,height:TEX_SIZE},scene,true);
-    const c=dt.getContext();
-    c.fillStyle="#bcbcbc"; c.fillRect(0,0,TEX_SIZE,TEX_SIZE);
-    c.fillStyle="#222";    c.font=`bold ${Math.round(TEX_SIZE*0.06)}px system-ui`; c.textAlign="center"; c.textBaseline="middle";
-    c.fillText(text,TEX_SIZE/2,TEX_SIZE/2);
-    dt.update(); return unlitTex(dt);
+  const dt=new BABYLON.DynamicTexture("ph2",{width:TEX_SIZE,height:TEX_SIZE},scene,true);
+  const c=dt.getContext();
+  c.fillStyle="#bcbcbc"; c.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+  c.fillStyle="#222";    c.font=`bold ${Math.round(TEX_SIZE*0.06)}px system-ui`;
+  c.textAlign="center"; c.textBaseline="middle";
+  c.fillText(text,TEX_SIZE/2,TEX_SIZE/2);
+  dt.update();
+
+  const mat = unlitTex(dt,{doubleSided:false});
+  mirrorTexHoriz(mat);                // <<< DOPLNIT
+  return mat;
+}
   }
   function drawPlacard(plac,data, rotY){
     const W = TEX_SIZE, H = Math.round(TEX_SIZE*0.25);
