@@ -30,7 +30,7 @@
     body.view #publishBtn{display:none}
   </style>
 
-  <!-- Babylon.js + GUI (OK) -->
+  <!-- Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
@@ -113,17 +113,17 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      // musí být &body=, nikoliv &amp;body=
+      // DŮLEŽITÉ: v JS stringu musí být skutečné & (ne HTML &amp;)
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
       window.open(url, '_blank', 'noopener');
     }
 
     document.getElementById('publishBtn').addEventListener('click', async () => {
       try {
-        // Preferuj poslední "Použít layout"
+        // Preferuj stav po posledním "Použít layout"
         const dataObj = (window.lastAppliedGalleryData && Object.keys(window.lastAppliedGalleryData).length)
           ? window.lastAppliedGalleryData
-          : collectGalleryData(); // fallback: přečti aktuální UI/stav
+          : collectGalleryData(); // fallback: aktuální stav
 
         const minified = JSON.stringify(dataObj);
         JSON.parse(minified); // sanity
@@ -277,7 +277,7 @@
     back.rotation.y = 0; // čelem do +Z (dovnitř)
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
+    front.position set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
     front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
 
@@ -287,12 +287,12 @@
     ceiling.material = unlit("#0f0f10");
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+    left.position set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
     left.rotation.y = -Math.PI/2;
     left.material = unlit("#242424");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.position set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
     right.rotation.y =  Math.PI/2;
     right.material = unlit("#242424");
   }
@@ -328,8 +328,7 @@
   /* =========================
      FRAMES + CEDULKY – jednotka
   ========================= */
-  // (ponecháno 1.6×1.6, ale při startu to hned přepíšeme na 2×2)
-  const FRAME_SIZE = { W: 1.6, H: 1.6 };
+  const FRAME_SIZE = { W: 1.6, H: 1.6 }; // přepíšeme podle UI
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#383838";
 
@@ -481,7 +480,7 @@
       const mat = unlitTex(dt,{doubleSided:false});
       mirrorTexHoriz(mat);
       item.frame.material = mat;
-      item.data.src = url; // jistota
+      item.data.src = url;
       autosave();
     }catch(e){
       console.warn("Načítání obrázku selhalo:", url, e);
@@ -505,7 +504,7 @@
       autosave();
     }catch(e){
       console.warn("Dekódování DataURL/SVG selhalo", e);
-      const dt = makeDT("imgDT_data_fail", TEX_SIZE, TEX_SIZE);
+      const dt = makeDT("imgDT_data_fail", TEX SIZE, TEX SIZE);
       const ctx=dt.getContext(); drawPlaceholder(ctx,TEX_SIZE,TEX_SIZE); dt.update();
       const mat = unlitTex(dt,{doubleSided:false});
       mirrorTexHoriz(mat);
@@ -562,7 +561,7 @@
         g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
 
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+        s.position set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
       // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
@@ -651,7 +650,7 @@
 
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
-      // zapiš zdroj ihned, aby publish měl jistotu
+      // Zapiš zdroj IHNED (spolehlivý export i bez čekání)
       targetItem.data.src = url;
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -674,7 +673,7 @@
       for (let i=0;i<n;i++){
         const it = arr[i], d = items[i] || {};
 
-        // 1) Zapiš data hned (spolehlivý export i bez čekání na obrázky)
+        // 1) Zapiš data hned
         it.data.src   = d.img   || it.data.src || "";
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
@@ -682,7 +681,7 @@
         // 2) Cedulka
         drawPlacard(it.placard, it.data, it.rotY);
 
-        // 3) Obrázek (asynchronně)
+        // 3) Obrázek do textury
         if (d.img) loadLocal(d.img, it);
       }
     });
@@ -717,7 +716,7 @@
     const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
     assignDataAllWalls(data);
 
-    // Ulož poslední aplikovaný stav pro Publish + do draftu
+    // Ulož poslední aplikovaný stav (pro Publish) a draft
     try {
       const applied = collectGalleryData();
       window.lastAppliedGalleryData = applied;
@@ -728,7 +727,7 @@
     hint("Layout aplikován.");
   }
 
-  // Debounce pro "Použít layout" (prevence dvojkliku)
+  // Debounce pro "Použít layout"
   let applying = false;
   $("btnApplyLayout").addEventListener("click", async ()=>{
     if (applying) return;
@@ -768,10 +767,10 @@
   });
   setMode(MODE.VIEW);
 
-  // 1) (volitelné) Vyčisti starý draft – při vývoji se hodí; ve finále můžeš smazat
+  // (volitelně) při vývoji vyčisti starý draft; ve finále můžeš odstranit
   try { localStorage.removeItem('draftGalleryJson'); } catch(e) {}
 
-  // 2) Nastav hodnoty dle screenshotu a hned aplikuj layout
+  // Defaulty + hned aplikovat layout
   setDefaultsFromScreenshot();
   applyLayoutFromUI();
 
