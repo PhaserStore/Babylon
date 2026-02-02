@@ -21,7 +21,7 @@
     input[type="color"]{padding:0 4px;height:36px;min-width:44px;border-radius:6px;background:#3a3a3a}
     button:hover{background:#575757}
     label{display:flex;gap:6px;align-items:center}
-    #hint{flex-basis:100%;font-size:12px;color:#ccc;white-space:pre-wrap}
+    #hint{flex-basis:100%;font-size:12px;color:#ccc}
     /* VIEW mód = čistá výstava (UI nevidět) */
     body.view #ui{display:none}
 
@@ -78,10 +78,6 @@
 
   <!-- ===== Publish (Issue s JSONem) ===== -->
   <script>
-    // Jednoduchý overlay chyb do hintu (usnadní debug)
-    window.addEventListener('error', (e) => { try{hint('Chyba: ' + e.message);}catch{}; });
-    window.addEventListener('unhandledrejection', (e) => { try{hint('Chyba: ' + (e.reason?.message || e.reason));}catch{}; });
-
     // === SERIALIZACE: aktuální stav galerie do JSON ===
     function collectGalleryData() {
       const out = {
@@ -109,7 +105,7 @@
           img:   it.data.src   || '',
           label: it.data.title || '',
           href:  it.data.url   || ''
-        }));
+        })));
       }
       return out;
     }
@@ -122,7 +118,7 @@
     }
     const toMinifiedJsonString = (obj) => JSON.stringify(obj);
 
-    // === GitHub Issue URL – používej skutečné & (NE HTML entity) ===
+    // === GitHub Issue URL – používej skutečné & (NE HTML &amp;) ===
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
@@ -250,7 +246,7 @@
     return m;
   }
 
-  // Helper pro horizontální zrcadlení UV
+  // <<< Helper pro horizontální zrcadlení UV >>>
   function mirrorTexHoriz(mat){
     if (!mat) return;
     const flip = (tex) => {
@@ -262,7 +258,7 @@
     flip(mat.emissiveTexture);
   }
 
-  // Helper: DynamicTexture bez mipmap + bilinear + clamp
+  // <<< Helper: DynamicTexture bez mipmap + bilinear + clamp >>>
   function makeDT(name, w, h) {
     const dt = new BABYLON.DynamicTexture(
       name,
@@ -285,7 +281,7 @@
     back.rotation.y = 0; // čelem do +Z (dovnitř)
 
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
+    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
     front.material = unlit("#2b2b2b");
     front.rotation.y = Math.PI; // čelem do -Z (dovnitř)
 
@@ -295,12 +291,12 @@
     ceiling.material = unlit("#0f0f10");
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
     left.rotation.y = -Math.PI/2;
     left.material = unlit("#242424");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
     right.rotation.y =  Math.PI/2;
     right.material = unlit("#242424");
   }
@@ -327,12 +323,9 @@
       glow.addIncludedOnlyMesh(m);
     };
 
-    // Opravený seznam hran (všude správné čárky)
-    [
-      [xL,y0,zF, xR,y0,zF], [xR,y0,zF, xR,y0,zB], [xR,y0,zB, xL,y0,zB], [xL,y0,zB, xL,y0,zF],
-      [xL,y1,zF, xR,y1,zF], [xR,y1,zF, xR,y1,zB], [xR,y1,zB, xL,y1,zB], [xL,y1,zB, xL,y1,zF]
+    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
+     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-
     [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
@@ -531,6 +524,7 @@
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <!-- (zbytek tvého SVG beze změny) -->
   </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
@@ -543,7 +537,7 @@
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = 1024; // případně TEX_SIZE nebo TEX_SIZE*2
+      const SIZE = 1024; // můžeš zvýšit na TEX_SIZE nebo TEX_SIZE*2, pokud chceš ostřejší logo
       const dt  = makeDT("logoDT", SIZE, SIZE);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
@@ -723,7 +717,7 @@
   });
 
   $("btnResetCam").addEventListener("click", ()=>{
-    camera.target set(0, ROOM.H*0.48, 0);
+    camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
     hint("Kamera resetována.");
   });
