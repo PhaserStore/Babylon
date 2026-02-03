@@ -52,8 +52,8 @@
       <strong>Počty rámů:</strong>
       <label>Front&nbsp;<input id="cntFront" type="number" step="1" min="0" value="4" style="width:70px"></label>
       <label>Back&nbsp;<input  id="cntBack"  type="number" step="1" min="0" value="4" style="width:70px"></label>
-      <label>Left&nbsp;<input  id="cntLeft"  type="number" step="1" min="0" value="6" style="width:70px"></label>
-      <label>Right&nbsp;<input id="cntRight" type="number" step="1" min="0" value="6" style="width:70px"></label>
+      <label>Left&nbsp;<input  id="cntLeft"  type="number" step="1" min="0" value="7" style="width:70px"></label>
+      <label>Right&nbsp;<input id="cntRight" type="number" step="1" min="0" value="7" style="width:70px"></label>
     </div>
 
     <div class="group">
@@ -86,7 +86,7 @@
           frame: {
             width:  +document.getElementById('frmW').value      || 2,
             height: +document.getElementById('frmH').value      || 2,
-            border: +document.getElementById('frmBorder').value || 0.08,
+            border: +document.getElementById('frmBorder').value || 0.2,
             color:  document.getElementById('frmColor').value   || '#383838'
           },
           counts: {
@@ -182,7 +182,7 @@
 
   let scene, camera, glow, hl;
 
-  const ROOM = { W: 16, D: 30, H: 7.6 };
+  const ROOM = { W: 16, D: 30, H: 10.6 };
   const MIN_RADIUS = 1.6, MAX_RADIUS = 40;
 
   function createScene(){
@@ -630,7 +630,7 @@
     const cornerSafe = +$("cornerSafe").value || 1;
     FRAME_SIZE.W     = +$("frmW").value       || 2;
     FRAME_SIZE.H     = +$("frmH").value       || 2;
-    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.08;
+    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
     FRAME_COLOR      = $("frmColor").value    || "#383838";
 
     createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
