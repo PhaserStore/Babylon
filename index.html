@@ -223,8 +223,10 @@
   let mode = MODE.VIEW;
 
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
+  const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+  const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-  // --- Edge fix: zaokrouhlení DPR na „safe“ hodnoty kvůli ostrému canvasu ---
+  // --- Edge/Safari: zaokrouhlení DPR na „safe“ hodnoty kvůli ostrému canvasu ---
   function snapDpr(raw) {
     const v = Math.max(1, Math.min(raw || 1, 3));
     const steps = [1, 1.25, 1.5, 2, 2.5, 3];
@@ -255,19 +257,28 @@
     if(k==='v') setMode(MODE.VIEW);
   }, { passive:true });
 
-  // Textury → velikost řízená snappnutým DPR
+  // Textury (základ dle zařízení) — finalní výpočet až po vytvoření engine (kvůli GPU cap)
   const TEX_BASE = IS_MOBILE ? 1024 : 2048;
-  const TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
+  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2)); // dočasně, po engine upravíme na cap
 
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
-    preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false
+    preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false,
+    powerPreference: "high-performance"
   });
 
-  // Využij maximum anisotropie z HW
-  const MAX_ANISO = (engine.getCaps && engine.getCaps().maxAnisotropy) ? engine.getCaps().maxAnisotropy : 4;
+  // GPU limity (důležité na iOS / starších mobilech)
+  const CAPS = engine.getCaps ? engine.getCaps() : {};
+  const MAX_TEX_CAP = Math.max(512, CAPS.maxTextureSize || 2048);
+  // Přísnější stropy: mobil <= 1024, desktop <= 4096
+  const MOBILE_TEX_CAP  = Math.min(MAX_TEX_CAP, 1024);
+  const DESKTOP_TEX_CAP = Math.min(MAX_TEX_CAP, 4096);
+  TEX_SIZE = Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
 
-  // ===== HW scale: desktop fixní, mobil adaptivní =====
+  // Využij maximum anisotropie z HW
+  const MAX_ANISO = CAPS.maxAnisotropy || 4;
+
+  // ===== HW scale: desktop fixní, mobil adaptivní (lehký) =====
   const BASE_LEVEL = Math.max(0.33, Math.min(1 / DPR, 1)); // výchozí (ostré)
   let currentScaleLevel = Math.round(BASE_LEVEL * 100) / 100;
 
@@ -278,18 +289,17 @@
   }
   applyHardwareScale();
 
-  // Jednoduchý automatický scaler pro mobil (desktop = vypnuto)
+  // Auto scaler (jen mobil) — velmi mírný, aby to nebylo „dýchající“
   const AutoScale = {
     enabled: IS_MOBILE,
-    windowMs: 1200,          // jak často vyhodnocovat
-    warmupMs: 1500,          // ignoruj 1.5s po startu
-    lowFpsMs: 28,            // ~35 FPS -> sniž rozlišení (zvětši scale)
-    highFpsMs: 18,           // ~55+ FPS -> zvyší rozlišení (zmenši scale)
-    step: 0.05,              // krok úpravy
-    minLevel: 0.33,          // dole = vyšší rozlišení
-    maxLevel: 1.00,          // nahoře = nižší rozlišení
-    accMs: 0, frames: 0,
-    lastEval: performance.now()
+    windowMs: 1200,
+    warmupMs: 1500,
+    lowFpsMs: 30,  // ~33 FPS
+    highFpsMs: 17, // ~58+ FPS
+    step: 0.05,
+    minLevel: 0.33,
+    maxLevel: 1.00,
+    accMs: 0, frames: 0, lastEval: performance.now()
   };
 
   let scene, camera, glow, hl;
@@ -317,8 +327,8 @@
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 24 : 48 });
-    glow.intensity = IS_MOBILE ? 0.55 : 0.9;
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 20 : 48 });
+    glow.intensity = IS_MOBILE ? 0.5 : 0.9;
 
     hl = new BABYLON.HighlightLayer("hl", scene);
 
@@ -432,11 +442,7 @@
     const pick = scene.pick(px, py);
     if(!pick?.hit) return;
     camera.target = pick.pickedPoint.clone();
-    if (forceMin) {
-      camera.radius = MIN_RADIUS;
-    } else {
-      camera.radius = Math.max(MIN_RADIUS, camera.radius * scale);
-    }
+    camera.radius = forceMin ? MIN_RADIUS : Math.max(MIN_RADIUS, camera.radius * scale);
   }
 
   function setupZoomUX(){
@@ -469,6 +475,7 @@
 
   /* =========================
      Obrázky / textury
+     (MOBIL: šetříme paměť → menší placard textury, capujeme velikosti, mírně omezíme mipmapy)
   ========================= */
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(
@@ -520,11 +527,13 @@
     return m;
   }
 
-  // Cedulka s wrapem + paddingem (centrum horizontálně i vertikálně)
+  // Cedulka s wrapem + paddingem (centrum; MOBILE: menší textura do šířky)
   function drawPlacard(plac, data, rotY, planeW, planeH){
-    const texW = TEX_SIZE;
-    const texH = Math.max(128, Math.round(TEX_SIZE * (planeH / planeW)));
-    const dt = makeDT("pl", texW, texH, true);
+    const texWFull = TEX_SIZE;
+    const texW = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull; // MOBILE FIX
+    const texH = Math.max(64, Math.round(texW * (planeH / planeW))); // udržet poměr bez zbytečného plýtvání
+
+    const dt = makeDT("pl", texW, texH, !IS_MOBILE); // MOBILE: bez mipmap → méně paměti
     const c = dt.getContext();
     c.fillStyle = "#6b6b6b";
     c.fillRect(0,0,texW,texH);
@@ -536,7 +545,7 @@
     c.textAlign = "center";
     c.textBaseline = "top";
     const lineH = Math.round(texH * 0.34);
-    const fontSize = Math.max(20, Math.round(lineH * 0.78));
+    const fontSize = Math.max(18, Math.round(lineH * 0.78));
     c.font = `600 ${fontSize}px Poppins, system-ui`;
 
     const text = (data.title || "(bez názvu)").trim();
@@ -614,7 +623,7 @@
   }
 
   /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     LOGO – inline SVG (ostrý + glow) s DPR + cap na GPU limit
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
@@ -624,10 +633,6 @@
     <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
     <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
     <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
   <g>
     <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
@@ -645,7 +650,10 @@
     img.decoding = "async";
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
-      const SIZE = Math.max(512, Math.round(1024 * Math.min(DPR,2)));
+      const SIZE_RAW = Math.round(1024 * Math.min(DPR,2));
+      const SIZE_CAP = Math.min(SIZE_RAW, IS_MOBILE ? 1024 : 2048, MAX_TEX_CAP);
+      const SIZE = Math.max(512, SIZE_CAP);
+
       const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
       const ctx = dt.getContext();
       const maxW = Math.round(SIZE * 0.92);
@@ -759,16 +767,23 @@
     const loadLocal = (url, targetItem)=>{
       targetItem.data.src = url;
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      // crossOrigin jen pokud je to nutné — na same-origin to Safari někdy zbytečně řeší
+      if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
       img.decoding = "async";
       img.onload = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, true);
+        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE); // MOBILE: bez mipmap pro úsporu
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
         targetItem.frame.material = mat;
         autosave();
       };
-      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
+      img.onerror = ()=>{
+        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, false);
+        const ctx = dt.getContext();
+        drawChecker(ctx, TEX_SIZE, TEX_SIZE);
+        dt.update();
+        targetItem.frame.material = unlitTex(dt,{doubleSided:false});
+      };
       img.src = url;
     };
 
@@ -782,17 +797,14 @@
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
         drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
-        if (d.img) loadLocal(d.img, it);
+
+        if (d.img){
+          // MOBILE: nestřílíme všechny textury naráz (paměťový spike) → rozprostřít v čase
+          if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80);
+          else loadLocal(d.img, it);
+        }
       }
     });
-  }
-
-  function loadImageUrlIntoTexture(url, targetItem){
-    const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, true);
-    const ctx = dt.getContext();
-    drawChecker(ctx, TEX_SIZE, TEX_SIZE);
-    dt.update();
-    targetItem.frame.material = unlitTex(dt,{doubleSided:false});
   }
 
   function autosave(){
@@ -851,14 +863,13 @@
     if (!scene) return;
     scene.render();
 
-    // --- Auto quality pouze na mobilu ---
     if (AutoScale.enabled){
       const now = performance.now();
       AutoScale.accMs += engine.getDeltaTime();
       AutoScale.frames++;
 
       if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-        const avgMs = AutoScale.accMs / AutoScale.frames; // průměrná doba snímku
+        const avgMs = AutoScale.accMs / AutoScale.frames;
         let changed = false;
 
         if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
@@ -871,10 +882,9 @@
 
         if (changed){
           applyHardwareScale(currentScaleLevel);
-          // na slabších telefonech mírně ubereme glow při zvyšování scale
           if (glow){
             const k = currentScaleLevel; // 0.33..1
-            glow.blurKernelSize = Math.round( (IS_MOBILE ? 24 : 48) * (0.9 + 0.2*(1 - (k-0.33)/(1-0.33))) );
+            glow.blurKernelSize = Math.round( (IS_MOBILE ? 20 : 48) * (0.9 + 0.2*(1 - (k-0.33)/(1-0.33))) );
           }
         }
         AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
@@ -882,13 +892,16 @@
     }
   });
 
-  // Edge-friendly resize: nejdřív scale, pak resize
+  // Edge/Safari-friendly resize: nejdřív scale, pak resize
   function handleResize(){
     applyHardwareScale();
     engine.resize(true);
   }
-  window.addEventListener("resize", handleResize);
+  window.addEventListener("resize", handleResize, { passive:true });
   window.addEventListener("orientationchange", handleResize);
+
+  // iOS Safari – blokuje double-tap zoom stránky (ne canvas): jemný prevent default
+  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
   // Start: VIEW
   setMode(MODE.VIEW);
