@@ -515,7 +515,7 @@
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.BACKSIDE
+      sideOrientation: BABYLON.Mesh.FRONTSIDE  // ← FRONTSIDE = žádné zrcadlení 
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.03));
     f.rotation.y = rotY;
