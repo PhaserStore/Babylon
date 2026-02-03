@@ -25,10 +25,12 @@
       font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;
       color:var(--txt);
     }
-    /* Canvas vyplní celou obrazovku včetně safe-area */
+    /* Canvas vyplní celou obrazovku + tipy pro ostrý compositing v Edgi */
     #renderCanvas{
       position:fixed;inset:0;display:block;touch-action:none;
       width:100vw;height:100vh;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     /* ===== ADMIN UI ===== */
@@ -41,7 +43,6 @@
       overflow:auto; scrollbar-width:thin;
       max-height:40vh;
     }
-    /* Na mobilu — „chips“ v řadě, horizontální scroll bez zalamování */
     @media (max-width: 900px){
       #ui{flex-wrap:nowrap;overflow:auto;white-space:nowrap;}
       #ui::-webkit-scrollbar{height:6px}
@@ -65,7 +66,7 @@
     /* VIEW mód = čistá výstava (UI nevidět) */
     body.view #ui{display:none}
 
-    /* Publish btn (viditelný jen v admin) — respekt safe-area */
+    /* Publish btn — respekt safe-area */
     #publishBtn{
       position:fixed;top:calc(12px + var(--safe-top));right:calc(12px + var(--safe-right));
       z-index:9999;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
@@ -73,7 +74,6 @@
     }
     body.view #publishBtn{display:none}
 
-    /* Prefer‑reduced‑motion: jemnější glow, pomalejší inertia */
     @media (prefers-reduced-motion: reduce){
       body{scroll-behavior:auto}
     }
@@ -84,17 +84,15 @@
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 
-<!-- ★ Výchozí VIEW -->
 <body class="view">
-  <!-- Publish to GitHub Issue -->
   <button id="publishBtn">Publish to GitHub</button>
 
   <!-- ===== UI ===== -->
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <label>Ochranná zóna&nbsp;<input id="safeWall"   type="number" step="0.05" value="1"   /></label>
-      <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1"   /></label>
+      <label>Ochranná zóna&nbsp;<input id="safeWall"   type="number" step="0.05" value="1" /></label>
+      <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" /></label>
     </div>
 
     <div class="group">
@@ -110,7 +108,6 @@
       <label>Šířka&nbsp;<input  id="frmW"      type="number" step="0.05" value="2"></label>
       <label>Výška&nbsp;<input  id="frmH"      type="number" step="0.05" value="2"></label>
       <label>Lišta&nbsp;<input  id="frmBorder" type="number" step="0.02" value="0.08"></label>
-      <!-- ★ default barva rámu #717171 -->
       <label>Barva&nbsp;<input  id="frmColor"  type="color"  value="#717171"></label>
     </div>
 
@@ -158,7 +155,6 @@
       return out;
     }
 
-    // ★ MUSÍ být skutečné & (NE HTML entita)
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
@@ -228,7 +224,21 @@
   let mode = MODE.VIEW; // ★ výchozí VIEW
 
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
-  const DPR = Math.min(window.devicePixelRatio || 1, 3); // horní limit pro jistotu
+
+  // --- Edge fix: zaokrouhlení DPR na „safe“ hodnoty kvůli ostrému canvasu ---
+  function snapDpr(raw) {
+    const v = Math.max(1, Math.min(raw || 1, 3));
+    // běžné škály, které se chovají stabilně (Edge/Windows)
+    const steps = [1, 1.25, 1.5, 2, 2.5, 3];
+    let pick = steps[0], best = Infinity;
+    for (const s of steps){
+      const d = Math.abs(s - v);
+      if (d < best){ best = d; pick = s; }
+    }
+    return pick;
+  }
+  const DPR_RAW = window.devicePixelRatio || 1;
+  const DPR = snapDpr(DPR_RAW);
 
   const $ = (id)=>document.getElementById(id);
   const hintEl = $("hint");
@@ -242,7 +252,6 @@
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
   }
 
-  // Desktop A/V přepínání (mobil ignoruje)
   window.addEventListener('keydown',(e)=>{
     if (IS_MOBILE) return;
     if(isTyping(e)) return;
@@ -251,20 +260,23 @@
     if(k==='v') setMode(MODE.VIEW);
   }, { passive:true });
 
-  // Adaptivní základ textur: mobil šetří, ale DPR dorovná ostrost
+  // Textury → velikost řízená snappnutým DPR
   const TEX_BASE = IS_MOBILE ? 1024 : 2048;
-  const TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2)); // nepřehánět (výkon × kvalita)
+  const TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
 
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false
   });
 
+  // Využij maximum anisotropie z HW
+  const MAX_ANISO = (engine.getCaps && engine.getCaps().maxAnisotropy) ? engine.getCaps().maxAnisotropy : 4;
+
   function applyHardwareScale(){
-    // Ostrost: pro retinu <1 = supersampling, pro běžný monitor 1
-    // BABYLON: vyšší číslo = downscale; <1 = upsample (ostřejší, dražší)
-    const level = 1 / DPR;
-    engine.setHardwareScalingLevel(level);
+    // ★ Edge-friendly: stabilizované hodnoty + zarovnání na 2 desetinná místa
+    const level = Math.max(0.33, Math.min(1 / DPR, 1));
+    const rounded = Math.round(level * 100) / 100;
+    engine.setHardwareScalingLevel(rounded);
   }
   applyHardwareScale();
 
@@ -272,7 +284,6 @@
 
   const ROOM = { W: 16, D: 30, H: 10.6 };
 
-  // ★ super-blízký zoom
   const MIN_RADIUS = 0.28;
   const MAX_RADIUS = 40;
 
@@ -286,16 +297,14 @@
     camera.upperBetaLimit = Math.PI - 0.1;
     camera.lowerRadiusLimit = MIN_RADIUS;
     camera.upperRadiusLimit = MAX_RADIUS;
-    camera.minZ = 0.01; // ★ aby se blízko nic neřezalo
+    camera.minZ = 0.01;
 
-    // ★ rychlý wheel + citlivý pinch (mobil jemnější)
     camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
     camera.pinchDeltaPercentage = IS_MOBILE ? 0.006 : 0.008;
     camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    // Glow dřív, kvůli addIncludedOnlyMesh
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 24 : 48 });
     glow.intensity = IS_MOBILE ? 0.55 : 0.9;
 
@@ -306,7 +315,7 @@
     buildGalleryLogo();
 
     setupPicking();
-    setupZoomUX(); // dvojklik + double‑tap
+    setupZoomUX();
     return scene;
   }
 
@@ -327,9 +336,8 @@
     m.backFaceCulling = !doubleSided;
     if (tex) {
       tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.vAng = 0; tex.uAng = 0;
-      tex.hasAlpha = !!tex.getAlphaFromRGB || false;
-      tex.anisotropicFilteringLevel = 4;
+      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      tex.anisotropicFilteringLevel = MAX_ANISO || 4;
     }
     return m;
   }
@@ -386,11 +394,9 @@
       glow.addIncludedOnlyMesh(m);
     };
 
-    // spodní i horní obvod
     [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
      [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
     ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    // svislé rohy
     [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
   }
 
@@ -410,20 +416,18 @@
     }, BABYLON.PointerEventTypes.POINTERPICK);
   }
 
-  // ★ Utility: přiblížení na bod scény
   function zoomToPointer(px, py, {scale=0.55, forceMin=false}={}){
     const pick = scene.pick(px, py);
     if(!pick?.hit) return;
     camera.target = pick.pickedPoint.clone();
     if (forceMin) {
-      camera.radius = MIN_RADIUS; // rovnou na maximum detailu
+      camera.radius = MIN_RADIUS;
     } else {
       camera.radius = Math.max(MIN_RADIUS, camera.radius * scale);
     }
   }
 
   function setupZoomUX(){
-    // Desktop: dvojklik
     const canvasEl = document.getElementById('renderCanvas');
     canvasEl.addEventListener("dblclick", ()=>{
       zoomToPointer(scene.pointerX, scene.pointerY, {
@@ -432,7 +436,6 @@
       });
     }, { passive:true });
 
-    // Mobil: double‑tap (~280 ms)
     let lastTap = 0;
     canvasEl.addEventListener("touchend", (e)=>{
       const now = Date.now();
@@ -460,17 +463,16 @@
       name,
       { width:w, height:h },
       scene,
-      genMipmaps, // mipmapy pomáhají kvalitě při zoomu
+      genMipmaps,
       BABYLON.Texture.TRILINEAR_SAMPLINGMODE
     );
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = 4;
+    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
     return dt;
   }
 
   function drawFitted(ctx,bmp,frameW,frameH){
-    // letterbox zachování poměru stran, černé pozadí 📷
     const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
     if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
     else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
@@ -493,9 +495,8 @@
 
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
-  let FRAME_COLOR = "#717171"; /* ★ výchozí */
+  let FRAME_COLOR = "#717171";
 
-  // ★ Materiál rámu: silnější emise + bez culling → barva „drží“ a je z každé strany
   function makeFrameBoxMaterial(){
     const m = new BABYLON.StandardMaterial("frameBoxMat", scene);
     const c = BABYLON.Color3.FromHexString(FRAME_COLOR);
@@ -507,44 +508,36 @@
     return m;
   }
 
-  // ★ Multiline placard text s paddingem a bez zrcadlení
+  // Cedulka s wrapem + paddingem
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texW = TEX_SIZE;
     const texH = Math.max(128, Math.round(TEX_SIZE * (planeH / planeW)));
     const dt = makeDT("pl", texW, texH, true);
     const c = dt.getContext();
-    // Pozadí (odvozené od barvy rámu, ale tmavší)
     c.fillStyle = "#6b6b6b";
     c.fillRect(0,0,texW,texH);
 
     const pad = Math.round(texH * 0.12);
     const maxW = texW - pad*2;
 
-    // Text
     c.fillStyle = "#ffffff";
     c.textAlign = "left";
     c.textBaseline = "top";
-    const lineH = Math.round(texH * 0.34); // relativně vysoké kvůli čitelnosti
+    const lineH = Math.round(texH * 0.34);
     const fontSize = Math.max(20, Math.round(lineH * 0.78));
     c.font = `600 ${fontSize}px Poppins, system-ui`;
 
     const text = (data.title || "(bez názvu)").trim();
-
-    // jednoduchý wrap
     const words = text.split(/\s+/);
     const lines = [];
     let buf = "";
     for (let w of words){
       const test = buf ? (buf + " " + w) : w;
-      if (c.measureText(test).width <= maxW) {
-        buf = test;
-      } else {
-        if (buf) lines.push(buf);
-        buf = w;
-      }
+      if (c.measureText(test).width <= maxW) buf = test;
+      else { if (buf) lines.push(buf); buf = w; }
     }
     if (buf) lines.push(buf);
-    // max 2 řádky, případně ellipsis
+
     const maxLines = 2;
     if (lines.length > maxLines){
       const keep = lines.slice(0, maxLines);
@@ -554,16 +547,11 @@
       lines.length = 0; Array.prototype.push.apply(lines, keep);
     }
 
-    // vertikální centrování bloku
     const blockH = lines.length * lineH;
     const startY = Math.max(pad, Math.round((texH - blockH)/2));
-
-    lines.forEach((ln, i)=>{
-      c.fillText(ln, pad, startY + i*lineH + Math.round(lineH*0.1));
-    });
+    lines.forEach((ln, i)=> c.fillText(ln, pad, startY + i*lineH + Math.round(lineH*0.1)));
 
     dt.update();
-
     const mat = unlitTex(dt, { doubleSided:false });
     plac.material = mat;
   }
@@ -591,14 +579,13 @@
       sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.03));
-    f.rotation.y = rotY + Math.PI;            // „front“ kouká do sálu
+    f.rotation.y = rotY + Math.PI;
     f.isPickable = true;
-    // základ: šachovnice (ne text), dokud nepřijde obraz
+
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
     f.material  = unlitTex(dt,{doubleSided:false});
 
-    // Cedulka
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
@@ -615,7 +602,7 @@
   }
 
   /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     LOGO – inline SVG (ostrý + glow)
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
@@ -642,7 +629,7 @@
   const LOGO_SCALE = 0.30;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
-  const GLOW_BLUR_PX = Math.round(16 * Math.min(DPR,2)); // rozumný, čitelný glow
+  const GLOW_BLUR_PX = Math.round(16 * Math.min(DPR,2));
 
   function buildGalleryLogo(){
     const img = new Image();
@@ -687,7 +674,6 @@
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
-      // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
@@ -794,7 +780,6 @@
     });
   }
 
-  // fallback (pokud bys měl externí obrázky s CORS, můžeš upravit sem)
   function loadImageUrlIntoTexture(url, targetItem){
     const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext();
@@ -854,14 +839,22 @@
   // Boot
   createScene();
   engine.runRenderLoop(()=> scene.render());
-  window.addEventListener("resize", () => { applyHardwareScale(); engine.resize(); });
+
+  // ★ Edge-friendly resize: nejdřív scale, pak resize
+  function handleResize(){
+    applyHardwareScale();
+    engine.resize(true);
+  }
+  window.addEventListener("resize", handleResize);
 
   // Start: VIEW
   setMode(MODE.VIEW);
 
   (async function boot(){
-    await ensurePoppins();  // načíst písmo před prvním kreslením textur
+    await ensurePoppins();
     await applyLayoutFromUI();
+    // První resize po font-loadu: srovná buffer a sampling
+    handleResize();
   })();
 
   </script>
