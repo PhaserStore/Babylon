@@ -36,7 +36,7 @@
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 
-<!-- ★ Výchozí VIEW (přepíše se i v JS) -->
+<!-- ★ Výchozí VIEW -->
 <body class="view">
   <!-- Publish to GitHub Issue -->
   <button id="publishBtn">Publish to GitHub</button>
@@ -70,7 +70,7 @@
       <button id="btnResetCam">🎥 Reset kamery</button>
     </div>
 
-    <div id="hint">Desktop: A = ADMIN, V = VIEW · Dvojklik/Double‑tap = přiblížení · Pinch‑to‑zoom na mobilu · Klik na cedulku = skrytá URL.</div>
+    <div id="hint">Desktop: A = ADMIN, V = VIEW · Double‑tap/dvojklik = přiblížení · Pinch‑to‑zoom na mobilu · Klik na cedulku = skrytá URL.</div>
   </div>
 
   <!-- ===== Canvas ===== -->
@@ -109,11 +109,11 @@
       return out;
     }
 
-    // ★ MUSÍ být skutečné &, ne HTML entita
+    // ★ MUSÍ být skutečné & (NE HTML entita)
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`; // ★ opraveno
       if (url.length > 7500) {
         try {
           navigator.clipboard.writeText(jsonString);
@@ -164,7 +164,7 @@
   "use strict";
 
   const MODE = { ADMIN: "admin", VIEW: "view" };
-  let mode = MODE.VIEW; // ★ výchozí VIEW pro všechny
+  let mode = MODE.VIEW; // ★ výchozí VIEW
 
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
 
@@ -180,7 +180,7 @@
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
   }
 
-  // ★ Přepínání módů jen na desktopu: A → ADMIN, V → VIEW
+  // Přepínání módů jen na desktopu (A/V)
   window.addEventListener('keydown',(e)=>{
     if (IS_MOBILE) return;
     if(isTyping(e)) return;
@@ -211,17 +211,14 @@
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
 
-    /* ★ Zoom tuning
-       - Desktop: rychlejší kolečko (větší wheelDeltaPercentage)
-       - Mobil: citlivější pinch (nižší pinchDeltaPercentage) + double‑tap (viz níže)
-    */
+    // Zoom tuning
     camera.lowerBetaLimit = 0.1;
     camera.upperBetaLimit = Math.PI - 0.1;
     camera.lowerRadiusLimit = MIN_RADIUS;
     camera.upperRadiusLimit = MAX_RADIUS;
 
-    camera.wheelDeltaPercentage = 0.14;   // ★ z ~0.03 → 0.14 (rychlejší zoom kolečkem)
-    camera.pinchDeltaPercentage = 0.012;  // ★ jemnější pinch (nižší = rychlejší)
+    camera.wheelDeltaPercentage = 0.14;   // rychlejší zoom kolečkem
+    camera.pinchDeltaPercentage = 0.012;  // citlivější pinch
 
     camera.inertia = 0.85;
 
@@ -237,7 +234,7 @@
     buildGalleryLogo();
 
     setupPicking();
-    setupZoomUX(); // ★ (desktop dblclick, mobil double‑tap)
+    setupZoomUX(); // desktop dblclick + mobil double‑tap
     return scene;
   }
 
@@ -269,16 +266,31 @@
   function buildRoom(){
     const floor = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene);
     floor.material = unlit("#151515");
+
     const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
-    back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01); back.material = unlit("#2b2b2b"); back.rotation.y = 0;
+    back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01);
+    back.material = unlit("#2b2b2b");
+    back.rotation.y = 0;
+
     const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01); front.material = unlit("#2b2b2b"); front.rotation.y = Math.PI;
+    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
+    front.material = unlit("#2b2b2b");
+    front.rotation.y = Math.PI;
+
     const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
-    ceiling.position.y = ROOM.H; ceiling.rotation.x = Math.PI; ceiling.material = unlit("#0f0f10");
+    ceiling.position.y = ROOM.H;
+    ceiling.rotation.x = Math.PI;
+    ceiling.material = unlit("#0f0f10");
+
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position set(-ROOM.W/2 + 0.01, ROOM.H/2, 0); left.rotation.y = -Math.PI/2; left.material = unlit("#242424");
+    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
+    left.rotation.y = -Math.PI/2;
+    left.material = unlit("#242424");
+
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0); right.rotation.y =  Math.PI/2; right.material = unlit("#242424");
+    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.rotation.y =  Math.PI/2;
+    right.material = unlit("#242424");
   }
 
   function buildLED(){
@@ -403,7 +415,6 @@
     }, BABYLON.PointerEventTypes.POINTERPICK);
   }
 
-  // ★ UX zoom: desktop dvojklik, mobil double‑tap; pinch zajišťuje ArcRotateCamera
   function setupZoomUX(){
     // Desktop: dvojklik
     canvas.addEventListener("dblclick", ()=>{
@@ -433,14 +444,14 @@
   }
 
   /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     LOGO – inline SVG (ostrý + glow)
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g><path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/></g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 272.86;  // ★ správný poměr
+  const LOGO_ASPECT = 941.43 / 272.86; // ★ správný poměr
   const LOGO_SCALE = 0.50;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 10.30;
@@ -636,31 +647,10 @@
   engine.runRenderLoop(()=> scene.render());
   window.addEventListener("resize", () => { applyHardwareScale(); engine.resize(); });
 
-  // ★ Výchozí mód: vždy VIEW
+  // Výchozí mód: VIEW
   setMode(MODE.VIEW);
 
   (async function boot(){ await applyLayoutFromUI(); })();
-
-  // Pomocné pro obrázky
-  function drawFitted(ctx,bmp,frameW,frameH){
-    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
-    if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
-    else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
-    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
-  }
-  function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
-  function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
-  function drawPlaceholder(ctx, w, h) {
-    const tile = 32;
-    for (let y = 0; y < h; y += tile) {
-      for (let x = 0; x < w; x += tile) {
-        const even = ((x / tile) + (y / tile)) % 2 === 0;
-        ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
-        ctx.fillRect(x, y, tile, tile);
-      }
-    }
-  }
   </script>
 </body>
 </html>
