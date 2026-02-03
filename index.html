@@ -488,8 +488,8 @@
 
     dt.update();
 
-    // Materiál bez zrcadlení, oboustranně viditelný (aby vždy „četl“ správně)
-    const mat = unlitTex(dt, { doubleSided:true });
+    // ★ Single-sided materiál (žádné dvojsměrné renderování → žádné zrcadlení)
+    const mat = unlitTex(dt, { doubleSided:false });
     plac.material = mat;
     plac.rotation.y = rotY;
   }
@@ -521,13 +521,13 @@
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // ★ Cedulka: přizpůsobíme reálné rozměry a nastavíme DOUBLESIDE (bez převracení)
+    // ★ Cedulka: přizpůsobíme reálné rozměry a nastavíme JEN BACKSIDE (bez převracení)
     const placW = FRAME_SIZE.W;            // stejná šířka jako obraz
     const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // přiměřená výška (~10% výšky obrazu)
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW,
       height: placH,
-      sideOrientation: BABYLON.Mesh.DOUBLESIDE
+      sideOrientation: BABYLON.Mesh.BACKSIDE
     }, scene);
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
     plac.rotation.y = rotY;
@@ -541,21 +541,19 @@
 
   /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
-     (nechávám, jak máš – funguje skvěle)
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <!-- (ostatní pathy dle tvého funkčního SVG) -->
   </g>
   <g>
     <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
     <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86; // dle tvého funkčního nastavení
+  const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.30;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
@@ -604,7 +602,7 @@
   }
 
   /* =========================
-     Generátor rámů + data (beze změn)
+     Generátor rámů + data
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
 
@@ -766,3 +764,4 @@
   </script>
 </body>
 </html>
+``
