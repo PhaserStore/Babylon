@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Virtual Gallery — LED · Layout · Publish</title>
 
-  <!-- Poppins font -->
-  https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap
+  <!-- ✅ Poppins font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
     :root{
@@ -79,9 +81,9 @@
     }
   </style>
 
-  <!-- Babylon.js + GUI -->
-  https://cdn.babylonjs.com/babylon.js</script>
-  https://cdn.babylonjs.com/gui/babylon.gui.min.js</script>
+  <!-- ✅ Babylon.js + GUI -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 
 <body class="view">
@@ -209,23 +211,24 @@
   <script>
   "use strict";
 
-  async function ensurePoppins() {
-    if (document?.fonts?.load) {
-      try {
-        await document.fonts.load('400 16px Poppins');
-        await document.fonts.load('600 16px Poppins');
-        await document.fonts.ready;
-      } catch(e) { /* ignore */ }
-    }
-  }
-
   const MODE = { ADMIN: "admin", VIEW: "view" };
   let mode = MODE.VIEW;
 
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
-  // --- DPR snapping (Edge/Safari) ---
+  // Předrender fontů
+  async function ensurePoppins() {
+    if (document?.fonts?.load) {
+      try {
+        await document.fonts.load('400 16px Poppins');
+        await document.fonts.load('600 16px Poppins');
+        await document.fonts.ready;
+      } catch(e) {}
+    }
+  }
+
+  // Edge/Safari DPR snapping
   function snapDpr(raw) {
     const v = Math.max(1, Math.min(raw || 1, 3));
     const steps = [1, 1.25, 1.5, 2, 2.5, 3];
@@ -238,16 +241,14 @@
 
   const $ = (id)=>document.getElementById(id);
   const hintEl = $("hint");
-
-  function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
   function hint(msg){ if(hintEl) hintEl.textContent=msg; }
+  function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
   function setMode(m){
     mode = m;
     document.body.classList.toggle('view', m === MODE.VIEW);
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
   }
-
   window.addEventListener('keydown',(e)=>{
     if (IS_MOBILE) return;
     if(isTyping(e)) return;
@@ -256,21 +257,22 @@
     if(k==='v') setMode(MODE.VIEW);
   }, { passive:true });
 
-  // === pomocná: nejbližší power-of-two (bez překročení capu) ===
+  // Pomocná: nejbližší power-of-two
   function nearestPOT(n, cap){ 
     const p = Math.pow(2, Math.round(Math.log2(Math.max(2, n))));
     return Math.min(p, cap || p);
   }
 
-  // Textury – základ dle zařízení (finální po vytvoření engine)
+  // Textury – základ dle zařízení (finální po získání GPU cap)
   const TEX_BASE = IS_MOBILE ? 1024 : 2048;
-  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2)); // dočasně
+  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
 
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false,
     powerPreference: "high-performance"
   });
+  if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
 
   // GPU limity
   const CAPS = engine.getCaps ? engine.getCaps() : {};
@@ -307,8 +309,6 @@
   let scene, camera, glow, hl;
 
   const ROOM = { W: 16, D: 30, H: 10.6 };
-
-  // zoom limity
   const MIN_RADIUS = 0.28;
   const MAX_RADIUS = 40;
 
@@ -319,9 +319,9 @@
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
 
-    // >>> přesnost depth bufferu (anti-flicker)
-    camera.minZ = 0.2;     // bylo 0.01 – zvyšuje precizi
-    camera.maxZ = 200;     // omezený rozsah pro ještě lepší precizi
+    // Anti-flicker: lepší depth precize
+    camera.minZ = 0.2;
+    camera.maxZ = 200;
 
     camera.lowerBetaLimit = 0.1;
     camera.upperBetaLimit = Math.PI - 0.1;
@@ -334,7 +334,6 @@
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    // Glow o něco šetrnější na mobilech (méně artefaktů)
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 18 : 48 });
     glow.intensity = IS_MOBILE ? 0.5 : 0.9;
 
@@ -534,14 +533,14 @@
     return m;
   }
 
-  // Cedulka s wrapem + paddingem (centrum; MOBILE: menší textura do šířky)
+  // Cedulka (centrum; MOBILE: menší textura do šířky)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
     const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
-    const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048); // POT kvůli stabilitě
-    const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW); // držet poměr a POT
+    const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
+    const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
 
-    const dt = makeDT("pl", texW, texH, !IS_MOBILE); // MOBILE: bez mipmap → méně paměti
+    const dt = makeDT("pl", texW, texH, !IS_MOBILE);
     const c = dt.getContext();
     c.fillStyle = "#6b6b6b";
     c.fillRect(0,0,texW,texH);
@@ -582,8 +581,7 @@
 
     dt.update();
     const mat = unlitTex(dt, { doubleSided:false });
-    // >>> z-bias pro jistotu (anti z-fighting)
-    mat.zOffset = -2;
+    mat.zOffset = -2; // anti z-fighting
     plac.material = mat;
   }
 
@@ -597,7 +595,7 @@
     const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
       width: FRAME_SIZE.W + FRAME_BOX_BORDER,
       height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-      depth: 0.06                    // bylo 0.05 → o chlup více
+      depth: 0.06
     }, scene);
     box.position = pos.add(normalOffset(rotY, 0.0));
     box.rotation.y = rotY;
@@ -609,15 +607,14 @@
       height: FRAME_SIZE.H,
       sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
-    // >>> větší odstup od boxu (anti z-fighting)
-    f.position = pos.add(normalOffset(rotY, 0.04));  // bylo 0.03
+    f.position = pos.add(normalOffset(rotY, 0.04));
     f.rotation.y = rotY + Math.PI;
     f.isPickable = true;
 
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
     const fMat = unlitTex(dt,{doubleSided:false});
-    fMat.zOffset = -1;           // >>> z-bias pro obraz
+    fMat.zOffset = -1;
     f.material  = fMat;
 
     const placW = FRAME_SIZE.W;
@@ -625,7 +622,7 @@
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03)); // bylo 0.02
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
     plac.rotation.y = rotY + Math.PI;
     plac.isPickable = true;
 
@@ -684,7 +681,7 @@
       const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
       sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
       sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1); sharpMat.backFaceCulling = false;
-      sharpMat.zOffset = -1;   // drobný bias
+      sharpMat.zOffset = -1;
 
       const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
       glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture   = glowDT;
@@ -782,10 +779,10 @@
       if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
       img.decoding = "async";
       img.onload = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE); // MOBILE: bez mipmap pro úsporu
+        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
-        mat.zOffset = -1; // z-bias i pro obrazy s fotkou
+        mat.zOffset = -1;
         targetItem.frame.material = mat;
         autosave();
       };
@@ -925,3 +922,4 @@
   </script>
 </body>
 </html>
+``
