@@ -491,7 +491,8 @@
     // ★ Single-sided materiál (žádné dvojsměrné renderování → žádné zrcadlení)
     const mat = unlitTex(dt, { doubleSided:false });
     plac.material = mat;
-    plac.rotation.y = rotY;
+
+    // rotaci necháme jen v addFrame, ať je orientace na jednom místě
   }
 
   function normalOffset(rotY, dist){
@@ -521,16 +522,16 @@
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // ★ Cedulka: přizpůsobíme reálné rozměry a nastavíme JEN BACKSIDE (bez převracení)
-    const placW = FRAME_SIZE.W;            // stejná šířka jako obraz
-    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // přiměřená výška (~10% výšky obrazu)
+    // ★ Cedulka: FRONTSIDE + otočit o PI → přední strana cedulky směřuje do místnosti (bez zrcadlení)
+    const placW = FRAME_SIZE.W;                      // stejná šířka jako obraz
+    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // ~10% výšky obrazu
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW,
       height: placH,
-      sideOrientation: BABYLON.Mesh.BACKSIDE
+      sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
-    plac.rotation.y = rotY;
+    plac.rotation.y = rotY + Math.PI;   // ← klíčové: otočení o 180°, aby se renderovala „front“ strana správně
     plac.isPickable = true;
 
     const data = { title: "(bez názvu)", url: "", src: "" };
@@ -764,4 +765,3 @@
   </script>
 </body>
 </html>
-``
