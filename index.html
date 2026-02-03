@@ -436,15 +436,15 @@
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171"; /* ★ výchozí */
 
-  // ★ Materiál rámu: silnější emise + bez culling → barva je „pořádná“ a z každé strany
+  // ★ Materiál rámu: silnější emise + bez culling → barva „drží“ a je z každé strany
   function makeFrameBoxMaterial(){
     const m = new BABYLON.StandardMaterial("frameBoxMat", scene);
     const c = BABYLON.Color3.FromHexString(FRAME_COLOR);
     m.diffuseColor   = c;
-    m.emissiveColor  = c;                // ★ plná emise = sytější vnímání barvy
+    m.emissiveColor  = c;
     m.specularColor  = new BABYLON.Color3(0,0,0);
     m.disableLighting = true;
-    m.backFaceCulling = false;           // ★ viditelné i z rubu
+    m.backFaceCulling = false;
     return m;
   }
 
@@ -466,23 +466,31 @@
     return mat;
   }
 
-  // ★ Cedulka: pozadí #717171, text bílý, Poppins Regular (bez zrcadlení)
-  function drawPlacard(plac,data, rotY){
-    const W = TEX_SIZE, H = Math.round(TEX_SIZE*0.25);
-    const dt = makeDT("pl", W, H);
-    const c=dt.getContext();
+  // ★ Cedulka: dynamická textura s poměrem stran podle plochy (žádné roztažení), bez zrcadlení
+  function drawPlacard(plac, data, rotY, planeW, planeH){
+    // Vytvoříme DT s poměrem W:H = planeW:planeH → bez zkreslení
+    const texW = TEX_SIZE;
+    const texH = Math.max(64, Math.round(TEX_SIZE * (planeH / planeW)));
+    const dt = new BABYLON.DynamicTexture("pl", {width:texW, height:texH}, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
-    c.fillStyle="#717171";           // pozadí cedulky
-    c.fillRect(0,0,W,H);
+    const c = dt.getContext();
+    // Pozadí #717171
+    c.fillStyle = "#717171";
+    c.fillRect(0,0,texW,texH);
 
-    c.fillStyle="#ffffff";           // bílý text pro kontrast
-    c.font = `400 ${Math.round(H*0.45)}px Poppins, system-ui`;
-    c.textAlign="center"; c.textBaseline="middle";
-    c.fillText(data.title||"(bez názvu)", W/2, H/2);
+    // Text: Poppins Regular, bílý, velikost ~45% výšky
+    c.fillStyle = "#ffffff";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.font = `400 ${Math.round(texH * 0.45)}px Poppins, system-ui`;
+    c.fillText(data.title || "(bez názvu)", texW/2, texH/2);
 
     dt.update();
-    plac.material = unlitTex(dt,{doubleSided:false});
-    // mirrorTexHoriz(plac.material);  // ★ NE u textů
+
+    // Materiál bez zrcadlení, oboustranně viditelný (aby vždy „četl“ správně)
+    const mat = unlitTex(dt, { doubleSided:true });
+    plac.material = mat;
     plac.rotation.y = rotY;
   }
 
@@ -513,17 +521,20 @@
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
+    // ★ Cedulka: přizpůsobíme reálné rozměry a nastavíme DOUBLESIDE (bez převracení)
+    const placW = FRAME_SIZE.W;            // stejná šířka jako obraz
+    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // přiměřená výška (~10% výšky obrazu)
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-      width: FRAME_SIZE.W,
-      height: 0.22,
-      sideOrientation: BABYLON.Mesh.BACKSIDE
+      width: placW,
+      height: placH,
+      sideOrientation: BABYLON.Mesh.DOUBLESIDE
     }, scene);
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
     plac.rotation.y = rotY;
     plac.isPickable = true;
 
     const data = { title: "(bez názvu)", url: "", src: "" };
-    drawPlacard(plac, data, rotY);
+    drawPlacard(plac, data, rotY, placW, placH);
 
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
@@ -685,7 +696,7 @@
         it.data.src   = d.img   || it.data.src || "";
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
-        drawPlacard(it.placard, it.data, it.rotY);
+        drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.18, FRAME_SIZE.H*0.10));
         if (d.img) loadLocal(d.img, it);
       }
     });
