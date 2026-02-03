@@ -11,7 +11,7 @@
   <style>
     html,body{
       width:100%;height:100%;margin:0;overflow:hidden;background:#111;
-      font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif; /* ★ Poppins všude v UI */
+      font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;
     }
     #renderCanvas{width:100%;height:100%;display:block;touch-action:none}
 
@@ -94,7 +94,7 @@
             width:  +document.getElementById('frmW').value      || 2,
             height: +document.getElementById('frmH').value      || 2,
             border: +document.getElementById('frmBorder').value || 0.2,
-            color:  document.getElementById('frmColor').value   || '#717171' /* ★ fallback */
+            color:  document.getElementById('frmColor').value   || '#717171'
           },
           counts: {
             front: +document.getElementById('cntFront').value || 0,
@@ -120,7 +120,7 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`; // ★ fixed &
+      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`; // fixed &
 
       if (url.length > 7500) {
         try {
@@ -276,10 +276,13 @@
     m.backFaceCulling = !doubleSided;
     return m;
   }
+
+  // POZOR: zrcadlení textur dělalo deformace textu → u textových textur ho NEPOUŽÍVÁME.
   function mirrorTexHoriz(mat){
     if (!mat) return;
     const flip = (tex) => { if (!tex) return; tex.uScale=-1; tex.uOffset=1; };
-    flip(mat.diffuseTexture); flip(mat.emissiveTexture);
+    // flip(mat.diffuseTexture);      // ← pro texty a cedulky NEPOUŽÍVAT
+    // flip(mat.emissiveTexture);
   }
 
   function buildRoom(){
@@ -433,15 +436,19 @@
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171"; /* ★ výchozí */
 
+  // ★ Materiál rámu: silnější emise + bez culling → barva je „pořádná“ a z každé strany
   function makeFrameBoxMaterial(){
     const m = new BABYLON.StandardMaterial("frameBoxMat", scene);
     const c = BABYLON.Color3.FromHexString(FRAME_COLOR);
-    m.diffuseColor = c; m.emissiveColor = c.scale(0.15); m.specularColor = new BABYLON.Color3(0,0,0);
+    m.diffuseColor   = c;
+    m.emissiveColor  = c;                // ★ plná emise = sytější vnímání barvy
+    m.specularColor  = new BABYLON.Color3(0,0,0);
     m.disableLighting = true;
+    m.backFaceCulling = false;           // ★ viditelné i z rubu
     return m;
   }
 
-  // ★ Placeholder text Poppins
+  // ★ Placeholder text Poppins (bez horizontálního zrcadlení)
   function lightGrayPlaceholderMat(text){
     const dt = makeDT("ph2", TEX_SIZE, TEX_SIZE);
     const c=dt.getContext();
@@ -455,11 +462,11 @@
 
     dt.update();
     const mat = unlitTex(dt,{doubleSided:false});
-    mirrorTexHoriz(mat);
+    // mirrorTexHoriz(mat);  // ★ NE u textů
     return mat;
   }
 
-  // ★ Cedulka (placard): pozadí #717171, text bílý, Poppins Regular
+  // ★ Cedulka: pozadí #717171, text bílý, Poppins Regular (bez zrcadlení)
   function drawPlacard(plac,data, rotY){
     const W = TEX_SIZE, H = Math.round(TEX_SIZE*0.25);
     const dt = makeDT("pl", W, H);
@@ -475,7 +482,7 @@
 
     dt.update();
     plac.material = unlitTex(dt,{doubleSided:false});
-    mirrorTexHoriz(plac.material);
+    // mirrorTexHoriz(plac.material);  // ★ NE u textů
     plac.rotation.y = rotY;
   }
 
@@ -537,7 +544,7 @@
     <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86; // nechávám dle tvého funkčního nastavení
+  const LOGO_ASPECT = 941.43 / 202.86; // dle tvého funkčního nastavení
   const LOGO_SCALE = 0.30;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
@@ -661,7 +668,7 @@
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
-        mirrorTexHoriz(mat);
+        // mirrorTexHoriz(mat); // případně pro grafiku, ale NE pro text
         targetItem.frame.material = mat;
         autosave();
       };
@@ -698,8 +705,6 @@
     FRAME_SIZE.W     = +$("frmW").value       || 2;
     FRAME_SIZE.H     = +$("frmH").value       || 2;
     FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
-
-    // ★ výchozí/fallback barva rámu přepsaná na #717171
     FRAME_COLOR      = $("frmColor").value    || "#717171";
 
     createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
@@ -743,7 +748,7 @@
   setMode(MODE.VIEW);
 
   (async function boot(){
-    await ensurePoppins();  // ★ načíst písmo před prvním kreslením textur
+    await ensurePoppins();  // načíst písmo před prvním kreslením textur
     await applyLayoutFromUI();
   })();
 
