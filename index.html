@@ -228,7 +228,6 @@
   // --- Edge fix: zaokrouhlení DPR na „safe“ hodnoty kvůli ostrému canvasu ---
   function snapDpr(raw) {
     const v = Math.max(1, Math.min(raw || 1, 3));
-    // běžné škály, které se chovají stabilně (Edge/Windows)
     const steps = [1, 1.25, 1.5, 2, 2.5, 3];
     let pick = steps[0], best = Infinity;
     for (const s of steps){
@@ -273,7 +272,6 @@
   const MAX_ANISO = (engine.getCaps && engine.getCaps().maxAnisotropy) ? engine.getCaps().maxAnisotropy : 4;
 
   function applyHardwareScale(){
-    // ★ Edge-friendly: stabilizované hodnoty + zarovnání na 2 desetinná místa
     const level = Math.max(0.33, Math.min(1 / DPR, 1));
     const rounded = Math.round(level * 100) / 100;
     engine.setHardwareScalingLevel(rounded);
@@ -508,7 +506,7 @@
     return m;
   }
 
-  // Cedulka s wrapem + paddingem
+  // Cedulka s wrapem + paddingem (★ zde je změna: text na střed)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texW = TEX_SIZE;
     const texH = Math.max(128, Math.round(TEX_SIZE * (planeH / planeW)));
@@ -521,7 +519,7 @@
     const maxW = texW - pad*2;
 
     c.fillStyle = "#ffffff";
-    c.textAlign = "left";
+    c.textAlign = "center";    // ★ bylo "left"
     c.textBaseline = "top";
     const lineH = Math.round(texH * 0.34);
     const fontSize = Math.max(20, Math.round(lineH * 0.78));
@@ -549,7 +547,7 @@
 
     const blockH = lines.length * lineH;
     const startY = Math.max(pad, Math.round((texH - blockH)/2));
-    lines.forEach((ln, i)=> c.fillText(ln, pad, startY + i*lineH + Math.round(lineH*0.1)));
+    lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1))); // ★ X = střed
 
     dt.update();
     const mat = unlitTex(dt, { doubleSided:false });
@@ -616,9 +614,6 @@
     <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
     <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
     <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
   </g>
   <g>
     <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
