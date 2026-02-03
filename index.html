@@ -549,7 +549,8 @@
 
     const blockH = lines.length * lineH;
     const startY = Math.max(pad, Math.round((texH - blockH)/2));
-    lines.forEach((ln, i)=> c.fillText(ln, pad, startY + i*lineH + Math.round(lineH*0.1)));
+    lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1));
+``
 
     dt.update();
     const mat = unlitTex(dt, { doubleSided:false });
