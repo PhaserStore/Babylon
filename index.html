@@ -1,4 +1,4 @@
-<!doctype html>
+cely HTML soubor prosim..tady je puvodni kod: <!doctype html>
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
@@ -207,7 +207,7 @@
     if(k==='v') setMode(MODE.VIEW);
   });
 
-  const TEX_SIZE  = IS_MOBILE ? 1024 : 2048; // pro obrazy/fotky
+  const TEX_SIZE  = IS_MOBILE ? 1024 : 2048;
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:false, stencil:false, antialias:true });
 
@@ -466,61 +466,33 @@
     return mat;
   }
 
-  // ========= Nastavení pro ostřejší cedulky =========
-  const PLACARD_TEX_SIZE = IS_MOBILE ? 2048 : 4096; // větší základní rozlišení pro text
-  const MAX_ANISO = 16; // anisotropní filtrování (max)
-
-  // ★ Cedulka: dynamická textura ve vyšším rozlišení + mipmapy + trilinear + anisotropy + jemný obrys textu
+  // ★ Cedulka: dynamická textura s poměrem stran podle plochy (žádné roztažení), bez zrcadlení
   function drawPlacard(plac, data, rotY, planeW, planeH){
-    // Poměr stran držíme podle geometrie, šířka je hi‑res pro ostrý text
-    const texW = PLACARD_TEX_SIZE;
-    const texH = Math.max(128, Math.round(PLACARD_TEX_SIZE * (planeH / planeW)));
-
-    // generateMipMaps = true, sampling = TRILINEAR
-    const dt = new BABYLON.DynamicTexture(
-      "pl",
-      { width: texW, height: texH },
-      scene,
-      true, // mipmaps
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    );
+    // Vytvoříme DT s poměrem W:H = planeW:planeH → bez zkreslení
+    const texW = TEX_SIZE;
+    const texH = Math.max(64, Math.round(TEX_SIZE * (planeH / planeW)));
+    const dt = new BABYLON.DynamicTexture("pl", {width:texW, height:texH}, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
     const c = dt.getContext();
-    // Pozadí cedulky
+    // Pozadí #717171
     c.fillStyle = "#717171";
     c.fillRect(0,0,texW,texH);
 
-    const title = data.title || "(bez názvu)";
-    const fontPx = Math.round(texH * 0.45);  // zachování tvého poměru
-
-    // Jemný obrys pod textem pro čitelnost z dálky
-    c.font = `400 ${fontPx}px Poppins, system-ui`;
+    // Text: Poppins Regular, bílý, velikost ~45% výšky
+    c.fillStyle = "#ffffff";
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.lineWidth = Math.max(2, Math.round(fontPx * 0.06));
-    c.strokeStyle = "rgba(0,0,0,0.75)";
-    c.strokeText(title, texW/2, texH/2);
-
-    // Bílý text navrch
-    c.fillStyle = "#ffffff";
-    c.fillText(title, texW/2, texH/2);
+    c.font = `400 ${Math.round(texH * 0.45)}px Poppins, system-ui`;
+    c.fillText(data.title || "(bez názvu)", texW/2, texH/2);
 
     dt.update();
 
-    // Zvýšení anisotropic filtrování (pokud HW umí), + pojistka sampling mode
-    const baseTex = dt.getTexture();
-    if (baseTex) {
-      const caps = engine.getCaps ? engine.getCaps() : {};
-      const maxAniso = Math.min(MAX_ANISO, caps.maxAnisotropy || 8);
-      baseTex.anisotropicFilteringLevel = maxAniso;
-      baseTex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    }
-
-    // Single‑sided materiál (žádné zrcadlení)
+    // ★ Single-sided materiál (žádné dvojsměrné renderování → žádné zrcadlení)
     const mat = unlitTex(dt, { doubleSided:false });
     plac.material = mat;
-    // rotaci necháváme řídit v addFrame (konzistence)
+
+    // rotaci necháme jen v addFrame, ať je orientace na jednom místě
   }
 
   function normalOffset(rotY, dist){
@@ -543,23 +515,23 @@
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.FRONTSIDE  // žádné zrcadlení UV
+      sideOrientation: BABYLON.Mesh.FRONTSIDE  // ← FRONTSIDE = žádné zrcadlení 
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.03));
-    f.rotation.y = rotY + Math.PI;            // „front“ kouká do sálu
+    f.rotation.y = rotY + Math.PI;            // ← otočíme o 180°, aby „front“ koukal do sálu
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // Cedulka: FRONTSIDE + otočit o PI → přední strana směrem do místnosti (bez zrcadlení)
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);
+    // ★ Cedulka: FRONTSIDE + otočit o PI → přední strana cedulky směřuje do místnosti (bez zrcadlení)
+    const placW = FRAME_SIZE.W;                      // stejná šířka jako obraz
+    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // ~10% výšky obrazu
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW,
       height: placH,
       sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
-    plac.rotation.y = rotY + Math.PI;
+    plac.rotation.y = rotY + Math.PI;   // ← klíčové: otočení o 180°, aby se renderovala „front“ strana správně
     plac.isPickable = true;
 
     const data = { title: "(bez názvu)", url: "", src: "" };
@@ -568,7 +540,7 @@
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-  /* =========================
+    /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
   const GALLERY_LOGO_SVG = `
@@ -721,7 +693,7 @@
         targetItem.frame.material = mat;
         autosave();
       };
-      img.onerror = ()=>{ /* fallback nebyl potřeba; pokud bude, doplníme zde */ };
+      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
       img.src = url;
     };
 
@@ -804,4 +776,3 @@
   </script>
 </body>
 </html>
-``
