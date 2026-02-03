@@ -518,7 +518,7 @@
       sideOrientation: BABYLON.Mesh.FRONTSIDE  // ← FRONTSIDE = žádné zrcadlení 
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.03));
-    f.rotation.y = rotY;
+    f.rotation.y = rotY + Math.PI;            // ← otočíme o 180°, aby „front“ koukal do sálu
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
