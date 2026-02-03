@@ -36,6 +36,7 @@
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 
+<!-- ★ Výchozí ADMIN na desktopu – viz JS, na mobilu se to přepne na VIEW -->
 <body class="admin">
   <!-- Publish to GitHub Issue -->
   <button id="publishBtn">Publish to GitHub</button>
@@ -69,7 +70,7 @@
       <button id="btnResetCam">🎥 Reset kamery</button>
     </div>
 
-    <div id="hint">A = ADMIN · V = VIEW · Dvojklik = přiblížení. Klik na cedulku = skrytá URL.</div>
+    <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik = přiblížení. Klik na cedulku = skrytá URL.</div>
   </div>
 
   <!-- ===== Canvas ===== -->
@@ -86,7 +87,7 @@
           frame: {
             width:  +document.getElementById('frmW').value      || 2,
             height: +document.getElementById('frmH').value      || 2,
-            border: +document.getElementById('frmBorder').value || 0.2,
+            border: +document.getElementById('frmBorder').value || 0.2, // beru tvoji hodnotu 0.2 z poslední verze
             color:  document.getElementById('frmColor').value   || '#383838'
           },
           counts: {
@@ -113,7 +114,20 @@
     function openPrefilledIssueWithJson(jsonString) {
       const title = encodeURIComponent('Update gallery');
       const body  = encodeURIComponent(jsonString);
+      // ★ OPRAVA: žádné &amp; – musí být skutečné & mezi parametry
       const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+      // ★ Failsafe: pokud je URL moc dlouhá, nabídneme zkopírování JSONu
+      if (url.length > 7500) {
+        try {
+          navigator.clipboard.writeText(jsonString);
+          alert('JSON je moc dlouhý pro URL, zkopíroval jsem ho do schránky. Vlož ho ručně do těla issue.');
+          window.open(`https://github.com/PhaserStore/Babylon/issues/new?title=${title}`, '_blank', 'noopener');
+        } catch {
+          alert('JSON je moc dlouhý pro URL. Zkopíruj ručně JSON ze stránky (bohužel nelze vložit automaticky).');
+          window.open(`https://github.com/PhaserStore/Babylon/issues/new?title=${title}`, '_blank', 'noopener');
+        }
+        return;
+      }
       window.open(url, '_blank', 'noopener');
     }
 
@@ -156,6 +170,9 @@
   const MODE = { ADMIN: "admin", VIEW: "view" };
   let mode = MODE.ADMIN;
 
+  // ★ Detekce mobilu – použijeme i display-size fallback
+  const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
+
   const $ = (id)=>document.getElementById(id);
   const hintEl = $("hint");
 
@@ -167,9 +184,16 @@
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
   }
-  window.addEventListener('keydown',(e)=>{ if(isTyping(e)) return; const k=e.key.toLowerCase(); if(k==='a') setMode(MODE.ADMIN); if(k==='v') setMode(MODE.VIEW); });
 
-  const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
+  // ★ Na mobilu ZAKÁŽEME přepínání A/V klávesami (aby se UI nezapínalo)
+  window.addEventListener('keydown',(e)=>{
+    if (IS_MOBILE) return;          // ← blok
+    if(isTyping(e)) return;
+    const k=e.key.toLowerCase();
+    if(k==='a') setMode(MODE.ADMIN);
+    if(k==='v') setMode(MODE.VIEW);
+  });
+
   const TEX_SIZE  = IS_MOBILE ? 1024 : 2048;
   const canvas = $("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:false, stencil:false, antialias:true });
@@ -182,6 +206,7 @@
 
   let scene, camera, glow, hl;
 
+  // ★ Vzal jsem tvoji novou výšku místnosti 10.6
   const ROOM = { W: 16, D: 30, H: 10.6 };
   const MIN_RADIUS = 1.6, MAX_RADIUS = 40;
 
@@ -453,7 +478,7 @@
     }
   }
 
-    /* =========================
+  /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
   const GALLERY_LOGO_SVG = `
@@ -461,41 +486,30 @@
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-  </g>
-  <g>
-    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86;
+  // ★ OPRAVA poměru (v původním snippetu bylo 202.86)
+  const LOGO_ASPECT = 941.43 / 272.86;
   const LOGO_SCALE = 0.30;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
+
+  const logoRef = { front: { glow:null, sharp:null }, back: { glow:null, sharp:null } };
 
   function buildGalleryLogo(){
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
     img.onload = () => {
       const SIZE = 1024;
-      const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
+      const dt  = makeDT("logoDT", SIZE, SIZE);
       const ctx = dt.getContext();
       const maxW = SIZE * 0.92;
       const w = maxW, h = Math.round(maxW / LOGO_ASPECT);
       const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
       ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
 
-      const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
+      const glowDT = makeDT("logoGlowDT", SIZE, SIZE);
       const gc = glowDT.getContext();
       gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${GLOW_BLUR_PX}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
 
@@ -517,13 +531,22 @@
 
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+        return { glow:g, sharp:s };
       }
-      // zadní + přední stěna
-      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
-      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
+      logoRef.back  = placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
+      logoRef.front = placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
+      hint("Logo (inline SVG) zobrazeno ✔");
     };
     img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+  }
+
+  function updateLogoY(){
+    const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+    ["front","back"].forEach(side=>{
+      const p = logoRef[side];
+      if (p?.glow)  p.glow.position.y  = yPos;
+      if (p?.sharp) p.sharp.position.y = yPos;
+    });
   }
 
   const framesByWall = { back: [], front: [], left: [], right: [] };
@@ -635,7 +658,7 @@
     const cornerSafe = +$("cornerSafe").value || 1;
     FRAME_SIZE.W     = +$("frmW").value       || 2;
     FRAME_SIZE.H     = +$("frmH").value       || 2;
-    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
+    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2; // beru tvoji 0.2
     FRAME_COLOR      = $("frmColor").value    || "#383838";
 
     createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
@@ -674,7 +697,9 @@
   createScene();
   engine.runRenderLoop(()=> scene.render());
   window.addEventListener("resize", () => { applyHardwareScale(); engine.resize(); });
-  setMode(MODE.ADMIN);
+
+  // ★ Startovací mód: desktop = ADMIN, mobil = VIEW
+  setMode(IS_MOBILE ? MODE.VIEW : MODE.ADMIN);
 
   (async function boot(){ await applyLayoutFromUI(); })();
 
