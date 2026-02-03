@@ -3,23 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Virtual Gallery — LED · Layout · Publish</title>
+  <title>Virtual Gallery — LED · Layout · Publish (HiDPI)</title>
 
-  <!-- Poppins font -->
+  <!-- Poppins font (preconnect + load) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
     html,body{
       width:100%;height:100%;margin:0;overflow:hidden;background:#111;
       font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;
-      -webkit-font-smoothing: antialiased; /* Safari/WebKit zjemní vektorový text */
-      text-rendering: optimizeLegibility;
     }
-    #renderCanvas{
-      width:100%;height:100%;display:block;touch-action:none;
-      image-rendering: -webkit-optimize-contrast; /* Safari hint */
-      image-rendering: optimizeQuality;           /* obecný hint */
-    }
+    #renderCanvas{width:100%;height:100%;display:block;touch-action:none}
 
     /* ===== ADMIN UI ===== */
     #ui{
@@ -99,7 +95,7 @@
           frame: {
             width:  +document.getElementById('frmW').value      || 2,
             height: +document.getElementById('frmH').value      || 2,
-            border: +document.getElementById('frmBorder').value || 0.1,
+            border: +document.getElementById('frmBorder').value || 0.2,
             color:  document.getElementById('frmColor').value   || '#717171'
           },
           counts: {
@@ -177,22 +173,26 @@
   <script>
   "use strict";
 
-  // ★ předrender fontů, aby canvas texty hned použily Poppins
+  /* ============================================================
+     ★ UPGRADE: předrender fontu Poppins pro ostré texty hned od startu
+     ============================================================ */
   async function ensurePoppins() {
     if (document?.fonts?.load) {
       try {
         await document.fonts.load('400 16px Poppins');
+        await document.fonts.load('600 16px Poppins');
         await document.fonts.ready;
       } catch(e) { /* ignore */ }
     }
   }
 
-  // Detekce Safari (bez iOS Chrome, který má UserAgent "CriOS")
-  const IS_SAFARI = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
   const MODE = { ADMIN: "admin", VIEW: "view" };
   let mode = MODE.VIEW; // ★ výchozí VIEW
 
-  const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
+  const IS_MOBILE =
+    (('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0) ||
+     /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) ||
+    Math.min(window.innerWidth, window.innerHeight) <= 900;
 
   const $ = (id)=>document.getElementById(id);
   const hintEl = $("hint");
@@ -215,17 +215,33 @@
     if(k==='v') setMode(MODE.VIEW);
   });
 
-  const TEX_SIZE  = IS_MOBILE ? 1024 : 2048; // pro obrazy/fotky
+  /* ============================================================
+     ★ UPGRADE: adaptivní kvalita textur + ostrost
+     ============================================================ */
+  function computeTexSize() {
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    const longest = Math.max(window.innerWidth, window.innerHeight) * dpr;
+    if (longest > 2800) return 4096;
+    if (longest > 1800) return 3072;
+    if (longest > 1200) return 2048;
+    if (longest > 700)  return 1024;
+    return 512;
+  }
+  let TEX_SIZE  = computeTexSize();
+
   const canvas = $("renderCanvas");
-  const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:false, stencil:false, antialias:true });
+  const engine = new BABYLON.Engine(canvas, true, {
+    preserveDrawingBuffer:false,
+    stencil:false,
+    antialias:true,
+    adaptToDeviceRatio:false,      // řídíme ručně pro konzistentní ostrost
+    powerPreference:"high-performance"
+  });
 
   function applyHardwareScale(){
-    // Safari: držíme 1.0 (žádné soft‑downscaling), zlepší ostrost canvas textu/DT
-    if (IS_SAFARI) {
-      engine.setHardwareScalingLevel(1.0);
-      return;
-    }
-    const level = IS_MOBILE ? 1.25 : 1.0; // původní chování pro ostatní
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    // 1/dpr = ostré; na mobilu lehce snížíme zátěž
+    const level = Math.max(0.33, Math.min(2.0, 1 / (dpr * (IS_MOBILE ? 0.9 : 1.0))));
     engine.setHardwareScalingLevel(level);
   }
   applyHardwareScale();
@@ -257,8 +273,9 @@
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    // Glow dřív, kvůli addIncludedOnlyMesh
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 32 : 64 });
+    // ★ UPGRADE: Glow adaptivní dle DPI/zařízení
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: (IS_MOBILE ? 24 : 56) * dpr });
     glow.intensity = IS_MOBILE ? 0.6 : 0.9;
 
     hl = new BABYLON.HighlightLayer("hl", scene);
@@ -282,6 +299,10 @@
     return m;
   }
   function unlitTex(tex,{doubleSided=false}={}){
+    // ★ UPGRADE: trilinear + anisotropy
+    tex.updateSamplingMode?.(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = IS_MOBILE ? 2 : 8;
+
     const m=new BABYLON.StandardMaterial("mt",scene);
     m.disableLighting = true;
     m.diffuseTexture  = tex;
@@ -421,19 +442,30 @@
      Obrázky / textury
   ========================= */
   function makeDT(name, w, h) {
-    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,false,BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+    // ★ UPGRADE: trilinear + clamp + anisotropy
+    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,false,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.anisotropicFilteringLevel = IS_MOBILE ? 2 : 8;
     return dt;
   }
+
   function drawFitted(ctx,bmp,frameW,frameH){
-    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
+    const targetR=frameW/frameH, r=bmp.width/bmp.height;
+    let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
     if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
     else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    // ★ UPGRADE: jemné pozadí proti bandingu + kvalitní resampling
+    const g=ctx.createLinearGradient(0,0,0,TEX_SIZE);
+    g.addColorStop(0,"#e8e8e8"); g.addColorStop(1,"#f6f6f6");
+    ctx.fillStyle=g; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
   }
+
   function blobToImg(blob){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("IMG decode failed")); img.src=URL.createObjectURL(blob); }); }
   function dataUrlToImg(dataUrl){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error("DataURL decode failed")); img.src=dataUrl; }); }
+
   function drawPlaceholder(ctx, w, h) {
     const tile = 32;
     for (let y = 0; y < h; y += tile) {
@@ -461,92 +493,50 @@
     return m;
   }
 
-  // ★ Placeholder text Poppins (bez horizontálního zrcadlení)
+  // ★ Cedulka / placeholder s Poppins (bez horizontálního zrcadlení)
   function lightGrayPlaceholderMat(text){
     const dt = makeDT("ph2", TEX_SIZE, TEX_SIZE);
     const c=dt.getContext();
-    c.fillStyle="#bcbcbc";
-    c.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+
+    const grad = c.createLinearGradient(0,0,0,TEX_SIZE);
+    grad.addColorStop(0,"#cfcfcf"); grad.addColorStop(1,"#e5e5e5");
+    c.fillStyle=grad; c.fillRect(0,0,TEX_SIZE,TEX_SIZE);
 
     c.fillStyle="#222";
-    c.font = `400 ${Math.round(TEX_SIZE*0.06)}px Poppins, system-ui`;
+    c.font = `600 ${Math.round(TEX_SIZE*0.06)}px Poppins, system-ui`;
     c.textAlign="center"; c.textBaseline="middle";
     c.fillText(text,TEX_SIZE/2,TEX_SIZE/2);
 
     dt.update();
     const mat = unlitTex(dt,{doubleSided:false});
-    // mirrorTexHoriz(mat);  // ★ NE u textů
     return mat;
   }
 
-  // ========= Nastavení pro ostřejší cedulky (Safari-friendly) =========
-  // Safari má citlivější downscaling a jiné filtrování → držíme vyšší tex rozlišení a ostré filtrování
-  const PLACARD_TEX_SIZE = IS_SAFARI ? 4096 : (IS_MOBILE ? 2048 : 4096);
-  const MAX_ANISO = 16; // anisotropní filtrování (max)
-
-  // ★ Cedulka: dynamická textura ve vyšším rozlišení + mipmapy + trilinear + anisotropy + jemný obrys/stín textu
+  // ★ Cedulka: dynamická textura s poměrem stran podle plochy (žádné roztažení), bez zrcadlení
   function drawPlacard(plac, data, rotY, planeW, planeH){
-    // Poměr stran držíme podle geometrie, šířka hi‑res pro ostrý text
-    const texW = PLACARD_TEX_SIZE;
-    const texH = Math.max(128, Math.round(PLACARD_TEX_SIZE * (planeH / planeW)));
-
-    // generateMipMaps = true, sampling = TRILINEAR
-    const dt = new BABYLON.DynamicTexture(
-      "pl",
-      { width: texW, height: texH },
-      scene,
-      true, // mipmaps
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    );
+    const texW = TEX_SIZE;
+    const texH = Math.max(64, Math.round(TEX_SIZE * (planeH / planeW)));
+    const dt = new BABYLON.DynamicTexture("pl", {width:texW, height:texH}, scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
     const c = dt.getContext();
-
-    // Pozadí cedulky
+    // Pozadí #717171
     c.fillStyle = "#717171";
     c.fillRect(0,0,texW,texH);
 
-    const title = (data && data.title) ? data.title : "(bez názvu)";
-    const fontPx = Math.round(texH * 0.48);  // lehce větší pro čitelnost
-    c.font = `600 ${fontPx}px Poppins, system-ui`; // semi‑bold pomáhá Safari
-
+    // Text: Poppins Regular, bílý, velikost ~45% výšky (+ jemný stín pro čitelnost)
+    c.fillStyle = "#ffffff";
     c.textAlign = "center";
     c.textBaseline = "middle";
-
-    // Stín pro Safari (jemný glow pod písmy)
-    c.shadowColor = "rgba(0,0,0,0.35)";
-    c.shadowBlur  = Math.max(2, Math.round(fontPx * 0.04));
-    c.shadowOffsetX = 0;
-    c.shadowOffsetY = 0;
-
-    // Obrys pro kontrast
-    c.lineWidth = Math.max(2, Math.round(fontPx * 0.06));
-    c.strokeStyle = "rgba(0,0,0,0.75)";
-    c.strokeText(title, texW/2, texH/2);
-
-    // Bílý text navrch
-    c.fillStyle = "#ffffff";
-    c.fillText(title, texW/2, texH/2);
-
-    // vypneme shadow, kdyby se textura dál používala
-    c.shadowColor = "transparent";
-    c.shadowBlur = 0;
+    c.font = `400 ${Math.round(texH * 0.45)}px Poppins, system-ui`;
+    c.shadowColor = "rgba(0,0,0,.25)";
+    c.shadowBlur  = Math.max(1, Math.round(texH * 0.02));
+    c.fillText(data.title || "(bez názvu)", texW/2, texH/2);
 
     dt.update();
 
-    // Zvýšení anisotropic filtrování (pokud HW umí), + pojistka sampling mode
-    const baseTex = dt.getTexture();
-    if (baseTex) {
-      const caps = engine.getCaps ? engine.getCaps() : {};
-      const maxAniso = Math.min(MAX_ANISO, caps.maxAnisotropy || 8);
-      baseTex.anisotropicFilteringLevel = maxAniso;
-      baseTex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    }
-
-    // Single‑sided materiál (žádné zrcadlení)
     const mat = unlitTex(dt, { doubleSided:false });
     plac.material = mat;
-    // rotaci necháváme řídit v addFrame (konzistence)
   }
 
   function normalOffset(rotY, dist){
@@ -569,23 +559,23 @@
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.FRONTSIDE  // žádné zrcadlení UV
+      sideOrientation: BABYLON.Mesh.FRONTSIDE  // ← FRONTSIDE = žádné zrcadlení 
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.03));
-    f.rotation.y = rotY + Math.PI;            // „front“ kouká do sálu
+    f.rotation.y = rotY + Math.PI;            // ← otočíme o 180°, aby „front“ koukal do sálu
     f.isPickable = true;
     f.material  = lightGrayPlaceholderMat("KLIKNOUT → URL na cedulce");
 
-    // Cedulka: FRONTSIDE + otočit o PI → přední strana směrem do místnosti (bez zrcadlení)
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);
+    // ★ Cedulka
+    const placW = FRAME_SIZE.W;                      // stejná šířka jako obraz
+    const placH = Math.max(0.18, FRAME_SIZE.H * 0.10);  // ~10% výšky obrazu
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW,
       height: placH,
       sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
     plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.02));
-    plac.rotation.y = rotY + Math.PI;
+    plac.rotation.y = rotY + Math.PI;   // přední strana směrem do místnosti
     plac.isPickable = true;
 
     const data = { title: "(bez názvu)", url: "", src: "" };
@@ -609,6 +599,9 @@
     <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
     <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
     <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
   </g>
   <g>
     <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
@@ -619,7 +612,6 @@
   const LOGO_SCALE = 0.30;
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
-  const GLOW_BLUR_PX = 18;
 
   function buildGalleryLogo(){
     const img = new Image();
@@ -635,7 +627,8 @@
 
       const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
       const gc = glowDT.getContext();
-      gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${GLOW_BLUR_PX}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+      gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${(IS_MOBILE?12:18)*dpr}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
 
       const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
       sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
@@ -731,6 +724,25 @@
     right: Array.from({length:6}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
   };
 
+  // ★ UPGRADE: bezpečný loader obrázků (fallback → placeholder)
+  function loadImageUrlIntoTexture(url, targetItem){
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = ()=>{
+      const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE);
+      const ctx=dt.getContext();
+      drawFitted(ctx, img, FRAME_SIZE.W, FRAME_SIZE.H);
+      dt.update();
+      const mat = unlitTex(dt,{doubleSided:false});
+      targetItem.frame.material = mat;
+      autosave();
+    };
+    img.onerror = ()=>{
+      targetItem.frame.material = lightGrayPlaceholderMat("Obrázek se nepodařilo načíst");
+    };
+    img.src = url;
+  }
+
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
       targetItem.data.src = url;
@@ -740,11 +752,10 @@
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
-        // mirrorTexHoriz(mat); // případně pro grafiku, ale NE pro text
         targetItem.frame.material = mat;
         autosave();
       };
-      img.onerror = ()=>{ /* fallback zde případně doplníme */ };
+      img.onerror = ()=>{ loadImageUrlIntoTexture(url, targetItem); };
       img.src = url;
     };
 
@@ -814,17 +825,25 @@
   // Boot
   createScene();
   engine.runRenderLoop(()=> scene.render());
-  window.addEventListener("resize", () => { applyHardwareScale(); engine.resize(); });
+
+  // ★ UPGRADE: při resize přepočítej DPI scale + kvalitu textur a zregeneruj
+  let resizeRaf = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(()=>{
+      applyHardwareScale();
+      const newSize = computeTexSize();
+      const changed = newSize !== TEX_SIZE;
+      TEX_SIZE = newSize;
+      engine.resize();
+      if (changed) {
+        regenerateAllDynamicTextures();
+        hint("Kvalita textur přepočtena pro nové DPI/viewport.");
+      }
+    });
+  });
 
   // Start: VIEW
   setMode(MODE.VIEW);
 
   (async function boot(){
-    await ensurePoppins();  // načíst písmo před prvním kreslením textur
-    await applyLayoutFromUI();
-  })();
-
-  </script>
-</body>
-</html>
-``
