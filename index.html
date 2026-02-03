@@ -414,7 +414,7 @@
 
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
-  let FRAME_COLOR = "#383838";
+  let FRAME_COLOR = "#717171";
 
   function makeFrameBoxMaterial(){
     const m = new BABYLON.StandardMaterial("frameBoxMat", scene);
@@ -442,7 +442,7 @@
     const dt = makeDT("pl", W, H);
     const c=dt.getContext();
     c.fillStyle="#222"; c.fillRect(0,0,W,H);
-    c.fillStyle="#e6e6e6"; c.font=`bold ${Math.round(H*0.45)}px system-ui`;
+    c.fillStyle="##717171"; c.font=`bold ${Math.round(H*0.45)}px system-ui`;
     c.textAlign="center"; c.textBaseline="middle";
     c.fillText(data.title||"(bez názvu)", W/2, H/2);
     dt.update();
