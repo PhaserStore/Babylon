@@ -79,11 +79,34 @@
     @media (prefers-reduced-motion: reduce){
       body{scroll-behavior:auto}
     }
+
+    /* === SoundCloud panel (ADMIN only) === */
+    #scWrap{
+      position:fixed; z-index:12;
+      left:12px; bottom:12px;
+      width:min(420px, 92vw);
+      background:var(--ui-bg); border:1px solid var(--ui-brd);
+      border-radius:12px; padding:8px; backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display:none;
+    }
+    #scWrap .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    #scWrap button, #scWrap input[type="range"]{
+      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
+      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
+    }
+    #scWrap button:hover{ background:#575757 }
+    #scWrap .title{ font-size:12px; color:var(--txt-dim); margin-top:6px; }
+    #scIframe{ width:100%; height:102px; border:0; border-radius:8px; background:#222 }
+    body.admin #scWrap{ display:block }  /* zobrazit jen v admin módu */
   </style>
 
   <!-- ✅ Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+  <!-- ✅ SoundCloud Player API -->
+  <script src="https://w.soundcloud.com/player/api.js"></script>
 </head>
 
 <body class="view">
@@ -119,6 +142,34 @@
     </div>
 
     <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik/Double‑tap = přiblížení na bod. Klik na cedulku = skrytá URL.</div>
+  </div>
+
+  <!-- === SoundCloud (ADMIN) === -->
+  <div id="scWrap" aria-label="SoundCloud Player (Admin)">
+    <div class="row" style="justify-content:space-between">
+      <strong>🎧 Detroit Techno</strong>
+      <span class="title" id="scNow">Loading…</span>
+    </div>
+
+    <!-- SoundCloud playlist -->
+    <iframe
+      id="scIframe"
+      title="SoundCloud Player"
+      scrolling="no"
+      allow="autoplay"
+      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/vertigo01/sets/detroit-techno&auto_play=true&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true">
+    </iframe>
+
+    <!-- ovladače -->
+    <div class="row" style="margin-top:8px">
+      <button id="scPrev">⏮ Prev</button>
+      <button id="scPlay">▶️ Play</button>
+      <button id="scPause">⏸ Pause</button>
+      <button id="scNext">⏭ Next</button>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        Vol: <input id="scVol" type="range" min="0" max="100" value="85" />
+      </label>
+    </div>
   </div>
 
   <!-- ===== Canvas ===== -->
@@ -217,6 +268,96 @@
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
+  // ====== SoundCloud helpers (definujeme včas, voláme později) ======
+  const SC_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
+  let scWidget = null;
+  let scReady = false;
+  let scTriedAuto = false;
+
+  function waitForSC(maxMs=8000){
+    return new Promise(resolve=>{
+      if (window.SC && window.SC.Widget) return resolve(true);
+      const start = performance.now();
+      const t = setInterval(()=>{
+        if (window.SC && window.SC.Widget){ clearInterval(t); resolve(true); }
+        else if (performance.now()-start > maxMs){ clearInterval(t); resolve(false); }
+      }, 120);
+    });
+  }
+
+  function tryPlayWithAutoplayFallback(){
+    if (!scReady || !scWidget) return;
+    if (scTriedAuto) return;
+    scTriedAuto = true;
+    scWidget.play(); // pokus (může být blokován)
+
+    // Fallback: na první gesto
+    const gestureStart = () => {
+      scWidget.play();
+      window.removeEventListener('pointerdown', gestureStart);
+      window.removeEventListener('keydown', gestureStart);
+      window.removeEventListener('touchstart', gestureStart);
+    };
+    window.addEventListener('pointerdown', gestureStart, { once:true });
+    window.addEventListener('keydown', gestureStart, { once:true });
+    window.addEventListener('touchstart', gestureStart, { once:true, passive:true });
+  }
+
+  function initSoundCloud(){
+    const iframe = document.getElementById('scIframe');
+    if (!iframe) return;
+
+    if (!window.SC || !window.SC.Widget){
+      console.warn('SC Widget API zatím není k dispozici.');
+      return;
+    }
+
+    scWidget = window.SC.Widget(iframe);
+
+    scWidget.bind(window.SC.Widget.Events.READY, () => {
+      scReady = true;
+      // nastav hlasitost
+      const volInput = document.getElementById('scVol');
+      const vol = Math.max(0, Math.min(100, +(volInput?.value || 85)));
+      scWidget.setVolume(vol);
+
+      // zobraz aktuální název
+      scWidget.getCurrentSound((s) => {
+        const el = document.getElementById('scNow');
+        if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
+      });
+
+      // Autoplay jen v ADMIN módu
+      if (document.body.classList.contains('admin')) {
+        tryPlayWithAutoplayFallback();
+      }
+    });
+
+    scWidget.bind(window.SC.Widget.Events.PLAY, () => {
+      scWidget.getCurrentSound((s) => {
+        const el = document.getElementById('scNow');
+        if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Playing…';
+      });
+    });
+  }
+
+  function bindScControls(){
+    const prev = document.getElementById('scPrev');
+    const next = document.getElementById('scNext');
+    const play = document.getElementById('scPlay');
+    const pause= document.getElementById('scPause');
+    const vol  = document.getElementById('scVol');
+
+    if (prev) prev.addEventListener('click', () => scReady && scWidget && scWidget.prev());
+    if (next) next.addEventListener('click', () => scReady && scWidget && scWidget.next());
+    if (play) play.addEventListener('click', () => scReady && scWidget && scWidget.play());
+    if (pause) pause.addEventListener('click',()=> scReady && scWidget && scWidget.pause());
+    if (vol)  vol.addEventListener('input', (e)=>{
+      const v = Math.max(0, Math.min(100, +e.target.value || 80));
+      if (scReady && scWidget) scWidget.setVolume(v);
+    });
+  }
+
   // Předrender fontů
   async function ensurePoppins() {
     if (document?.fonts?.load) {
@@ -248,6 +389,14 @@
     document.body.classList.toggle('view', m === MODE.VIEW);
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
+
+    // --- SoundCloud chování podle módu ---
+    if (m === MODE.ADMIN){
+      scTriedAuto = false; // dovol další pokus
+      tryPlayWithAutoplayFallback();
+    } else {
+      if (scReady && scWidget) scWidget.pause();
+    }
   }
   window.addEventListener('keydown',(e)=>{
     if (IS_MOBILE) return;
@@ -523,10 +672,9 @@
   let FRAME_COLOR = "#717171";
 
   // ======================================================================
-  // [NEW] FAKE STÍNOVÁNÍ BEZ SVĚTEL – MultiMaterial + gradientové textury
+  // FAKE STÍNOVÁNÍ BEZ SVĚTEL – MultiMaterial + gradientové textury
   // ======================================================================
 
-  // [NEW] Jednoduchý generátor gradientové DynamicTexture
   function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
     const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     const ctx = dt.getContext();
@@ -550,7 +698,6 @@
     return dt;
   }
 
-  // [NEW] Lighten/darken pomocné
   function lighten(col, f){ return new BABYLON.Color3(
     Math.min(1, col.r + (1-col.r)*f),
     Math.min(1, col.g + (1-col.g)*f),
@@ -562,8 +709,6 @@
     Math.max(0, col.b*(1-f))
   );}
 
-  // [NEW] MultiMaterial pro krabici rámu:
-  // pořadí submeshů = [front, back, right, left, top, bottom]
   function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     const c = BABYLON.Color3.FromHexString(baseHex);
 
@@ -594,7 +739,7 @@
       return m;
     };
 
-    // pořadí: [front, back, right, left, top, bottom]
+    // pořadí submeshů: [front, back, right, left, top, bottom]
     const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
     const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
     mats.forEach(m => mm.subMaterials.push(m));
@@ -670,7 +815,7 @@
     box.rotation.y = rotY;
     box.isPickable = true;
 
-    // [CHANGED] – rozřezání boxu na 6 submeshů + MultiMaterial s gradienty
+    // rozřezání boxu na 6 submeshů + MultiMaterial s gradienty
     box.subMeshes = [];
     const indices = box.getIndices();
     const verticesCount = box.getTotalVertices();
@@ -714,7 +859,7 @@
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-    /* =========================
+  /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
   const GALLERY_LOGO_SVG = `
@@ -838,46 +983,39 @@
   }
 
   const DATA = {
-  front: [
-    { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
-    { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-    { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-    { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
-  ],
-  back: [
-    { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
-    { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-    { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-    { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
-  ],
-  left: [
-    { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
-    { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-    { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-    { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
-    { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-    { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-    { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
-  ],
-  right: [
-    { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-    { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-    { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-    { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-    { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-    { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-    { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
-  ]
-};
+    front: [
+      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
+      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+    ],
+    back: [
+      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
+      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+    ],
+    left: [
+      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
+      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
+      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
+      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
+      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+    ],
+    right: [
+      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
+      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
+      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+    ]
+  };
 
-  function assignDataAllWalls(data){
-    const loadLocal = (url, targetItem)=>{
-      targetItem.data.src = url;
-      const img = new Image();
-      if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
-      img.decoding = "async";
-      img.onload = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
+  const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
         mat.zOffset = -1;
@@ -962,6 +1100,13 @@
 
   // Boot
   createScene();
+
+  // Inicializace SoundCloudu (počkáme na API, navážeme ovladače)
+  (async ()=>{
+    await waitForSC(8000);
+    bindScControls();
+    initSoundCloud();
+  })();
 
   // Render loop + mobilní auto-quality sledování
   engine.runRenderLoop(()=>{
