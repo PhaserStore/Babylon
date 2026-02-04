@@ -451,16 +451,23 @@ function scUpdateProgress(rel){
         scWidget.getDuration((d)=>{ scDuration = d || 0; });
 
         // Eventy
-        scWidget.bind(window.SC.Widget.Events.PLAY,  ()=>{ scWidget.getCurrentSound((s)=> updateNowTitle(s)); });
-        scWidget.bind(window.SC.Widget.Events.PAUSE, ()=>{ /* ponecháme ticho */ });
-        scWidget.bind(window.SC.Widget.Events.FINISH,()=>{ /* auto-next řeší widget UI */ });
+       scWidget.bind(window.SC.Widget.Events.PLAY, () =>{
+  scWidget.getCurrentSound(s =>{
+    updateNowTitle(s);     // tvoje původní
+    scUpdateTitle(s);      // nový bar
+    scUpdateThumb(s);      // nový bar
+  });
+});
 
-        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e)=>{
-          scDuration = Math.max(scDuration, e?.duration || 0);
-          // Můžeš sem doplnit vizuál času do UI, když budeš chtít:
-          // hint(`⏱ ${fmtTime(e.currentPosition||0)} / ${fmtTime(scDuration)}`);
-        });
+scWidget.bind(window.SC.Widget.Events.PAUSE, () => { /* beze změny */ });
 
+scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, e =>{
+  scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
+  const cur = e.currentPosition || 0;
+  const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
+  scUpdateTime(cur, scDuration);
+  scUpdateProgress(rel);
+});
         resolve(scWidget);
       });
     });
