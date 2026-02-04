@@ -151,14 +151,13 @@
       <span class="title" id="scNow">Loading…</span>
     </div>
 
-    <!-- SoundCloud playlist -->
+    <!-- SoundCloud playlist iframe -->
     <iframe
       id="scIframe"
       title="SoundCloud Player"
-      scrolling="no"
+      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/vertigo01/sets/detroit-techno&auto_play=true&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true"
       allow="autoplay"
-      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/vertigo01/sets/detroit-techno&auto_play=true&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true">
-    </iframe>
+    ></iframe>
 
     <!-- ovladače -->
     <div class="row" style="margin-top:8px">
@@ -268,7 +267,7 @@
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
-  // ====== SoundCloud helpers (definujeme včas, voláme později) ======
+  /* ==== SoundCloud helpers ==== */
   const SC_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
   let scWidget = null;
   let scReady = false;
@@ -316,18 +315,15 @@
 
     scWidget.bind(window.SC.Widget.Events.READY, () => {
       scReady = true;
-      // nastav hlasitost
       const volInput = document.getElementById('scVol');
       const vol = Math.max(0, Math.min(100, +(volInput?.value || 85)));
       scWidget.setVolume(vol);
 
-      // zobraz aktuální název
       scWidget.getCurrentSound((s) => {
         const el = document.getElementById('scNow');
         if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
       });
 
-      // Autoplay jen v ADMIN módu
       if (document.body.classList.contains('admin')) {
         tryPlayWithAutoplayFallback();
       }
@@ -390,7 +386,7 @@
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
 
-    // --- SoundCloud chování podle módu ---
+    // SoundCloud chování podle módu
     if (m === MODE.ADMIN){
       scTriedAuto = false; // dovol další pokus
       tryPlayWithAutoplayFallback();
@@ -1015,7 +1011,14 @@
     ]
   };
 
-  const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
+  function assignDataAllWalls(data){
+    const loadLocal = (url, targetItem)=>{
+      targetItem.data.src = url;
+      const img = new Image();
+      if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
+      img.decoding = "async";
+      img.onload = ()=>{
+        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
         const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
         const mat = unlitTex(dt,{doubleSided:false});
         mat.zOffset = -1;
@@ -1057,12 +1060,7 @@
     }catch(e){ /* ignore */ }
   }
 
-  async function applyLayoutFromUI() {
-    const YCENTER = ROOM.H * 0.55;
-    const safeWall   = +$("safeWall").value   || 1;
-    const cornerSafe = +$("cornerSafe").value || 1;
-    FRAME_SIZE.W     = +$("frmW").value       || 2;
-    FRAME_SIZE.H     = +$("frmH").value       || 2;
+  async function apply || 2;
     FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
     FRAME_COLOR      = $("frmColor").value    || "#717171";
 
