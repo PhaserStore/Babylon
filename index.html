@@ -21,6 +21,15 @@
       --safe-right: env(safe-area-inset-right);
       --safe-bottom: env(safe-area-inset-bottom);
       --safe-left: env(safe-area-inset-left);
+
+      /* === Dock player colors (SoundCloud-like) === */
+      --dock-bg: #2a2a2a;         /* tmavá lišta */
+      --dock-brd: #1e1e1e;        /* horní linka */
+      --dock-txt: #ffffff;        /* primární text */
+      --dock-dim: #cfcfcf;        /* sekundární text */
+      --dock-accent: #f50;        /* oranžová progress */
+      --dock-rail: #505050;       /* kolejnice progressu */
+      --dock-rail-dim: #3b3b3b;
     }
     html,body{
       width:100%;height:100%;margin:0;overflow:hidden;background:#111;
@@ -63,51 +72,114 @@
     }
     body.view #publishBtn{display:none}
 
-    /* === SoundCloud panel (ADMIN only) === */
-    #scWrap{
-      position:fixed; z-index:12; left:12px; bottom:12px; width:min(420px, 92vw);
-      background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      display:none;
-    }
-    #scWrap .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    #scWrap button, #scWrap input[type="range"]{
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
-    }
-    #scWrap button:hover{ background:#575757 }
-    #scWrap .title{ font-size:12px; color:var(--txt-dim); margin-top:6px; }
-    /* Host pro iframe – vložíme až po prvním Play (lazy-load) */
-    #scIframeHost{ width:100%; height:102px; border-radius:8px; overflow:hidden; background:#222; display:grid; place-items:center; color:#aaa }
+    /* === Původní SC bloky skryjeme (nahrazuje je dock) === */
+    #scWrap, #scControls { display:none !important; }
 
-    body.admin #scWrap{ display:block }  /* zobrazit jen v admin módu */
+    /* === Hidden host for SC iframe (API ovládání) === */
+    #scIframeHidden {
+      position:fixed; left:-9999px; top:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;
+    }
 
-    /* === VIEW ovladače (jen ve VIEW) – PRAVÝ DOLNÍ ROH === */
-    #scControls{
+    /* === Bottom Dock Player === */
+    #scDock {
       position:fixed;
-      right:calc(12px + var(--safe-right));
-      bottom:calc(12px + var(--safe-bottom));
-      display:none; z-index:11;
-      background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px 10px;
-      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+      left:0; right:0;
+      bottom:0;
+      z-index:9998;
+      color:var(--dock-txt);
+      background:linear-gradient(to top, #232323 0%, #2b2b2b 100%);
+      border-top:1px solid var(--dock-brd);
+      box-shadow: 0 -2px 16px rgba(0,0,0,.35);
+      padding:10px 14px calc(10px + var(--safe-bottom));
+      display:flex;
+      align-items:center;
+      gap:14px;
+      user-select:none;
     }
-    #scControls .row{ display:flex; align-items:center; gap:8px; }
-    #scControls button, #scControls input[type="range"]{
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
+    /* levá sekce: transport */
+    .dock-transport{
+      display:flex; align-items:center; gap:10px; min-width:220px;
     }
-    #scControls button:hover{ background:#575757 }
-    #scControls label{ color:#ddd; font-size:12px }
-    body.view #scControls{ display:block }     /* jen ve VIEW */
-    body.admin #scControls{ display:none }     /* skryj v ADMIN */
+    .btn{
+      display:grid; place-items:center;
+      width:36px; height:36px; border-radius:10px;
+      background:#3a3a3a; border:1px solid rgba(255,255,255,.2);
+      color:#fff; cursor:pointer; transition:.15s;
+    }
+    .btn:hover{ background:#575757 }
+    .btn--round{
+      width:44px; height:44px; border-radius:999px; background:#fff; color:#111; border:none;
+    }
+    .btn--icon{ line-height:0; }
+    .btn svg{ width:18px; height:18px; fill:currentColor; }
+    .btn--round svg{ width:20px; height:20px; }
+
+    /* střed: seek */
+    .dock-center{
+      display:flex; align-items:center; gap:10px; flex:1; min-width:240px;
+    }
+    .time{
+      font-size:12px; color:var(--dock-dim); width:44px; text-align:center;
+      font-variant-numeric: tabular-nums;
+    }
+    .seek{
+      position:relative; height:8px; flex:1;
+      background:linear-gradient(#3a3a3a,#373737);
+      border-radius:999px; border:1px solid #1e1e1e;
+      overflow:hidden; cursor:pointer;
+    }
+    .seek-rail{ position:absolute; inset:0; background:linear-gradient(to right, var(--dock-rail), var(--dock-rail-dim)); }
+    .seek-fill{ position:absolute; inset:0 100% 0 0; background:var(--dock-accent); }
+    .seek-handle{
+      position:absolute; top:50%; transform:translate(-50%,-50%); width:12px; height:12px;
+      border-radius:50%; background:#fff; border:2px solid #111; box-shadow:0 0 0 2px rgba(0,0,0,.25);
+      left:0%;
+    }
+
+    /* pravá sekce: hlasitost + info */
+    .dock-right{
+      display:flex; align-items:center; gap:14px; min-width:280px; justify-content:flex-end;
+    }
+    .vol{ display:flex; align-items:center; gap:8px; min-width:140px; }
+    .vol-rail{
+      position:relative; width:110px; height:8px; border-radius:999px;
+      background:linear-gradient(#3a3a3a,#373737); border:1px solid #1e1e1e; cursor:pointer; overflow:hidden;
+    }
+    .vol-fill{ position:absolute; inset:0 100% 0 0; background:#bfbfbf; }
+    .track{
+      display:flex; align-items:center; gap:10px; max-width:360px; overflow:hidden;
+    }
+    .art{
+      width:36px; height:36px; border-radius:6px; background:#1f1f1f; flex:0 0 auto; overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
+    }
+    .art img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .meta{
+      display:flex; flex-direction:column; min-width:0;
+    }
+    .title{
+      font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;
+    }
+    .artist{
+      font-size:12px; color:var(--dock-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;
+    }
+
+    @media (max-width: 720px){
+      .artist{ display:none; }
+      .dock-right{ min-width:220px; }
+      .vol{ min-width:120px; }
+      .vol-rail{ width:90px; }
+    }
+
+    /* aby obsah nebyl pod lištou (kdyby někde scroll), tady jen prevence */
+    body{ padding-bottom: calc(60px + var(--safe-bottom)); }
   </style>
 
   <!-- ✅ Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 
-  <!-- ⚠️ SoundCloud API NELOADOVAT zde; načteme ho dynamicky až při Play -->
+  <!-- ⚠️ SoundCloud API načteme dynamicky až při Play -->
 </head>
 
 <!-- Startujeme rovnou ve VIEW módu -->
@@ -146,36 +218,55 @@
     <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik/Double‑tap = přiblížení na bod. Klik na cedulku = skrytá URL.</div>
   </div>
 
-  <!-- === SoundCloud (ADMIN) – widget lazy-load na první Play === -->
-  <div id="scWrap" aria-label="SoundCloud Player (Admin)">
-    <div class="row" style="justify-content:space-between">
-      <strong>🎧 Detroit Techno</strong>
-      <span class="title" id="scNow">Idle</span>
-    </div>
-    <!-- Sem se při Play vloží <iframe id="scIframe"> -->
-    <div id="scIframeHost"><small>Player will load on first Play</small></div>
+  <!-- ====== Hidden SC iframe host (pro API) ====== -->
+  <div id="scIframeHidden" aria-hidden="true"></div>
 
-    <div class="row" style="margin-top:8px">
-      <button id="scPrev">⏮ Prev</button>
-      <button id="scPlay">▶️ Play</button>
-      <button id="scPause">⏸ Pause</button>
-      <button id="scNext">⏭ Next</button>
-      <label style="display:flex;align-items:center;gap:6px;margin-left:auto">
-        Vol: <input id="scVol" type="range" min="0" max="100" value="85" />
-      </label>
+  <!-- ===== Bottom Dock Player (SoundCloud-like) ===== -->
+  <div id="scDock" aria-label="SoundCloud Dock Player">
+    <!-- Transport -->
+    <div class="dock-transport">
+      <button class="btn btn--icon" id="btnPrev" title="Previous" aria-label="Previous">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6zm3.5 6L20 18V6l-10.5 6z"/></svg>
+      </button>
+      <button class="btn btn--round" id="btnPlay" title="Play/Pause" aria-label="Play">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button class="btn btn--icon" id="btnNext" title="Next" aria-label="Next">
+        <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6zM4 18l10.5-6L4 6v12z"/></svg>
+      </button>
     </div>
-  </div>
 
-  <!-- === VIEW ovladače (bez widgetu) – pravý dolní roh === -->
-  <div id="scControls" aria-label="Audio Controls (View)">
-    <div class="row">
-      <button id="vPrev" title="Previous">⏮</button>
-      <button id="vPlay" title="Play">▶️</button>
-      <button id="vPause" title="Pause">⏸</button>
-      <button id="vNext" title="Next">⏭</button>
-      <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
-        Vol: <input id="vVol" type="range" min="0" max="100" value="70" />
-      </label>
+    <!-- Center (seek) -->
+    <div class="dock-center">
+      <div class="time" id="tCur">0:00</div>
+      <div class="seek" id="seek">
+        <div class="seek-rail"></div>
+        <div class="seek-fill" id="seekFill"></div>
+        <div class="seek-handle" id="seekHandle"></div>
+      </div>
+      <div class="time" id="tDur">0:00</div>
+    </div>
+
+    <!-- Right (volume + track) -->
+    <div class="dock-right">
+      <div class="vol" title="Volume">
+        <div class="btn btn--icon" id="btnMute" aria-label="Mute/Unmute">
+          <svg id="iconVol" viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z"/></svg>
+          <svg id="iconMuted" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21L16.29 13c.14-.32.21-.66.21-1zm4.5 0c0 2.5-1.28 4.67-3.2 5.93l-1.42-1.42A5.97 5.97 0 0 0 18 12c0-1.58-.6-3.03-1.58-4.11l1.42-1.42A7.96 7.96 0 0 1 21 12zM3 10v4h4l5 5V5L7 10H3zm16.19 11.19-16-16 1.41-1.41 16 16-1.41 1.41z"/></svg>
+        </div>
+        <div class="vol-rail" id="volRail">
+          <div class="vol-fill" id="volFill" style="inset:0 25% 0 0"></div>
+        </div>
+      </div>
+
+      <div class="track">
+        <div class="art"><img id="artImg" alt="" /></div>
+        <div class="meta">
+          <div class="title" id="metaTitle">Detroit Techno</div>
+          <div class="artist" id="metaArtist">SoundCloud playlist</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -274,9 +365,12 @@
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
-  /* ==== SoundCloud LAZY-LOAD ==== */
+  /* ==== SoundCloud LAZY-LOAD + Dock Player ==== */
   const SC_PLAYLIST_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
   let scWidget = null, scReady = false, scLoading = false;
+  let scDuration = 0;        // ms
+  let scMuted = false;
+  let wantedVolume = 75;     // 0..100
 
   function loadScApiOnce(){
     return new Promise((resolve, reject)=>{
@@ -290,17 +384,17 @@
     });
   }
 
-  function mountScIframeOnce(){
+  function mountHiddenIframeOnce(){
     return new Promise((resolve)=>{
-      const host = document.getElementById('scIframeHost');
+      const host = document.getElementById('scIframeHidden');
       if (!host) return resolve(null);
       let iframe = host.querySelector('iframe');
       if (iframe) return resolve(iframe);
 
       const url = "https://w.soundcloud.com/player/?"
         + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
-        + "&auto_play=false&hide_related=false&show_comments=false"
-        + "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
+        + "&auto_play=false&hide_related=true&show_comments=false"
+        + "&show_user=false&show_reposts=false&show_teaser=false&visual=false";
 
       iframe = document.createElement('iframe');
       iframe.id = "scIframe";
@@ -308,11 +402,7 @@
       iframe.allow = "autoplay";
       iframe.setAttribute("scrolling","no");
       iframe.setAttribute("frameborder","no");
-      iframe.style.width = "100%";
-      iframe.style.height= "102px";
-      iframe.style.border = "0";
-      iframe.style.borderRadius = "8px";
-      iframe.src = url;
+      iframe.width = "1"; iframe.height="1"; iframe.src = url;
 
       host.innerHTML = "";
       host.appendChild(iframe);
@@ -330,23 +420,21 @@
       scWidget.bind(window.SC.Widget.Events.READY, ()=>{
         scReady = true;
 
-        // Volume init (admin > view fallback)
-        const adminVol = document.getElementById('scVol');
-        const viewVol  = document.getElementById('vVol');
-        const vol = Math.max(0, Math.min(100, +(adminVol?.value || viewVol?.value || 80)));
-        scWidget.setVolume(vol);
+        // Nastavení volume
+        setVolumeUI(wantedVolume);
+        scWidget.setVolume(wantedVolume);
 
-        // Titulek
-        scWidget.getCurrentSound((s)=>{
-          const el = document.getElementById('scNow');
-          if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
-        });
+        // Načti titul/cover a délku
+        refreshTrackMeta();
 
-        scWidget.bind(window.SC.Widget.Events.PLAY, ()=>{
-          scWidget.getCurrentSound((s)=>{
-            const el = document.getElementById('scNow');
-            if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Playing…';
-          });
+        // Eventy
+        scWidget.bind(window.SC.Widget.Events.PLAY,  ()=>{ setPlayState(true);  refreshTrackMeta(); });
+        scWidget.bind(window.SC.Widget.Events.PAUSE, ()=>{ setPlayState(false); });
+        scWidget.bind(window.SC.Widget.Events.FINISH,()=>{ /* auto next už řeší widget; UI srovná PLAY_PROGRESS */ });
+        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e)=>{
+          // e.currentPosition (ms), e.relativePosition (0..1)
+          scDuration = Math.max(scDuration, e?.duration || 0);
+          updateSeek(e.currentPosition || 0, e.relativePosition || 0);
         });
 
         resolve(scWidget);
@@ -354,14 +442,20 @@
     });
   }
 
-  async function ensureScReadyAndPlay(){
+  async function ensureScReadyAndPlay(toggleOnly=false){
     if (scLoading) return;
     scLoading = true;
     try{
       await loadScApiOnce();
-      await mountScIframeOnce();
+      await mountHiddenIframeOnce();
       const w = await initScWidgetOnce();
-      if (w) w.play(); // v rámci uživatelského gesta → povoleno
+      if (w){
+        if (toggleOnly){
+          w.toggle();
+        }else{
+          w.play(); // v rámci uživatelského gesta → povoleno
+        }
+      }
     }catch(e){
       console.warn("SC lazy-load failed:", e);
     }finally{
@@ -369,39 +463,127 @@
     }
   }
 
-  function bindAdminControls(){
-    const prev = document.getElementById('scPrev');
-    const next = document.getElementById('scNext');
-    const play = document.getElementById('scPlay');
-    const pause= document.getElementById('scPause');
-    const vol  = document.getElementById('scVol');
+  /* ===== Dock UI helpers ===== */
+  const $ = (id)=>document.getElementById(id);
+  const iconPlay  = $("iconPlay");
+  const iconPause = $("iconPause");
+  const tCur = $("tCur");
+  const tDur = $("tDur");
+  const seek = $("seek");
+  const seekFill = $("seekFill");
+  const seekHandle = $("seekHandle");
+  const volRail = $("volRail");
+  const volFill = $("volFill");
+  const artImg = $("artImg");
+  const metaTitle = $("metaTitle");
+  const metaArtist = $("metaArtist");
+  const btnPlay = $("btnPlay");
+  const btnPrev = $("btnPrev");
+  const btnNext = $("btnNext");
+  const btnMute = $("btnMute");
+  const iconVol = $("iconVol");
+  const iconMuted = $("iconMuted");
 
-    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
-    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
-    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
-    if (vol)   vol.addEventListener('input',   (e)=>{
-      const v = Math.max(0, Math.min(100, +e.target.value || 80));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
+  function fmtTime(ms){
+    const s = Math.max(0, Math.floor(ms/1000));
+    const h = Math.floor(s/3600);
+    const m = Math.floor((s%3600)/60);
+    const sec = s%60;
+    return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`;
   }
 
-  function bindViewControls(){
-    const prev = document.getElementById('vPrev');
-    const next = document.getElementById('vNext');
-    const play = document.getElementById('vPlay');
-    const pause= document.getElementById('vPause');
-    const vol  = document.getElementById('vVol');
-
-    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
-    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
-    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
-    if (vol)   vol.addEventListener('input',   (e)=>{
-      const v = Math.max(0, Math.min(100, +e.target.value || 70));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
+  function setPlayState(isPlaying){
+    iconPlay.style.display = isPlaying ? "none" : "";
+    iconPause.style.display = isPlaying ? "" : "none";
+    btnPlay.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
   }
+
+  function setVolumeUI(v){ // 0..100
+    v = Math.max(0, Math.min(100, v|0));
+    wantedVolume = v;
+    volFill.style.inset = `0 ${100-v}% 0 0`;
+    if (scReady && scWidget) scWidget.setVolume(v);
+    if (v===0 || scMuted){
+      iconVol.style.display = "none";
+      iconMuted.style.display = "";
+    } else {
+      iconVol.style.display = "";
+      iconMuted.style.display = "none";
+    }
+  }
+
+  function updateSeek(curMs, rel){
+    const r = Math.max(0, Math.min(1, rel || (scDuration? curMs/scDuration : 0)));
+    seekFill.style.inset = `0 ${100 - r*100}% 0 0`;
+    seekHandle.style.left = `${r*100}%`;
+    tCur.textContent = fmtTime(curMs);
+    if (scDuration>0) tDur.textContent = fmtTime(scDuration);
+  }
+
+  function refreshTrackMeta(){
+    if (!scWidget) return;
+    scWidget.getCurrentSound((s)=>{
+      if (!s) return;
+      // artwork
+      let art = s.artwork_url || (s.user && s.user.avatar_url) || "";
+      // vyšší rozlišení
+      if (art) art = art.replace("-large.jpg", "-t500x500.jpg");
+      if (artImg) artImg.src = art || "";
+      // texty
+      metaTitle.textContent = s.title || "Unknown track";
+      metaArtist.textContent = (s.user && s.user.username) ? s.user.username : (s.publisher_metadata?.artist || "SoundCloud");
+    });
+    scWidget.getDuration((d)=>{
+      scDuration = d || 0;
+      tDur.textContent = fmtTime(scDuration);
+    });
+    // Po pauze může být pozice 0 – dotáhneme přes getPosition
+    scWidget.getPosition((p)=> updateSeek(p||0, scDuration? (p/scDuration) : 0));
+  }
+
+  // === Listeners (Dock) ===
+  btnPlay.addEventListener("click", ()=> {
+    if (!scReady) { ensureScReadyAndPlay(); return; }
+    scWidget.toggle();
+  });
+
+  btnPrev.addEventListener("click", ()=> { scReady ? scWidget.prev() : ensureScReadyAndPlay(true); });
+  btnNext.addEventListener("click", ()=> { scReady ? scWidget.next() : ensureScReadyAndPlay(true); });
+
+  // Mute toggle
+  btnMute.addEventListener("click", ()=>{
+    scMuted = !scMuted;
+    if (scReady && scWidget && scWidget.setMuted) {
+      scWidget.setMuted(scMuted);
+    }
+    if (scMuted){ iconVol.style.display="none"; iconMuted.style.display=""; }
+    else { iconVol.style.display=""; iconMuted.style.display="none"; }
+  });
+
+  // Volume drag/click
+  const volSetFromEvent = (ev)=>{
+    const rect = volRail.getBoundingClientRect();
+    const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    const r = Math.max(0, Math.min(1, x / rect.width));
+    setVolumeUI(Math.round(r*100));
+  };
+  volRail.addEventListener("pointerdown", (e)=>{ volSetFromEvent(e); volRail.setPointerCapture(e.pointerId); });
+  volRail.addEventListener("pointermove", (e)=>{ if (e.pressure>0) volSetFromEvent(e); });
+
+  // Seek click/drag
+  const seekToEvent = (ev)=>{
+    const rect = seek.getBoundingClientRect();
+    const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    const r = Math.max(0, Math.min(1, x / rect.width));
+    if (!scReady){ ensureScReadyAndPlay(); return; }
+    const target = Math.round((scDuration || 0) * r);
+    scWidget.seekTo(target);
+    updateSeek(target, r);
+  };
+  seek.addEventListener("pointerdown", (e)=>{ seekToEvent(e); seek.setPointerCapture(e.pointerId); });
+  seek.addEventListener("pointermove", (e)=>{ if (e.pressure>0) seekToEvent(e); });
+
+  // ====== Zbytek tvé aplikace (Babylon + galerie) ======
 
   // Předrender fontů
   async function ensurePoppins() {
@@ -425,8 +607,7 @@
   const DPR_RAW = window.devicePixelRatio || 1;
   const DPR = snapDpr(DPR_RAW);
 
-  const $ = (id)=>document.getElementById(id);
-  const hintEl = $("hint");
+  const hintEl = document.getElementById("hint");
   function hint(msg){ if(hintEl) hintEl.textContent=msg; }
   function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
 
@@ -461,7 +642,7 @@
   const TEX_BASE = IS_MOBILE ? 1024 : 2048;
   let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
 
-  const canvas = $("renderCanvas");
+  const canvas = document.getElementById("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false,
     powerPreference: "high-performance"
@@ -608,599 +789,4 @@
     const seg=(a,b)=>{
       const d=BABYLON.Vector3.Distance(a,b);
       const m=BABYLON.MeshBuilder.CreateBox("ledSeg",{width:t,height:t,depth:d},scene);
-      m.position=BABYLON.Vector3.Center(a,b);
-      m.lookAt(b);
-      m.rotation.x+=Math.PI;
-      m.material=mat;
-      m.isPickable=false;
-      m.parent=n;
-      glow.addIncludedOnlyMesh(m);
-    };
-
-    [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
-     [xL,y1,zF,xR,y1,zF],[xR,y1,zF,xR,y1,zB],[xR,y1,zB,xL,y1,zB],[xL,y1,zB,xL,y1,zF]
-    ].forEach(([ax,ay,az,bx,by,bz])=>seg(new BABYLON.Vector3(ax,ay,az),new BABYLON.Vector3(bx,by,bz)));
-    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z])=>seg(new BABYLON.Vector3(x,y0,z), new BABYLON.Vector3(x,y1,z)));
-  }
-
-  /* =========================
-     Picking & zoom UX
-  ========================= */
-  function setupPicking(){
-    scene.onPointerObservable.add((pi)=>{
-      if (pi.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
-      if (!pi.pickInfo?.hit) return;
-      const mesh = pi.pickInfo.pickedMesh;
-      for(const wall of Object.keys(framesByWall)){
-        for(const it of framesByWall[wall]){
-          if (mesh === it.placard && it.data.url){ window.open(it.data.url,"_blank","noopener"); return; }
-        }
-      }
-    }, BABYLON.PointerEventTypes.POINTERPICK);
-  }
-
-  function zoomToPointer(px, py, {scale=0.55, forceMin=false}={}){
-    const pick = scene.pick(px, py);
-    if(!pick?.hit) return;
-    camera.target = pick.pickedPoint.clone();
-    camera.radius = forceMin ? MIN_RADIUS : Math.max(MIN_RADIUS, camera.radius * scale);
-  }
-
-  function setupZoomUX(){
-    const canvasEl = document.getElementById('renderCanvas');
-    canvasEl.addEventListener("dblclick", ()=>{
-      zoomToPointer(scene.pointerX, scene.pointerY, {
-        scale: camera.radius < 1.2 ? 1.0 : 0.55,
-        forceMin: camera.radius < 0.6
-      });
-    }, { passive:true });
-
-    let lastTap = 0;
-    canvasEl.addEventListener("touchend", (e)=>{
-      const now = Date.now();
-      const dt  = now - lastTap; lastTap = now;
-      if (dt > 280) return;
-
-      const t = e.changedTouches && e.changedTouches[0];
-      if (!t) return;
-      const rect = canvasEl.getBoundingClientRect();
-      const x = t.clientX - rect.left;
-      const y = t.clientY - rect.top;
-
-      zoomToPointer(x, y, {
-        scale: camera.radius < 1.2 ? 1.0 : 0.55,
-        forceMin: camera.radius < 0.6
-      });
-    }, { passive:true });
-  }
-
-  /* =========================
-     Obrázky / textury
-  ========================= */
-  function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(
-      name,
-      { width:w, height:h },
-      scene,
-      genMipmaps,
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    );
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-    return dt;
-  }
-
-  function drawFitted(ctx,bmp,frameW,frameH){
-    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
-    if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
-    else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
-  }
-
-  function drawChecker(ctx, w, h) {
-    const tile = 32;
-    for (let y = 0; y < h; y += tile) {
-      for (let x = 0; x < w; x += tile) {
-        const even = ((x / tile) + (y / tile)) % 2 === 0;
-        ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
-        ctx.fillRect(x, y, tile, tile);
-      }
-    }
-  }
-
-  const FRAME_SIZE = { W: 2, H: 2 };
-  let FRAME_BOX_BORDER = 0.08;
-  let FRAME_COLOR = "#717171";
-
-  /* === FAKE stínování rámů – MultiMaterial === */
-  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
-    const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    const ctx = dt.getContext();
-    ctx.clearRect(0,0,w,h);
-    if (radial){
-      const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
-      const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
-      g.addColorStop(0, from);
-      g.addColorStop(1, to);
-      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    } else {
-      const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
-      g.addColorStop(0, from);
-      g.addColorStop(1, to);
-      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    }
-    dt.update();
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-    return dt;
-  }
-  function lighten(col, f){ return new BABYLON.Color3(
-    Math.min(1, col.r + (1-col.r)*f),
-    Math.min(1, col.g + (1-col.g)*f),
-    Math.min(1, col.b + (1-col.b)*f)
-  );}
-  function darken(col, f){ return new BABYLON.Color3(
-    Math.max(0, col.r*(1-f)),
-    Math.max(0, col.g*(1-f)),
-    Math.max(0, col.b*(1-f))
-  );}
-  function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
-    const c = BABYLON.Color3.FromHexString(baseHex);
-    const topLight    = lighten(c, 0.20).toHexString();
-    const bottomDark  = darken(c,  0.25).toHexString();
-    const sideMidTop  = lighten(c, 0.08).toHexString();
-    const sideMidBot  = darken(c,  0.12).toHexString();
-    const frontTop    = lighten(c, 0.12).toHexString();
-    const frontBot    = darken(c,  0.18).toHexString();
-    const backCol     = darken(c,  0.10).toHexString();
-
-    const W=256,H=256;
-    const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
-    const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
-    const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-    const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-    const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});
-    const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});
-
-    const mk = (name, dt)=>{
-      const m = new BABYLON.StandardMaterial(name, scene);
-      m.disableLighting = true;
-      m.diffuseTexture  = dt;
-      m.emissiveTexture = dt;
-      m.specularColor   = new BABYLON.Color3(0,0,0);
-      m.backFaceCulling = false;
-      m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      return m;
-    };
-    const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
-    const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
-    mats.forEach(m => mm.subMaterials.push(m));
-    return mm;
-  }
-
-  // Cedulka (plaketa)
-  function drawPlacard(plac, data, rotY, planeW, planeH){
-    const texWFull = TEX_SIZE;
-    const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
-    const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
-    const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
-
-    const dt = makeDT("pl", texW, texH, !IS_MOBILE);
-    const c = dt.getContext();
-    c.fillStyle = "#6b6b6b";
-    c.fillRect(0,0,texW,texH);
-
-    const pad = Math.round(texH * 0.12);
-    const maxW = texW - pad*2;
-
-    c.fillStyle = "#ffffff";
-    c.textAlign = "center";
-    c.textBaseline = "top";
-    const lineH = Math.round(texH * 0.34);
-    const fontSize = Math.max(18, Math.round(lineH * 0.78));
-    c.font = `600 ${fontSize}px Poppins, system-ui`;
-
-    const text = (data.title || "(bez názvu)").trim();
-    const words = text.split(/\s+/);
-    const lines = [];
-    let buf = "";
-    for (let w of words){
-      const test = buf ? (buf + " " + w) : w;
-      if (c.measureText(test).width <= maxW) buf = test;
-      else { if (buf) lines.push(buf); buf = w; }
-    }
-    if (buf) lines.push(buf);
-
-    const maxLines = 2;
-    if (lines.length > maxLines){
-      const keep = lines.slice(0, maxLines);
-      let last = keep[maxLines-1];
-      while (c.measureText(last + "…").width > maxW && last.length>0) last = last.slice(0,-1);
-      keep[maxLines-1] = last + "…";
-      lines.length = 0; Array.prototype.push.apply(lines, keep);
-    }
-
-    const blockH = lines.length * lineH;
-    const startY = Math.max(pad, Math.round((texH - blockH)/2));
-    lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
-
-    dt.update();
-    const mat = unlitTex(dt, { doubleSided:false });
-    mat.zOffset = -2; // anti z-fighting
-    plac.material = mat;
-  }
-
-  function normalOffset(rotY, dist){
-    const nx = Math.sin(rotY) * dist;
-    const nz = Math.cos(rotY) * dist;
-    return new BABYLON.Vector3(nx, 0, nz);
-  }
-
-  function addFrame(pos, rotY=0, wall='front'){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-      depth: 0.06
-    }, scene);
-    box.position = pos.add(normalOffset(rotY, 0.0));
-    box.rotation.y = rotY;
-    box.isPickable = true;
-
-    // Submeshe + MultiMaterial
-    box.subMeshes = [];
-    const indices = box.getIndices();
-    const verticesCount = box.getTotalVertices();
-    let idx = 0;
-    const perFace = indices.length / 6;
-    for (let f = 0; f < 6; f++){
-      new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
-      idx += perFace;
-    }
-    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
-
-    // Přední obrazová plocha
-    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-      width: FRAME_SIZE.W,
-      height: FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    f.position = pos.add(normalOffset(rotY, 0.04));
-    f.rotation.y = rotY + Math.PI;
-    f.isPickable = true;
-
-    const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
-    const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
-    const fMat = unlitTex(dt,{doubleSided:false});
-    fMat.zOffset = -1;
-    f.material  = fMat;
-
-    // Cedulka
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
-    plac.rotation.y = rotY + Math.PI;
-    plac.isPickable = true;
-
-    const data = { title: "(bez názvu)", url: "", src: "" };
-    drawPlacard(plac, data, rotY, placW, placH);
-
-    return { frame:f, box, placard:plac, data, wall, rotY, pos };
-  }
-
-  /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
-  ========================= */
-  const GALLERY_LOGO_SVG = `
-<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
-  <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g>
-    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-  </g>
-  <g>
-    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
-</svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86;
-  const LOGO_SCALE = 0.30;
-  const FRONT_BACK_OFFSET = 0.25;
-  const LOGO_HEIGHT_M = 6.30;
-  const GLOW_BLUR_PX = 18;
-
-  function buildGalleryLogo(){
-    const img = new Image();
-    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
-    img.onload = () => {
-      const SIZE = 1024;
-      const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
-      const ctx = dt.getContext();
-      const maxW = SIZE * 0.92;
-      const w = maxW, h = Math.round(maxW / LOGO_ASPECT);
-      const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
-      ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
-
-      const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
-      const gc = glowDT.getContext();
-      gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${GLOW_BLUR_PX}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
-
-      const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
-      sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
-      sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1); sharpMat.backFaceCulling = false;
-
-      const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
-      glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture   = glowDT;
-      glowMat.emissiveColor    = new BABYLON.Color3(1,1,1); glowMat.backFaceCulling  = false;
-
-      const logoW = ROOM.W * LOGO_SCALE;
-      const logoH = LOGO_HEIGHT_M;
-      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
-
-      function placeLogo(z, rotY, idx){
-        const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
-        g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
-
-        const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
-      }
-      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
-      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
-    };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
-  }
-
-  /* =========================
-     Generátor rámů + data
-  ========================= */
-  const framesByWall = { back: [], front: [], left: [], right: [] };
-
-  function distributeCenters(min, max, count, frameW){
-    if (count <= 1) return [ (min+max)/2 ];
-    const span = max - min;
-    const totalFramesWidth = count * frameW;
-    let gap = (span - totalFramesWidth) / (count - 1);
-    const MIN_GAP = 0.05;
-    if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
-    const centers = [];
-    let x = min + frameW/2;
-    for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
-    if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
-      const step = (max - min) / (count - 1);
-      centers.length = 0;
-      for (let i=0;i<count;i++) centers.push(min + i*step);
-    }
-    return centers;
-  }
-
-  function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
-    const rotY =
-      wall==='front' ? Math.PI :
-      wall==='back'  ? 0 :
-      wall==='left'  ? Math.PI/2 :
-      wall==='right' ? -Math.PI/2 : 0;
-
-    const axisX  = (wall==='front'||wall==='back');
-    const length = axisX ? ROOM.W : ROOM.D;
-
-    const min = -length/2 + safeWall + cornerSafe;
-    const max =  length/2 - safeWall - cornerSafe;
-
-    const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
-
-    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
-    framesByWall[wall] = [];
-
-    centers.forEach(val=>{
-      const pos = axisX
-        ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
-        : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
-      const it = addFrame(pos, rotY, wall);
-      framesByWall[wall].push(it);
-    });
-  }
-
-  const DATA = {
-    front: [
-      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
-    ],
-    back: [
-      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
-    ],
-    left: [
-      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
-    ],
-    right: [
-      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
-    ]
-  };
-
-  function assignDataAllWalls(data){
-    const loadLocal = (url, targetItem)=>{
-      targetItem.data.src = url;
-      const img = new Image();
-      if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
-      img.decoding = "async";
-      img.onload = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
-        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-        const mat = unlitTex(dt,{doubleSided:false});
-        mat.zOffset = -1;
-        targetItem.frame.material = mat;
-        autosave();
-      };
-      img.onerror = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, false);
-        const ctx = dt.getContext();
-        drawChecker(ctx, TEX_SIZE, TEX_SIZE);
-        dt.update();
-        targetItem.frame.material = unlitTex(dt,{doubleSided:false});
-      };
-      img.src = url;
-    };
-
-    ["front","back","left","right"].forEach(side=>{
-      const items = data[side] || [];
-      const arr   = framesByWall[side] || [];
-      const n = Math.min(items.length, arr.length);
-      for (let i=0;i<n;i++){
-        const it = arr[i], d = items[i] || {};
-        it.data.src   = d.img   || it.data.src || "";
-        it.data.title = d.label || it.data.title || "(bez názvu)";
-        it.data.url   = d.href  || it.data.url || "";
-        drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
-
-        if (d.img){
-          if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it);
-        }
-      }
-    });
-  }
-
-  function autosave(){
-    try{
-      const data = collectGalleryData();
-      localStorage.setItem('draftGalleryJson', JSON.stringify(data));
-    }catch(e){ /* ignore */ }
-  }
-
-  async function applyLayoutFromUI() {
-    const YCENTER = ROOM.H * 0.55;
-    const safeWall   = +$("safeWall").value   || 1;
-    const cornerSafe = +$("cornerSafe").value || 1;
-    FRAME_SIZE.W     = +$("frmW").value       || 2;
-    FRAME_SIZE.H     = +$("frmH").value       || 2;
-    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
-    FRAME_COLOR      = $("frmColor").value    || "#717171";
-
-    createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('back',  +$("cntBack").value||0,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('left',  +$("cntLeft").value||0,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('right', +$("cntRight").value||0,  YCENTER, safeWall, cornerSafe);
-
-    const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
-    assignDataAllWalls(data);
-
-    try {
-      const applied = collectGalleryData();
-      window.lastAppliedGalleryData = applied;
-      localStorage.setItem('draftGalleryJson', JSON.stringify(applied));
-    } catch(e) { /* ignore */ }
-
-    autosave();
-    hint("Layout aplikován.");
-  }
-
-  let applying = false;
-  $("btnApplyLayout").addEventListener("click", async ()=>{
-    if (applying) return;
-    applying = true;
-    try { await applyLayoutFromUI(); }
-    finally { applying = false; }
-  });
-
-  $("btnResetCam").addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius=11.5;
-    hint("Kamera resetována.");
-  });
-
-  // Boot
-  createScene();
-
-  // SC ovladače (lazy-load až na Play)
-  bindAdminControls();
-  bindViewControls();
-
-  // Render loop + mobilní auto-quality sledování
-  engine.runRenderLoop(()=>{
-    if (!scene) return;
-    scene.render();
-
-    if (AutoScale.enabled){
-      const now = performance.now();
-      AutoScale.accMs += engine.getDeltaTime();
-      AutoScale.frames++;
-
-      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-        const avgMs = AutoScale.accMs / AutoScale.frames;
-        let changed = false;
-
-        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
-          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
-          changed = true;
-        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
-          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
-          changed = true;
-        }
-
-        if (changed){
-          applyHardwareScale(currentScaleLevel);
-          if (glow){
-            const k = currentScaleLevel; // 0.33..1
-            glow.blurKernelSize = Math.round( (IS_MOBILE ? 18 : 48) * (0.9 + 0.2*(1 - (k-0.33)/(1-0.33))) );
-          }
-        }
-        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
-      }
-    }
-  });
-
-  // Resize
-  function handleResize(){
-    applyHardwareScale();
-    engine.resize(true);
-  }
-  window.addEventListener("resize", handleResize, { passive:true });
-  window.addEventListener("orientationchange", handleResize);
-
-  // iOS – zamezit stránkovému pinch/gesture (ruší canvas)
-  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
-
-  // Start mód: VIEW (viz body.class="view")
-  setMode(MODE.VIEW);
-
-  (async function boot(){
-    await ensurePoppins();
-    await applyLayoutFromUI();
-    handleResize();
-    console.log("✔ Boot hotovo – start ve VIEW. Klávesy: 'A' ADMIN · 'V' VIEW (VIEW ovladače vpravo dole).");
-  })();
-
-  </script>
-</body>
-</html>
+      m.position=B
