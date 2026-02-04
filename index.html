@@ -80,41 +80,53 @@
     #scIframeHost{ width:100%; height:102px; border-radius:8px; overflow:hidden; background:#222; display:grid; place-items:center; color:#aaa }
     body.admin.desktop #scWrap{ display:block }  /* jen v admin + desktop */
 
-    /* === VIEW ovladače (jen ve VIEW na desktopu) – PRAVÝ DOLNÍ ROH === */
-    #scControls{
+    /* === VIEW: originální SoundCloud widget (kompaktní vpravo dole) === */
+    #scViewHost{
       position:fixed;
       right:calc(12px + var(--safe-right));
       bottom:calc(12px + var(--safe-bottom));
-      display:none; z-index:11;
+      width:min(420px, 92vw);
+      height:110px;
+      background:var(--ui-bg);
+      border:1px solid var(--ui-brd);
+      border-radius:12px;
+      padding:6px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display:none; overflow:hidden; z-index:11;
+    }
+    #scViewHost iframe{ width:100%; height:100%; border:0; border-radius:8px; }
+    body.view.desktop #scViewHost{ display:block }
+    body.admin #scViewHost{ display:none }
+
+    /* Home ikonka (VIEW, vlevo dole) */
+    #homeBtn{
+      position:fixed;
+      left:calc(12px + var(--safe-left));
+      bottom:calc(12px + var(--safe-bottom));
+      width:44px; height:44px;
+      display:none; place-items:center; z-index:11;
       background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px 10px;
-      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+      border-radius:12px; padding:8px;
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      cursor:pointer; user-select:none;
+      transition: background .2s ease;
     }
-    #scControls .row{ display:flex; align-items:center; gap:8px; }
-    #scControls button, #scControls input[type="range"]{
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
-    }
-    #scControls button:hover{ background:#575757 }
-    #scControls label{ color:#ddd; font-size:12px }
-    body.view.desktop #scControls{ display:block }    /* jen view+desktop */
-    body.admin #scControls{ display:none }
+    #homeBtn:hover{ background:rgba(80,80,85,.55) }
+    body.view.desktop #homeBtn{ display:grid }
+    body.admin #homeBtn{ display:none }
 
-    /* Laptev placeholder (VIEW) – sem dopojíme budoucí skin */
-    #laptevPlayer{ display:none; }
-    body.view.desktop #laptevPlayer{ display:block; position:fixed; right:calc(12px + var(--safe-right)); bottom:calc(12px + var(--safe-bottom)); z-index:11; }
-
-    /* Mobile = žádný přehrávač */
-    body.mobile #scControls,
+    /* Mobile = žádný přehrávač ani home */
     body.mobile #scWrap,
-    body.mobile #laptevPlayer{ display:none !important; }
+    body.mobile #scViewHost,
+    body.mobile #homeBtn{ display:none !important; }
   </style>
 
   <!-- ✅ Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 
-  <!-- ⚠️ SoundCloud API neembedujeme teď; načteme ho lazy až při prvním Play na desktopu -->
+  <!-- ⚠️ SoundCloud API lazy-load (jen když se poprvé spustí) -->
 </head>
 
 <!-- Start: VIEW mód -->
@@ -153,7 +165,7 @@
     <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik/Double‑tap = přiblížení na bod. Klik na cedulku = skrytá URL.</div>
   </div>
 
-  <!-- === SoundCloud (ADMIN) – widget lazy-load na první Play (jen desktop) === -->
+  <!-- === SoundCloud (ADMIN) – zůstává (jen desktop & admin) === -->
   <div id="scWrap" aria-label="SoundCloud Player (Admin)">
     <div class="row" style="justify-content:space-between">
       <strong>🎧 Detroit Techno</strong>
@@ -174,21 +186,17 @@
     </div>
   </div>
 
-  <!-- === VIEW ovladače (jen desktop; dočasné – lze nahradit Laptev skinem) === -->
-  <div id="scControls" aria-label="Audio Controls (View)">
-    <div class="row">
-      <button id="vPrev" title="Previous">⏮</button>
-      <button id="vPlay" title="Play">▶️</button>
-      <button id="vPause" title="Pause">⏸</button>
-      <button id="vNext" title="Next">⏭</button>
-      <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
-        Vol: <input id="vVol" type="range" min="0" max="100" value="70" />
-      </label>
-    </div>
-  </div>
+  <!-- === VIEW: originální SoundCloud widget (jen desktop View) === -->
+  <div id="scViewHost" aria-label="SoundCloud Player (View)"></div>
 
-  <!-- === Laptev placeholder (VIEW) – až dodáš HTML/CSS z CodePen, vložím sem a napojím === -->
-  <div id="laptevPlayer" aria-label="Laptev Player UI (View)"></div>
+  <!-- === VIEW: Home ikonka pro reset kamery (bez vlivu na hudbu) === -->
+  <div id="homeBtn" aria-label="Reset kamery" title="Reset kamery">
+    <!-- Bílý outline „Home“ (SVG) -->
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 11.5l9-7 9 7" />
+      <path d="M5 10.5V19a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-8.5" />
+    </svg>
+  </div>
 
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
@@ -306,11 +314,18 @@
     });
   }
 
+  function getScHost(){
+    if (mode === MODE.ADMIN) return document.getElementById('scIframeHost');
+    const v = document.getElementById('scViewHost');
+    if (v) return v;
+    return document.getElementById('scIframeHost') || document.body;
+  }
+
   function mountScIframeOnce(){
     return new Promise((resolve)=>{
-      const host = document.getElementById('scIframeHost');
+      const host = getScHost();
       if (!host) return resolve(null);
-      let iframe = host.querySelector('iframe');
+      let iframe = host.querySelector('iframe#scIframe');
       if (iframe) return resolve(iframe);
 
       const url = "https://w.soundcloud.com/player/?"
@@ -325,15 +340,22 @@
       iframe.setAttribute("scrolling","no");
       iframe.setAttribute("frameborder","no");
       iframe.style.width = "100%";
-      iframe.style.height= "102px";
+      iframe.style.height= (mode === MODE.ADMIN) ? "102px" : "100%";
       iframe.style.border = "0";
       iframe.style.borderRadius = "8px";
       iframe.src = url;
 
-      host.innerHTML = "";
+      if (host.id === 'scIframeHost' || host.id === 'scViewHost') host.innerHTML = "";
       host.appendChild(iframe);
       resolve(iframe);
     });
+  }
+
+  function setNowPlaying(prefix, title){
+    const tAdmin = document.getElementById('scNow');
+    const txt = title ? `${prefix}: ${title}` : prefix;
+    if (tAdmin) tAdmin.textContent = txt;
+    // VIEW nepoužívá text statusu (jen originální widget), ale admin ano
   }
 
   function initScWidgetOnce(){
@@ -346,34 +368,38 @@
       scWidget.bind(window.SC.Widget.Events.READY, ()=>{
         scReady = true;
 
-        // Volume init (admin > view fallback)
+        // Volume init (perzistentní)
         const adminVol = document.getElementById('scVol');
-        const viewVol  = document.getElementById('vVol');
-        const vol = Math.max(0, Math.min(100, +(adminVol?.value || viewVol?.value || 80)));
-        scWidget.setVolume(vol);
+        const defaultVol = Math.max(0, Math.min(100, +(adminVol?.value || 80)));
+        const savedVol   = Math.max(0, Math.min(100, +(localStorage.getItem('scVol') || defaultVol)));
+        scWidget.setVolume(savedVol);
+        if (adminVol) adminVol.value = savedVol;
 
-        // Titulek
         scWidget.getCurrentSound((s)=>{
-          const el = document.getElementById('scNow');
-          if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
+          setNowPlaying('Ready', s?.title || '');
         });
 
-        // Případný update progress barů: PLAY_PROGRESS event (k dispozici v API)
-        // scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (ev)=>{ /* ev.relativePosition, ev.currentPosition, ev.loadProgress */ });
+        // Statusy (admin status label)
+        scWidget.bind(window.SC.Widget.Events.PLAY, ()=>{
+          scWidget.getCurrentSound((s)=> setNowPlaying('Now', s?.title || ''));
+        });
+        scWidget.bind(window.SC.Widget.Events.PAUSE, ()=> setNowPlaying('Paused',''));
+        scWidget.bind(window.SC.Widget.Events.FINISH,()=> setNowPlaying('Finished',''));
+
         resolve(scWidget);
       });
     });
   }
 
   async function ensureScReadyAndPlay(){
-    if (IS_MOBILE) return;           // mobile: přehrávač zakázán
+    if (IS_MOBILE) return;
     if (scLoading) return;
     scLoading = true;
     try{
       await loadScApiOnce();
       await mountScIframeOnce();
       const w = await initScWidgetOnce();
-      if (w) w.play();               // uživatelské gesto → povoleno
+      if (w) w.play();   // uživatelské gesto → povoleno
     }catch(e){
       console.warn("SC lazy-load failed:", e);
     }finally{
@@ -381,8 +407,9 @@
     }
   }
 
+  // ADMIN ovladače (ponechány, ale ve VIEW skryté)
   function bindAdminControls(){
-    if (IS_MOBILE) return; // nic na mobilech
+    if (IS_MOBILE) return;
     const prev = document.getElementById('scPrev');
     const next = document.getElementById('scNext');
     const play = document.getElementById('scPlay');
@@ -395,24 +422,7 @@
     if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
     if (vol)   vol.addEventListener('input',   (e)=>{
       const v = Math.max(0, Math.min(100, +e.target.value || 80));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
-  }
-
-  function bindViewControls(){
-    if (IS_MOBILE) return; // nic na mobilech
-    const prev = document.getElementById('vPrev');
-    const next = document.getElementById('vNext');
-    const play = document.getElementById('vPlay');
-    const pause= document.getElementById('vPause');
-    const vol  = document.getElementById('vVol');
-
-    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
-    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
-    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
-    if (vol)   vol.addEventListener('input',   (e)=>{
-      const v = Math.max(0, Math.min(100, +e.target.value || 70));
+      localStorage.setItem('scVol', String(v));
       if (scReady && scWidget) scWidget.setVolume(v);
     });
   }
@@ -450,8 +460,8 @@
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
 
-    // Při přechodu do VIEW pauzneme (uživatel spustí Play ručně)
-    if (m === MODE.VIEW && scReady && scWidget) scWidget.pause();
+    // POZOR: dříve se při přechodu do VIEW pauzovalo. Teď necháváme hudbu hrát dál.
+    // if (m === MODE.VIEW && scReady && scWidget) scWidget.pause();  // ❌ odstraněno
   }
 
   // Klávesové přepínání (desktop)
@@ -682,7 +692,7 @@
   let FRAME_COLOR = "#717171";
 
   /* === FAKE stínování rámů – MultiMaterial === */
-  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
+  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true}={}){
     const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     const ctx = dt.getContext();
     ctx.clearRect(0,0,w,h);
@@ -743,7 +753,6 @@
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
-    <!-- (zkráceno pro přehlednost; tvoje celé SVG sem může zůstat beze změny) -->
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
@@ -752,7 +761,7 @@
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
-  const LOGO_EXTRA_UP = 0.60; // ⬆️ posun loga výše (kvůli prostoru na nápis)
+  const LOGO_EXTRA_UP = 0.60;
 
   let lastLogoY = null, lastLogoW = null;
 
@@ -783,7 +792,6 @@
       const logoW = ROOM.W * LOGO_SCALE;
       const logoH = LOGO_HEIGHT_M;
 
-      // původní Y + posun nahoru
       const baseY = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
       const yPos  = baseY + LOGO_EXTRA_UP;
       lastLogoY = yPos; lastLogoW = logoW;
@@ -795,11 +803,9 @@
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
-      // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
 
-      // Až je logo hotové, vytvoříme 3D „cedule“ s textem pod logem
       buildTypeSigns();
       hint("Logo posunuto nahoru + typovací nápisy vykresleny.");
     };
@@ -807,11 +813,11 @@
   }
 
   /* =========================
-     3D „cedule“ s typografickým nápisem (průhledné, vidět jen text)
+     3D „cedule“ s typografickým nápisem
   ========================= */
   const TYPE_TEXT = "welcome to the phaser shop";
-  const TYPE_MS   = 70;   // rychlost psaní
-  const BLINK_MS  = 500;  // blik kurzoru
+  const TYPE_MS   = 70;
+  const BLINK_MS  = 500;
   let typeTimers = [];
 
   function makeTypeTexture(wPx, hPx){
@@ -834,24 +840,20 @@
   }
 
   function buildOneTypeSign({side, z, rotY}){
-    // šířka cedule ~ stejné jako logo, výška menší
     const planeW = Math.max(2.0, (lastLogoW || ROOM.W*LOGO_SCALE) * 0.95);
     const planeH = 0.9;
 
     const sign = BABYLON.MeshBuilder.CreatePlane("typeSign_"+side, {width:planeW, height:planeH}, scene);
-    const yText = (lastLogoY || (ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80 + LOGO_EXTRA_UP)) - 1.05; // pod logem
+    const yText = (lastLogoY || (ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80 + LOGO_EXTRA_UP)) - 1.05;
     sign.position.set(0, yText, z + Math.sign(z)*0.01);
     sign.rotation.y = rotY;
 
-    // texturová plocha s alfou (vidět jen písmo)
-    // vyrobíme texturu větší pro ostrost
     const texW = nearestPOT(1024), texH = nearestPOT(256);
     const dt = makeTypeTexture(texW, texH);
     const mat = unlitTexDT(dt, {doubleSided:false, hasAlpha:true});
-    mat.alpha = 1.0; // plně viditelné písmo, pozadí průhledné
+    mat.alpha = 1.0;
     sign.material = mat;
 
-    // typovač
     let i=0, caret=true;
     const fitFontPx = Math.min(120, Math.max(48, Math.round(texH*0.55)));
     drawTypeText(dt, "", {fontPx:fitFontPx, caret:true});
@@ -876,13 +878,12 @@
   }
 
   function buildTypeSigns(){
-    // zadní (na z=-ROOM.D/2, rotY=Math.PI) a přední (z=+ROOM.D/2, rotY=0)
     buildOneTypeSign({ side:"back",  z:-ROOM.D/2 + FRONT_BACK_OFFSET + 0.05, rotY:Math.PI });
     buildOneTypeSign({ side:"front", z: ROOM.D/2 - FRONT_BACK_OFFSET - 0.05, rotY:0 });
   }
 
   /* =========================
-     Generátor rámů + data (beze změn)
+     Generátor rámů + data
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
 
@@ -928,8 +929,7 @@
     f.isPickable = true;
 
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
-    const ctx = dt.getContext(); 
-    // placeholder checker:
+    const ctx = dt.getContext();
     (function drawCheckerLocal(){
       const tile=32; for(let y=0;y<TEX_SIZE;y+=tile){ for(let x=0;x<TEX_SIZE;x+=tile){ const even=((x/tile)+(y/tile))%2===0; ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4"; ctx.fillRect(x,y,tile,tile); } }
       dt.update();
@@ -938,7 +938,6 @@
     fMat.zOffset = -1;
     f.material  = fMat;
 
-    // cedulka pod obrazem (stávající)
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", { width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
@@ -947,7 +946,6 @@
     plac.isPickable = true;
 
     const data = { title: "(bez názvu)", url: "", src: "" };
-    // jednoduchá texturka cedulky
     (function drawPlacard(){
       const texW=512, texH=128;
       const pdt = makeDT("placDT"+Math.random(), texW, texH, true);
@@ -1033,9 +1031,8 @@
       img.onload = ()=>{
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
         const ctx=dt.getContext();
-        // fit:
         const frameW=FRAME_SIZE.W, frameH=FRAME_SIZE.H;
-        const targetR=frameW/frameH, r=img.width/img.height; 
+        const targetR=frameW/frameH, r=img.width/img.height;
         let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
         if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
         else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
@@ -1066,7 +1063,6 @@
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
 
-        // update cedulky (jednoduše)
         const texW=512, texH=128;
         const pdt = makeDT("placDT"+Math.random(), texW, texH, true);
         const c = pdt.getContext();
@@ -1122,7 +1118,15 @@
     finally { applying = false; }
   });
 
+  // Reset kamery (UI button)
   $("btnResetCam").addEventListener("click", ()=>{
+    camera.target.set(0, ROOM.H*0.48, 0);
+    camera.radius=11.5;
+    hint("Kamera resetována.");
+  });
+
+  // VIEW: Home ikonka – reset kamery (bez vlivu na hudbu)
+  $("homeBtn")?.addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
     hint("Kamera resetována.");
@@ -1161,9 +1165,8 @@
   // Boot
   createScene();
 
-  // Ovládání přehrávače
+  // ADMIN přehrávač ovládání (ve VIEW se neukáže)
   bindAdminControls();
-  bindViewControls();
 
   // Render loop + mobilní auto-quality sledování
   engine.runRenderLoop(()=>{
@@ -1226,3 +1229,4 @@
   </script>
 </body>
 </html>
+``
