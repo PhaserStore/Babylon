@@ -30,7 +30,43 @@
       position:fixed;inset:0;display:block;touch-action:none;width:100vw;height:100vh;
       will-change: transform; transform: translateZ(0);
     }
+/* === VIEW: full-width bottom bar === */
+#scBar{
+  position:fixed; left:0; right:0; bottom:0;
+  height:54px; background:#1a1a1a;
+  border-top:1px solid rgba(255,255,255,.15);
+  display:flex; align-items:center; padding:0 14px; gap:20px;
+  z-index:50; font-size:13px; color:#eee; font-family:'Poppins', sans-serif;
+}
+body.admin #scBar{ display:none; }   /* schovat v ADMIN */
+body.view  #scBar{ display:flex; }   /* zobrazit ve VIEW */
 
+#scBar button{
+  width:34px; height:34px; border-radius:8px;
+  border:1px solid rgba(255,255,255,.15);
+  background:#2b2b2b; color:#fff; cursor:pointer;
+}
+#scBar button:hover{ background:#3a3a3a; }
+
+.sc-left{ display:flex; gap:6px; align-items:center; }
+
+/* progress bar */
+.sc-center{
+  flex:1; display:flex; align-items:center; gap:10px; user-select:none;
+}
+#scSeek{
+  flex:1; height:6px; background:#555; border-radius:4px; position:relative; cursor:pointer;
+}
+#scSeekFill{
+  position:absolute; left:0; top:0; bottom:0; width:0%;
+  background:#ff6a00; border-radius:4px;
+}
+
+.sc-right{
+  display:flex; align-items:center; gap:12px; min-width:260px;
+}
+#scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
+#barVol{ width:80px; }
     /* ===== ADMIN UI ===== */
     #ui{
       position:fixed;left:12px;right:12px;top:calc(12px + var(--safe-top));z-index:10;
