@@ -82,25 +82,30 @@
 
     body.admin #scWrap{ display:block }  /* zobrazit jen v admin módu */
 
-    /* === VIEW ovladače (jen ve VIEW) – PRAVÝ DOLNÍ ROH === */
-    #scControls{
-      position:fixed;
-      right:calc(12px + var(--safe-right));
-      bottom:calc(12px + var(--safe-bottom));
-      display:none; z-index:11;
-      background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px 10px;
-      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-    }
-    #scControls .row{ display:flex; align-items:center; gap:8px; }
-    #scControls button, #scControls input[type="range"]{
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
-    }
-    #scControls button:hover{ background:#575757 }
-    #scControls label{ color:#ddd; font-size:12px }
-    body.view #scControls{ display:block }     /* jen ve VIEW */
-    body.admin #scControls{ display:none }     /* skryj v ADMIN */
+    <!-- === VIEW: fullscreen bottom SoundCloud bar === -->
+<div id="scBar" aria-label="SoundCloud Bar (View)">
+  <div class="sc-left">
+    <button id="barPrev" title="Previous">⏮</button>
+    <button id="barPlay" title="Play">▶️</button>
+    <button id="barPause" title="Pause">⏸</button>
+  </div>
+
+  <div class="sc-center">
+    <span id="scTimeCur">0:00</span>
+    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <div id="scSeekFill"></div>
+    </div>
+    <span id="scTimeDur">0:00</span>
+  </div>
+
+  <div class="sc-right">
+    <button id="barMute" title="Mute/Unmute">🔈</button>
+    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+    <img id="scThumb" src="" alt="cover" />
+    <span id="scTitle">–</span>
+  </div>
+</div>
+``
 
     /* === VIEW: plovoucí fokus/reset ikona (větší) === */
     .focusIcon{
