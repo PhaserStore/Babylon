@@ -411,7 +411,34 @@ body.view  #scBar{ display:flex; }   /* zobrazit ve VIEW */
       scWidget = window.SC.Widget(iframe);
 
       scWidget.bind(window.SC.Widget.Events.READY, ()=>{
-        scReady = true;
+        sc// === NEW BAR UPDATE HELPERS ===
+function scUpdateTime(cur, dur){
+  const curEl = document.getElementById("scTimeCur");
+  const durEl = document.getElementById("scTimeDur");
+  if (!curEl || !durEl) return;
+  curEl.textContent = fmtTime(cur);
+  durEl.textContent = fmtTime(dur);
+}
+function scUpdateThumb(s){
+  const t = document.getElementById("scThumb");
+  if (!t) return;
+  let art = s?.artwork_url || s?.user?.avatar_url || "";
+  if (art) art = art.replace("-large.jpg","-t200x200.jpg");
+  t.src = art || "";
+}
+function scUpdateTitle(s){
+  const el = document.getElementById("scTitle");
+  if (!el) return;
+  if (!s){ el.textContent = "–"; return; }
+  el.textContent = s.title || "Unknown";
+}
+function scUpdateProgress(rel){
+  const fill = document.getElementById("scSeekFill");
+  if (!fill) return;
+  fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
+}
+``Ready = true;
+        
 
         // Volume init (admin > view fallback)
         const adminVol = document.getElementById('scVol');
