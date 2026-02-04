@@ -6,8 +6,8 @@
   <title>Virtual Gallery — LED · Layout · Publish</title>
 
   <!-- ✅ Poppins font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
@@ -63,7 +63,7 @@
     }
     body.view #publishBtn{display:none}
 
-    /* === SoundCloud panel (ADMIN only; jen desktop) === */
+    /* === SoundCloud panel (ADMIN only) === */
     #scWrap{
       position:fixed; z-index:12; left:12px; bottom:12px; width:min(420px, 92vw);
       background:var(--ui-bg); border:1px solid var(--ui-brd);
@@ -77,59 +77,40 @@
     }
     #scWrap button:hover{ background:#575757 }
     #scWrap .title{ font-size:12px; color:var(--txt-dim); margin-top:6px; }
+    /* Host pro iframe – vložíme až po prvním Play (lazy-load) */
     #scIframeHost{ width:100%; height:102px; border-radius:8px; overflow:hidden; background:#222; display:grid; place-items:center; color:#aaa }
-    body.admin.desktop #scWrap{ display:block }  /* jen v admin + desktop */
 
-    /* === VIEW: originální SoundCloud widget (kompaktní vpravo dole) === */
-    #scViewHost{
+    body.admin #scWrap{ display:block }  /* zobrazit jen v admin módu */
+
+    /* === VIEW ovladače (jen ve VIEW) – PRAVÝ DOLNÍ ROH === */
+    #scControls{
       position:fixed;
       right:calc(12px + var(--safe-right));
       bottom:calc(12px + var(--safe-bottom));
-      width:min(420px, 92vw);
-      height:110px;
-      background:var(--ui-bg);
-      border:1px solid var(--ui-brd);
-      border-radius:12px;
-      padding:6px;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      display:none; overflow:hidden; z-index:11;
-    }
-    #scViewHost iframe{ width:100%; height:100%; border:0; border-radius:8px; }
-    body.view.desktop #scViewHost{ display:block }
-    body.admin #scViewHost{ display:none }
-
-    /* Home ikonka (VIEW, vlevo dole) */
-    #homeBtn{
-      position:fixed;
-      left:calc(12px + var(--safe-left));
-      bottom:calc(12px + var(--safe-bottom));
-      width:44px; height:44px;
-      display:none; place-items:center; z-index:11;
+      display:none; z-index:11;
       background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px;
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      cursor:pointer; user-select:none;
-      transition: background .2s ease;
+      border-radius:12px; padding:8px 10px;
+      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
     }
-    #homeBtn:hover{ background:rgba(80,80,85,.55) }
-    body.view.desktop #homeBtn{ display:grid }
-    body.admin #homeBtn{ display:none }
-
-    /* Mobile = žádný přehrávač ani home */
-    body.mobile #scWrap,
-    body.mobile #scViewHost,
-    body.mobile #homeBtn{ display:none !important; }
+    #scControls .row{ display:flex; align-items:center; gap:8px; }
+    #scControls button, #scControls input[type="range"]{
+      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
+      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
+    }
+    #scControls button:hover{ background:#575757 }
+    #scControls label{ color:#ddd; font-size:12px }
+    body.view #scControls{ display:block }     /* jen ve VIEW */
+    body.admin #scControls{ display:none }     /* skryj v ADMIN */
   </style>
 
   <!-- ✅ Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 
-  <!-- ⚠️ SoundCloud API lazy-load (jen když se poprvé spustí) -->
+  <!-- ⚠️ SoundCloud API NELOADOVAT zde; načteme ho dynamicky až při Play -->
 </head>
 
-<!-- Start: VIEW mód -->
+<!-- Startujeme rovnou ve VIEW módu -->
 <body class="view">
   <button id="publishBtn">Publish to GitHub</button>
 
@@ -165,14 +146,13 @@
     <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik/Double‑tap = přiblížení na bod. Klik na cedulku = skrytá URL.</div>
   </div>
 
-  <!-- === SoundCloud (ADMIN) – zůstává (jen desktop & admin) === -->
+  <!-- === SoundCloud (ADMIN) – widget lazy-load na první Play === -->
   <div id="scWrap" aria-label="SoundCloud Player (Admin)">
     <div class="row" style="justify-content:space-between">
       <strong>🎧 Detroit Techno</strong>
       <span class="title" id="scNow">Idle</span>
     </div>
-
-    <!-- <iframe> se vloží až při prvním Play -->
+    <!-- Sem se při Play vloží <iframe id="scIframe"> -->
     <div id="scIframeHost"><small>Player will load on first Play</small></div>
 
     <div class="row" style="margin-top:8px">
@@ -186,16 +166,17 @@
     </div>
   </div>
 
-  <!-- === VIEW: originální SoundCloud widget (jen desktop View) === -->
-  <div id="scViewHost" aria-label="SoundCloud Player (View)"></div>
-
-  <!-- === VIEW: Home ikonka pro reset kamery (bez vlivu na hudbu) === -->
-  <div id="homeBtn" aria-label="Reset kamery" title="Reset kamery">
-    <!-- Bílý outline „Home“ (SVG) -->
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M3 11.5l9-7 9 7" />
-      <path d="M5 10.5V19a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-8.5" />
-    </svg>
+  <!-- === VIEW ovladače (bez widgetu) – pravý dolní roh === -->
+  <div id="scControls" aria-label="Audio Controls (View)">
+    <div class="row">
+      <button id="vPrev" title="Previous">⏮</button>
+      <button id="vPlay" title="Play">▶️</button>
+      <button id="vPause" title="Pause">⏸</button>
+      <button id="vNext" title="Next">⏭</button>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
+        Vol: <input id="vVol" type="range" min="0" max="100" value="70" />
+      </label>
+    </div>
   </div>
 
   <!-- ===== Canvas ===== -->
@@ -289,21 +270,16 @@
   "use strict";
 
   const MODE = { ADMIN: "admin", VIEW: "view" };
-  let mode = MODE.VIEW;       // start ve VIEW
+  let mode = MODE.VIEW; // start ve VIEW
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
-  // Označ body class podle zařízení (kvůli CSS zobrazování panelů)
-  document.body.classList.toggle('mobile', IS_MOBILE);
-  document.body.classList.toggle('desktop', !IS_MOBILE);
-
-  /* ==== SoundCloud LAZY-LOAD (jen desktop) ==== */
+  /* ==== SoundCloud LAZY-LOAD ==== */
   const SC_PLAYLIST_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
   let scWidget = null, scReady = false, scLoading = false;
 
   function loadScApiOnce(){
     return new Promise((resolve, reject)=>{
-      if (IS_MOBILE) return reject(new Error("Mobile: SC API disabled"));
       if (window.SC && window.SC.Widget) return resolve();
       const s = document.createElement('script');
       s.src = "https://w.soundcloud.com/player/api.js";
@@ -314,18 +290,11 @@
     });
   }
 
-  function getScHost(){
-    if (mode === MODE.ADMIN) return document.getElementById('scIframeHost');
-    const v = document.getElementById('scViewHost');
-    if (v) return v;
-    return document.getElementById('scIframeHost') || document.body;
-  }
-
   function mountScIframeOnce(){
     return new Promise((resolve)=>{
-      const host = getScHost();
+      const host = document.getElementById('scIframeHost');
       if (!host) return resolve(null);
-      let iframe = host.querySelector('iframe#scIframe');
+      let iframe = host.querySelector('iframe');
       if (iframe) return resolve(iframe);
 
       const url = "https://w.soundcloud.com/player/?"
@@ -340,22 +309,15 @@
       iframe.setAttribute("scrolling","no");
       iframe.setAttribute("frameborder","no");
       iframe.style.width = "100%";
-      iframe.style.height= (mode === MODE.ADMIN) ? "102px" : "100%";
+      iframe.style.height= "102px";
       iframe.style.border = "0";
       iframe.style.borderRadius = "8px";
       iframe.src = url;
 
-      if (host.id === 'scIframeHost' || host.id === 'scViewHost') host.innerHTML = "";
+      host.innerHTML = "";
       host.appendChild(iframe);
       resolve(iframe);
     });
-  }
-
-  function setNowPlaying(prefix, title){
-    const tAdmin = document.getElementById('scNow');
-    const txt = title ? `${prefix}: ${title}` : prefix;
-    if (tAdmin) tAdmin.textContent = txt;
-    // VIEW nepoužívá text statusu (jen originální widget), ale admin ano
   }
 
   function initScWidgetOnce(){
@@ -368,23 +330,24 @@
       scWidget.bind(window.SC.Widget.Events.READY, ()=>{
         scReady = true;
 
-        // Volume init (perzistentní)
+        // Volume init (admin > view fallback)
         const adminVol = document.getElementById('scVol');
-        const defaultVol = Math.max(0, Math.min(100, +(adminVol?.value || 80)));
-        const savedVol   = Math.max(0, Math.min(100, +(localStorage.getItem('scVol') || defaultVol)));
-        scWidget.setVolume(savedVol);
-        if (adminVol) adminVol.value = savedVol;
+        const viewVol  = document.getElementById('vVol');
+        const vol = Math.max(0, Math.min(100, +(adminVol?.value || viewVol?.value || 80)));
+        scWidget.setVolume(vol);
 
+        // Titulek
         scWidget.getCurrentSound((s)=>{
-          setNowPlaying('Ready', s?.title || '');
+          const el = document.getElementById('scNow');
+          if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
         });
 
-        // Statusy (admin status label)
         scWidget.bind(window.SC.Widget.Events.PLAY, ()=>{
-          scWidget.getCurrentSound((s)=> setNowPlaying('Now', s?.title || ''));
+          scWidget.getCurrentSound((s)=>{
+            const el = document.getElementById('scNow');
+            if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Playing…';
+          });
         });
-        scWidget.bind(window.SC.Widget.Events.PAUSE, ()=> setNowPlaying('Paused',''));
-        scWidget.bind(window.SC.Widget.Events.FINISH,()=> setNowPlaying('Finished',''));
 
         resolve(scWidget);
       });
@@ -392,14 +355,13 @@
   }
 
   async function ensureScReadyAndPlay(){
-    if (IS_MOBILE) return;
     if (scLoading) return;
     scLoading = true;
     try{
       await loadScApiOnce();
       await mountScIframeOnce();
       const w = await initScWidgetOnce();
-      if (w) w.play();   // uživatelské gesto → povoleno
+      if (w) w.play(); // v rámci uživatelského gesta → povoleno
     }catch(e){
       console.warn("SC lazy-load failed:", e);
     }finally{
@@ -407,9 +369,7 @@
     }
   }
 
-  // ADMIN ovladače (ponechány, ale ve VIEW skryté)
   function bindAdminControls(){
-    if (IS_MOBILE) return;
     const prev = document.getElementById('scPrev');
     const next = document.getElementById('scNext');
     const play = document.getElementById('scPlay');
@@ -422,7 +382,23 @@
     if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
     if (vol)   vol.addEventListener('input',   (e)=>{
       const v = Math.max(0, Math.min(100, +e.target.value || 80));
-      localStorage.setItem('scVol', String(v));
+      if (scReady && scWidget) scWidget.setVolume(v);
+    });
+  }
+
+  function bindViewControls(){
+    const prev = document.getElementById('vPrev');
+    const next = document.getElementById('vNext');
+    const play = document.getElementById('vPlay');
+    const pause= document.getElementById('vPause');
+    const vol  = document.getElementById('vVol');
+
+    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
+    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
+    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
+    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
+    if (vol)   vol.addEventListener('input',   (e)=>{
+      const v = Math.max(0, Math.min(100, +e.target.value || 70));
       if (scReady && scWidget) scWidget.setVolume(v);
     });
   }
@@ -460,8 +436,10 @@
     document.body.classList.toggle('admin', m === MODE.ADMIN);
     hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
 
-    // POZOR: dříve se při přechodu do VIEW pauzovalo. Teď necháváme hudbu hrát dál.
-    // if (m === MODE.VIEW && scReady && scWidget) scWidget.pause();  // ❌ odstraněno
+    // Při přechodu do VIEW pauzneme (uživatel spustí Play ručně)
+    if (m === MODE.VIEW){
+      if (scReady && scWidget) scWidget.pause();
+    }
   }
 
   // Klávesové přepínání (desktop)
@@ -528,25 +506,62 @@
   const MIN_RADIUS = 0.28;
   const MAX_RADIUS = 40;
 
+  function createScene(){
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
+
+    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
+    camera.attachControl(canvas, true);
+
+    // Anti-flicker
+    camera.minZ = 0.2;
+    camera.maxZ = 200;
+
+    camera.lowerBetaLimit = 0.1;
+    camera.upperBetaLimit = Math.PI - 0.1;
+    camera.lowerRadiusLimit = MIN_RADIUS;
+    camera.upperRadiusLimit = MAX_RADIUS;
+
+    camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
+    camera.pinchDeltaPercentage = IS_MOBILE ? 0.006 : 0.008;
+    camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
+
+    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 18 : 48 });
+    glow.intensity = IS_MOBILE ? 0.5 : 0.9;
+
+    hl = new BABYLON.HighlightLayer("hl", scene);
+
+    buildRoom();
+    buildLED();
+    buildGalleryLogo();
+
+    setupPicking();
+    setupZoomUX();
+    return scene;
+  }
+
+  /* =========================
+     ROOM + LED
+  ========================= */
   function unlit(hex){
     const m=new BABYLON.StandardMaterial("m",scene);
     m.diffuseColor=BABYLON.Color3.FromHexString(hex);
     m.disableLighting=true;
     return m;
   }
-  function unlitTexDT(dt,{doubleSided=false, hasAlpha=false}={}){
+  function unlitTex(tex,{doubleSided=false}={}){
     const m=new BABYLON.StandardMaterial("mt",scene);
     m.disableLighting = true;
-    m.diffuseTexture  = dt;
-    m.emissiveTexture = dt;
+    m.diffuseTexture  = tex;
+    m.emissiveTexture = tex;
     m.backFaceCulling = !doubleSided;
-    if (hasAlpha){
-      dt.hasAlpha = true;
-      m.opacityTexture = dt;
+    if (tex) {
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      tex.anisotropicFilteringLevel = MAX_ANISO || 4;
     }
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
     return m;
   }
 
@@ -676,6 +691,16 @@
     return dt;
   }
 
+  function drawFitted(ctx,bmp,frameW,frameH){
+    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
+    if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
+    else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
+  }
+
   function drawChecker(ctx, w, h) {
     const tile = 32;
     for (let y = 0; y < h; y += tile) {
@@ -692,13 +717,22 @@
   let FRAME_COLOR = "#717171";
 
   /* === FAKE stínování rámů – MultiMaterial === */
-  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true}={}){
+  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
     const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     const ctx = dt.getContext();
     ctx.clearRect(0,0,w,h);
-    const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
-    g.addColorStop(0, from); g.addColorStop(1, to);
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    if (radial){
+      const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
+      const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
+      g.addColorStop(0, from);
+      g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    } else {
+      const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
+      g.addColorStop(0, from);
+      g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    }
     dt.update();
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     dt.anisotropicFilteringLevel = MAX_ANISO || 4;
@@ -748,12 +782,140 @@
     return mm;
   }
 
-  // === LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+  // Cedulka (plaketa)
+  function drawPlacard(plac, data, rotY, planeW, planeH){
+    const texWFull = TEX_SIZE;
+    const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
+    const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
+    const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
+
+    const dt = makeDT("pl", texW, texH, !IS_MOBILE);
+    const c = dt.getContext();
+    c.fillStyle = "#6b6b6b";
+    c.fillRect(0,0,texW,texH);
+
+    const pad = Math.round(texH * 0.12);
+    const maxW = texW - pad*2;
+
+    c.fillStyle = "#ffffff";
+    c.textAlign = "center";
+    c.textBaseline = "top";
+    const lineH = Math.round(texH * 0.34);
+    const fontSize = Math.max(18, Math.round(lineH * 0.78));
+    c.font = `600 ${fontSize}px Poppins, system-ui`;
+
+    const text = (data.title || "(bez názvu)").trim();
+    const words = text.split(/\s+/);
+    const lines = [];
+    let buf = "";
+    for (let w of words){
+      const test = buf ? (buf + " " + w) : w;
+      if (c.measureText(test).width <= maxW) buf = test;
+      else { if (buf) lines.push(buf); buf = w; }
+    }
+    if (buf) lines.push(buf);
+
+    const maxLines = 2;
+    if (lines.length > maxLines){
+      const keep = lines.slice(0, maxLines);
+      let last = keep[maxLines-1];
+      while (c.measureText(last + "…").width > maxW && last.length>0) last = last.slice(0,-1);
+      keep[maxLines-1] = last + "…";
+      lines.length = 0; Array.prototype.push.apply(lines, keep);
+    }
+
+    const blockH = lines.length * lineH;
+    const startY = Math.max(pad, Math.round((texH - blockH)/2));
+    lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
+
+    dt.update();
+    const mat = unlitTex(dt, { doubleSided:false });
+    mat.zOffset = -2; // anti z-fighting
+    plac.material = mat;
+  }
+
+  function normalOffset(rotY, dist){
+    const nx = Math.sin(rotY) * dist;
+    const nz = Math.cos(rotY) * dist;
+    return new BABYLON.Vector3(nx, 0, nz);
+  }
+
+  function addFrame(pos, rotY=0, wall='front'){
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+      depth: 0.06
+    }, scene);
+    box.position = pos.add(normalOffset(rotY, 0.0));
+    box.rotation.y = rotY;
+    box.isPickable = true;
+
+    // Submeshe + MultiMaterial
+    box.subMeshes = [];
+    const indices = box.getIndices();
+    const verticesCount = box.getTotalVertices();
+    let idx = 0;
+    const perFace = indices.length / 6;
+    for (let f = 0; f < 6; f++){
+      new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
+      idx += perFace;
+    }
+    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+
+    // Přední obrazová plocha
+    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+      width: FRAME_SIZE.W,
+      height: FRAME_SIZE.H,
+      sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    f.position = pos.add(normalOffset(rotY, 0.04));
+    f.rotation.y = rotY + Math.PI;
+    f.isPickable = true;
+
+    const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
+    const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
+    const fMat = unlitTex(dt,{doubleSided:false});
+    fMat.zOffset = -1;
+    f.material  = fMat;
+
+    // Cedulka
+    const placW = FRAME_SIZE.W;
+    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
+    plac.rotation.y = rotY + Math.PI;
+    plac.isPickable = true;
+
+    const data = { title: "(bez názvu)", url: "", src: "" };
+    drawPlacard(plac, data, rotY, placW, placH);
+
+    return { frame:f, box, placard:plac, data, wall, rotY, pos };
+  }
+
+  /* =========================
+     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+  ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
+  </g>
+  <g>
+    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
@@ -761,9 +923,6 @@
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
-  const LOGO_EXTRA_UP = 0.60;
-
-  let lastLogoY = null, lastLogoW = null;
 
   function buildGalleryLogo(){
     const img = new Image();
@@ -791,10 +950,7 @@
 
       const logoW = ROOM.W * LOGO_SCALE;
       const logoH = LOGO_HEIGHT_M;
-
-      const baseY = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
-      const yPos  = baseY + LOGO_EXTRA_UP;
-      lastLogoY = yPos; lastLogoW = logoW;
+      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
 
       function placeLogo(z, rotY, idx){
         const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
@@ -805,81 +961,9 @@
       }
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-
-      buildTypeSigns();
-      hint("Logo posunuto nahoru + typovací nápisy vykresleny.");
+      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
     };
     img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
-  }
-
-  /* =========================
-     3D „cedule“ s typografickým nápisem
-  ========================= */
-  const TYPE_TEXT = "welcome to the phaser shop";
-  const TYPE_MS   = 70;
-  const BLINK_MS  = 500;
-  let typeTimers = [];
-
-  function makeTypeTexture(wPx, hPx){
-    const dt = new BABYLON.DynamicTexture("typeDT_"+Math.random(), {width:wPx, height:hPx}, scene, true);
-    dt.hasAlpha = true;
-    return dt;
-  }
-
-  function drawTypeText(dt, text, {fontPx=64, caret=true}={}){
-    const ctx = dt.getContext();
-    ctx.clearRect(0,0,dt.getSize().width, dt.getSize().height);
-    ctx.font = `600 ${fontPx}px Poppins, system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#ffffff";
-
-    const t = caret ? (text + " |") : text;
-    ctx.fillText(t, dt.getSize().width/2, dt.getSize().height/2);
-    dt.update();
-  }
-
-  function buildOneTypeSign({side, z, rotY}){
-    const planeW = Math.max(2.0, (lastLogoW || ROOM.W*LOGO_SCALE) * 0.95);
-    const planeH = 0.9;
-
-    const sign = BABYLON.MeshBuilder.CreatePlane("typeSign_"+side, {width:planeW, height:planeH}, scene);
-    const yText = (lastLogoY || (ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80 + LOGO_EXTRA_UP)) - 1.05;
-    sign.position.set(0, yText, z + Math.sign(z)*0.01);
-    sign.rotation.y = rotY;
-
-    const texW = nearestPOT(1024), texH = nearestPOT(256);
-    const dt = makeTypeTexture(texW, texH);
-    const mat = unlitTexDT(dt, {doubleSided:false, hasAlpha:true});
-    mat.alpha = 1.0;
-    sign.material = mat;
-
-    let i=0, caret=true;
-    const fitFontPx = Math.min(120, Math.max(48, Math.round(texH*0.55)));
-    drawTypeText(dt, "", {fontPx:fitFontPx, caret:true});
-
-    const typer = setInterval(()=>{
-      if (i < TYPE_TEXT.length){
-        i++;
-        drawTypeText(dt, TYPE_TEXT.slice(0,i), {fontPx:fitFontPx, caret:true});
-      } else {
-        clearInterval(typer);
-      }
-    }, TYPE_MS);
-
-    const blinker = setInterval(()=>{
-      caret = !caret;
-      const base = TYPE_TEXT.slice(0, Math.min(i, TYPE_TEXT.length));
-      drawTypeText(dt, base, {fontPx:fitFontPx, caret});
-    }, BLINK_MS);
-
-    typeTimers.push(typer, blinker);
-    return sign;
-  }
-
-  function buildTypeSigns(){
-    buildOneTypeSign({ side:"back",  z:-ROOM.D/2 + FRONT_BACK_OFFSET + 0.05, rotY:Math.PI });
-    buildOneTypeSign({ side:"front", z: ROOM.D/2 - FRONT_BACK_OFFSET - 0.05, rotY:0 });
   }
 
   /* =========================
@@ -903,63 +987,6 @@
       for (let i=0;i<count;i++) centers.push(min + i*step);
     }
     return centers;
-  }
-
-  function addFrame(pos, rotY=0, wall='front'){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-      depth: 0.06
-    }, scene);
-    box.position = pos.add(new BABYLON.Vector3(Math.sin(rotY)*0,0,Math.cos(rotY)*0));
-    box.rotation.y = rotY;
-    box.isPickable = true;
-
-    box.subMeshes = [];
-    const indices = box.getIndices();
-    const verticesCount = box.getTotalVertices();
-    let idx = 0;
-    const perFace = indices.length / 6;
-    for (let f = 0; f < 6; f++){ new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box); idx += perFace; }
-    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
-
-    const f = BABYLON.MeshBuilder.CreatePlane("frame", { width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
-    f.position = pos.add(new BABYLON.Vector3(Math.sin(rotY)*0.04,0,Math.cos(rotY)*0.04));
-    f.rotation.y = rotY + Math.PI;
-    f.isPickable = true;
-
-    const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
-    const ctx = dt.getContext();
-    (function drawCheckerLocal(){
-      const tile=32; for(let y=0;y<TEX_SIZE;y+=tile){ for(let x=0;x<TEX_SIZE;x+=tile){ const even=((x/tile)+(y/tile))%2===0; ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4"; ctx.fillRect(x,y,tile,tile); } }
-      dt.update();
-    })();
-    const fMat = unlitTexDT(dt,{doubleSided:false});
-    fMat.zOffset = -1;
-    f.material  = fMat;
-
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac", { width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(new BABYLON.Vector3(Math.sin(rotY)*0.03,0,Math.cos(rotY)*0.03));
-    plac.rotation.y = rotY + Math.PI;
-    plac.isPickable = true;
-
-    const data = { title: "(bez názvu)", url: "", src: "" };
-    (function drawPlacard(){
-      const texW=512, texH=128;
-      const pdt = makeDT("placDT"+Math.random(), texW, texH, true);
-      const c = pdt.getContext();
-      c.clearRect(0,0,texW,texH);
-      c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
-      c.fillStyle = "#fff"; c.textAlign="center"; c.textBaseline="middle";
-      c.font = "600 36px Poppins, system-ui";
-      c.fillText(data.title, texW/2, texH/2);
-      pdt.update();
-      plac.material = unlitTexDT(pdt,{doubleSided:false});
-    })();
-
-    return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
   function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
@@ -1030,25 +1057,18 @@
       img.decoding = "async";
       img.onload = ()=>{
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
-        const ctx=dt.getContext();
-        const frameW=FRAME_SIZE.W, frameH=FRAME_SIZE.H;
-        const targetR=frameW/frameH, r=img.width/img.height;
-        let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
-        if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
-        else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
-        ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
-        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img,0,0,img.width,img.height,dx,dy,dw,dh);
-        dt.update();
-        const mat = unlitTexDT(dt,{doubleSided:false});
+        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+        const mat = unlitTex(dt,{doubleSided:false});
         mat.zOffset = -1;
         targetItem.frame.material = mat;
         autosave();
       };
       img.onerror = ()=>{
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, false);
-        const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
-        targetItem.frame.material = unlitTexDT(dt,{doubleSided:false});
+        const ctx = dt.getContext();
+        drawChecker(ctx, TEX_SIZE, TEX_SIZE);
+        dt.update();
+        targetItem.frame.material = unlitTex(dt,{doubleSided:false});
       };
       img.src = url;
     };
@@ -1062,16 +1082,11 @@
         it.data.src   = d.img   || it.data.src || "";
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
+        drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
 
-        const texW=512, texH=128;
-        const pdt = makeDT("placDT"+Math.random(), texW, texH, true);
-        const c = pdt.getContext();
-        c.clearRect(0,0,texW,texH); c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
-        c.fillStyle = "#fff"; c.textAlign="center"; c.textBaseline="middle";
-        c.font = "600 36px Poppins, system-ui"; c.fillText(it.data.title, texW/2, texH/2); pdt.update();
-        it.placard.material = unlitTexDT(pdt,{doubleSided:false});
-
-        if (d.img){ if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it); }
+        if (d.img){
+          if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it);
+        }
       }
     });
   }
@@ -1118,55 +1133,18 @@
     finally { applying = false; }
   });
 
-  // Reset kamery (UI button)
   $("btnResetCam").addEventListener("click", ()=>{
     camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius=11.5;
     hint("Kamera resetována.");
   });
 
-  // VIEW: Home ikonka – reset kamery (bez vlivu na hudbu)
-  $("homeBtn")?.addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius=11.5;
-    hint("Kamera resetována.");
-  });
-
-  // Scene
-  function createScene(){
-    scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
-
-    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
-    camera.attachControl(canvas, true);
-    camera.minZ = 0.2; camera.maxZ = 200;
-    camera.lowerBetaLimit = 0.1; camera.upperBetaLimit = Math.PI - 0.1;
-    camera.lowerRadiusLimit = MIN_RADIUS; camera.upperRadiusLimit = MAX_RADIUS;
-    camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
-    camera.pinchDeltaPercentage  = IS_MOBILE ? 0.006 : 0.008;
-    camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
-
-    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
-
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 18 : 48 });
-    glow.intensity = IS_MOBILE ? 0.5 : 0.9;
-
-    hl = new BABYLON.HighlightLayer("hl", scene);
-
-    buildRoom();
-    buildLED();
-    buildGalleryLogo();
-
-    setupPicking();
-    setupZoomUX();
-    return scene;
-  }
-
   // Boot
   createScene();
 
-  // ADMIN přehrávač ovládání (ve VIEW se neukáže)
+  // SC ovladače (lazy-load až na Play)
   bindAdminControls();
+  bindViewControls();
 
   // Render loop + mobilní auto-quality sledování
   engine.runRenderLoop(()=>{
@@ -1213,20 +1191,16 @@
   // iOS – zamezit stránkovému pinch/gesture (ruší canvas)
   document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
-  // Start mód: VIEW
+  // Start mód: VIEW (viz body.class="view")
   setMode(MODE.VIEW);
 
   (async function boot(){
     await ensurePoppins();
     await applyLayoutFromUI();
     handleResize();
-    console.log("✔ Boot hotovo – start ve VIEW. Desktop: A=ADMIN · V=VIEW. Mobil: bez přehrávače.");
+    console.log("✔ Boot hotovo – start ve VIEW. Klávesy: 'A' ADMIN · 'V' VIEW (VIEW ovladače vpravo dole).");
   })();
-
-  // Úklid timerů při vypnutí scény
-  scene?.onDisposeObservable.add(()=>{ typeTimers.forEach(t=>clearInterval(t)); });
 
   </script>
 </body>
 </html>
-``
