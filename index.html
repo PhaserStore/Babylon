@@ -522,16 +522,85 @@
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171";
 
-  function makeFrameBoxMaterial(){
-    const m = new BABYLON.StandardMaterial("frameBoxMat", scene);
-    const c = BABYLON.Color3.FromHexString(FRAME_COLOR);
-    m.diffuseColor   = c;
-    m.emissiveColor  = c;
-    m.specularColor  = new BABYLON.Color3(0,0,0);
-    m.disableLighting = true;
-    m.backFaceCulling = false;
-    return m;
+  // ======================================================================
+  // [NEW] FAKE STÍNOVÁNÍ BEZ SVĚTEL – MultiMaterial + gradientové textury
+  // ======================================================================
+
+  // [NEW] Jednoduchý generátor gradientové DynamicTexture
+  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
+    const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    const ctx = dt.getContext();
+    ctx.clearRect(0,0,w,h);
+
+    if (radial){
+      const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
+      const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
+      g.addColorStop(0, from);
+      g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    } else {
+      const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
+      g.addColorStop(0, from);
+      g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    }
+    dt.update();
+    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+    return dt;
   }
+
+  // [NEW] Lighten/darken pomocné
+  function lighten(col, f){ return new BABYLON.Color3(
+    Math.min(1, col.r + (1-col.r)*f),
+    Math.min(1, col.g + (1-col.g)*f),
+    Math.min(1, col.b + (1-col.b)*f)
+  );}
+  function darken(col, f){ return new BABYLON.Color3(
+    Math.max(0, col.r*(1-f)),
+    Math.max(0, col.g*(1-f)),
+    Math.max(0, col.b*(1-f))
+  );}
+
+  // [NEW] MultiMaterial pro krabici rámu:
+  // pořadí submeshů = [front, back, right, left, top, bottom]
+  function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
+    const c = BABYLON.Color3.FromHexString(baseHex);
+
+    const topLight    = lighten(c, 0.20).toHexString();
+    const bottomDark  = darken(c,  0.25).toHexString();
+    const sideMidTop  = lighten(c, 0.08).toHexString();
+    const sideMidBot  = darken(c,  0.12).toHexString();
+    const frontTop    = lighten(c, 0.12).toHexString();
+    const frontBot    = darken(c,  0.18).toHexString();
+    const backCol     = darken(c,  0.10).toHexString();
+
+    const W=256,H=256;
+    const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
+    const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
+    const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+    const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+    const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});   // horní světlejší
+    const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});  // dolní tmavší
+
+    const mk = (name, dt)=>{
+      const m = new BABYLON.StandardMaterial(name, scene);
+      m.disableLighting = true;
+      m.diffuseTexture  = dt;
+      m.emissiveTexture = dt;
+      m.specularColor   = new BABYLON.Color3(0,0,0);
+      m.backFaceCulling = false;
+      m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      return m;
+    };
+
+    // pořadí: [front, back, right, left, top, bottom]
+    const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
+    const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
+    mats.forEach(m => mm.subMaterials.push(m));
+    return mm;
+  }
+  // ===================== konec: fake shading ==============================
 
   // Cedulka (centrum; MOBILE: menší textura do šířky)
   function drawPlacard(plac, data, rotY, planeW, planeH){
@@ -591,110 +660,60 @@
     return new BABYLON.Vector3(nx, 0, nz);
   }
 
-  // === 1) Pomocné funkce pro gradienty ===
-function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}) {
-  const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-  const ctx = dt.getContext();
-  ctx.clearRect(0,0,w,h);
+  function addFrame(pos, rotY=0, wall='front'){
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+      depth: 0.06
+    }, scene);
+    box.position = pos.add(normalOffset(rotY, 0.0));
+    box.rotation.y = rotY;
+    box.isPickable = true;
 
-  if (radial){
-    const cx = w/2, cy = h/2, r = Math.sqrt(cx*cx + cy*cy);
-    const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
-    g.addColorStop(0, from);
-    g.addColorStop(1, to);
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
-  } else {
-    const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
-    g.addColorStop(0, from);
-    g.addColorStop(1, to);
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
+    // [CHANGED] – rozřezání boxu na 6 submeshů + MultiMaterial s gradienty
+    box.subMeshes = [];
+    const indices = box.getIndices();
+    const verticesCount = box.getTotalVertices();
+    let idx = 0;
+    const perFace = indices.length / 6;
+    for (let f = 0; f < 6; f++){
+      new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
+      idx += perFace;
+    }
+    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR); // gradientový MultiMaterial
+
+    // Přední obrazová plocha
+    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+      width: FRAME_SIZE.W,
+      height: FRAME_SIZE.H,
+      sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    f.position = pos.add(normalOffset(rotY, 0.04));
+    f.rotation.y = rotY + Math.PI;
+    f.isPickable = true;
+
+    const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
+    const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
+    const fMat = unlitTex(dt,{doubleSided:false});
+    fMat.zOffset = -1;
+    f.material  = fMat;
+
+    // Cedulka
+    const placW = FRAME_SIZE.W;
+    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
+    plac.rotation.y = rotY + Math.PI;
+    plac.isPickable = true;
+
+    const data = { title: "(bez názvu)", url: "", src: "" };
+    drawPlacard(plac, data, rotY, placW, placH);
+
+    return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-  dt.update();
-  return dt;
-}
-
-// === 2) MultiMaterial pro box ===
-// Strany: 0: předek, 1: zadek, 2: pravá, 3: levá, 4: dole, 5: nahoře
-function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
-  // Základní odstín
-  const c = BABYLON.Color3.FromHexString(baseHex);
-  const toHex = (x)=> '#' + x.toHexString().slice(3); // Color3 -> #rrggbb
-
-  // Vypočti světlejší/tmavší varianty
-  const lighten = (col, f)=> new BABYLON.Color3(
-    Math.min(1, col.r + (1-col.r)*f),
-    Math.min(1, col.g + (1-col.g)*f),
-    Math.min(1, col.b + (1-col.b)*f)
-  );
-  const darken  = (col, f)=> new BABYLON.Color3(
-    Math.max(0, col.r*(1-f)),
-    Math.max(0, col.g*(1-f)),
-    Math.max(0, col.b*(1-f))
-  );
-
-  const topLight    = toHex(lighten(c, 0.20)); // světlejší nahoře
-  const sideMidTop  = toHex(lighten(c, 0.08));
-  const sideMidBot  = toHex(darken(c,  0.12));
-  const bottomDark  = toHex(darken(c,  0.25));
-  const frontTop    = toHex(lighten(c, 0.12));
-  const frontBot    = toHex(darken(c,  0.18));
-  const backCol     = toHex(darken(c,  0.10));
-
-  // Textury (rozměry malé – stačí 256)
-  const W = 256, H = 256;
-  const dtFront = makeGradDT("frm_front", W, H, {from:frontTop, to:frontBot, vertical:true});
-  const dtBack  = makeGradDT("frm_back",  W, H, {from:backCol,  to:backCol,  vertical:true});
-  const dtRight = makeGradDT("frm_right", W, H, {from:sideMidTop,to:sideMidBot,vertical:true});
-  const dtLeft  = makeGradDT("frm_left",  W, H, {from:sideMidTop,to:sideMidBot,vertical:true});
-  const dtBottom= makeGradDT("frm_bottom",W, H, {from:bottomDark,to:bottomDark,vertical:true}); // spodek tmavý
-  const dtTop   = makeGradDT("frm_top",   W, H, {from:topLight,  to:topLight,  vertical:true}); // vršek světlý
-
-  const mk = (name, dt)=>{
-    const m = new BABYLON.StandardMaterial(name, scene);
-    m.disableLighting = true;
-    m.diffuseTexture = dt;
-    m.emissiveTexture = dt;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    m.backFaceCulling = false;
-    m.diffuseTexture.wrapU = m.diffuseTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    return m;
-  };
-
-  const mats = [
-    mk("m_front", dtFront),
-    mk("m_back",  dtBack),
-    mk("m_right", dtRight),
-    mk("m_left",  dtLeft),
-    mk("m_bottom",dtBottom),
-    mk("m_top",   dtTop),
-  ];
-
-  const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
-  mats.forEach(m => mm.subMaterials.push(m));
-  return mm;
-}
-
-// === 3) Použití v addFrame() ===
-// Nahraď:
-//   box.material = makeFrameBoxMaterial();
-// tímto:
-box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
-
-// A přidej subMesh slicing hned po vytvoření boxu:
-box.subMeshes = [];
-const indices = box.getIndices();
-const verticesCount = box.getTotalVertices();
-// Babylon při CreateBox dělá 6 ploch v pořadí [front, back, right, left, bottom, top],
-// proto rovnou vytvoříme 6 submeshů po sobě:
-let idx = 0;
-for (let f = 0; f < 6; f++){
-  const subLen = indices.length / 6;
-  new BABYLON.SubMesh(f, 0, verticesCount, idx, subLen, box);
-  idx += subLen;
-}
     /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
@@ -985,4 +1004,3 @@ for (let f = 0; f < 6; f++){
   </script>
 </body>
 </html>
-``
