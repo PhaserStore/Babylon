@@ -24,14 +24,12 @@
     }
     html,body{
       width:100%;height:100%;margin:0;overflow:hidden;background:#111;
-      font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--txt);
+      font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--txt);
     }
+    /* Canvas vyplní celou obrazovku + tipy pro ostrý compositing v Edgi */
     #renderCanvas{
-      position:fixed;inset:0;display:block;touch-action:none;
-      width:100vw;height:100vh;
-      will-change: transform;
-      transform: translateZ(0);
+      position:fixed;inset:0;display:block;touch-action:none;width:100vw;height:100vh;
+      will-change: transform; transform: translateZ(0);
     }
 
     /* ===== ADMIN UI ===== */
@@ -41,26 +39,17 @@
       background:var(--ui-bg);border:1px solid var(--ui-brd);
       border-radius:12px;padding:10px 12px;color:#fff;backdrop-filter:blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      overflow:auto; scrollbar-width:thin;
-      max-height:40vh;
+      overflow:auto; scrollbar-width:thin; max-height:40vh;
     }
     @media (max-width: 900px){
       #ui{flex-wrap:nowrap;overflow:auto;white-space:nowrap;}
       #ui::-webkit-scrollbar{height:6px}
     }
-
-    .group{
-      display:flex;gap:8px;align-items:center;background:var(--ui-chip);
-      padding:8px 10px;border-radius:10px
-    }
-    input,button{
-      padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a;color:#fff;min-height:36px
-    }
+    .group{display:flex;gap:8px;align-items:center;background:var(--ui-chip);padding:8px 10px;border-radius:10px}
+    input,button{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#3a3a3a;color:#fff;min-height:36px}
     input[type="number"]{width:80px}
     input[type="color"]{padding:0 4px;height:36px;min-width:44px;border-radius:8px;background:#3a3a3a}
-    button{cursor:pointer}
-    button:hover{background:#575757}
+    button{cursor:pointer} button:hover{background:#575757}
     label{display:flex;gap:6px;align-items:center}
     #hint{flex-basis:100%;font-size:12px;color:var(--txt-dim);white-space:normal}
 
@@ -75,21 +64,11 @@
     }
     body.view #publishBtn{display:none}
 
-    /* A/V mód přepínač (aby to šlo i na mobilu) */
-    #modeBtn{
-      position:fixed;top:calc(56px + var(--safe-top));right:calc(12px + var(--safe-right));
-      z-index:9999;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
-      background:#2a2a2a;color:#fff
-    }
-
     /* === SoundCloud panel (ADMIN only) === */
     #scWrap{
-      position:fixed; z-index:12;
-      left:12px; bottom:12px;
-      width:min(420px, 92vw);
+      position:fixed; z-index:12; left:12px; bottom:12px; width:min(420px, 92vw);
       background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px; backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      border-radius:12px; padding:8px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       display:none;
     }
     #scWrap .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -113,30 +92,29 @@
 
 <body class="view">
   <button id="publishBtn">Publish to GitHub</button>
-  <button id="modeBtn" type="button" title="Přepnout mezi ADMIN/VIEW">A/V mód</button>
 
   <!-- ===== UI ===== -->
   <div id="ui">
     <div class="group">
       <strong>Nastavení:</strong>
-      <label>Ochranná zóna&nbsp;<input id="safeWall"   type="number" step="0.05" value="1" /></label>
+      <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" /></label>
       <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" /></label>
     </div>
 
     <div class="group">
       <strong>Počty rámů:</strong>
       <label>Front&nbsp;<input id="cntFront" type="number" step="1" min="0" value="4" style="width:70px"></label>
-      <label>Back&nbsp;<input  id="cntBack"  type="number" step="1" min="0" value="4" style="width:70px"></label>
-      <label>Left&nbsp;<input  id="cntLeft"  type="number" step="1" min="0" value="7" style="width:70px"></label>
+      <label>Back&nbsp;<input id="cntBack"  type="number" step="1" min="0" value="4" style="width:70px"></label>
+      <label>Left&nbsp;<input id="cntLeft"  type="number" step="1" min="0" value="7" style="width:70px"></label>
       <label>Right&nbsp;<input id="cntRight" type="number" step="1" min="0" value="7" style="width:70px"></label>
     </div>
 
     <div class="group">
       <strong>Rám:</strong>
-      <label>Šířka&nbsp;<input  id="frmW"      type="number" step="0.05" value="2"></label>
-      <label>Výška&nbsp;<input  id="frmH"      type="number" step="0.05" value="2"></label>
-      <label>Lišta&nbsp;<input  id="frmBorder" type="number" step="0.02" value="0.08"></label>
-      <label>Barva&nbsp;<input  id="frmColor"  type="color"  value="#717171"></label>
+      <label>Šířka&nbsp;<input id="frmW" type="number" step="0.05" value="2"></label>
+      <label>Výška&nbsp;<input id="frmH" type="number" step="0.05" value="2"></label>
+      <label>Lišta&nbsp;<input id="frmBorder" type="number" step="0.02" value="0.08"></label>
+      <label>Barva&nbsp;<input id="frmColor" type="color" value="#717171"></label>
     </div>
 
     <div class="group">
@@ -271,7 +249,7 @@
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
 
-  // === SoundCloud helpers ===
+  /* ==== SoundCloud helpers ==== */
   const SC_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
   let scWidget = null, scReady = false, scTriedAuto = false;
 
@@ -288,8 +266,14 @@
   function tryPlayWithAutoplayFallback(){
     if (!scReady || !scWidget || scTriedAuto) return;
     scTriedAuto = true;
-    scWidget.play(); // může být blokováno
-    const gesture = () => { scWidget.play(); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); window.removeEventListener('touchstart', gesture); };
+    scWidget.play(); // pokus o autoplay (může být blokováno)
+    // Fallback: na první gesto (klik/klávesa/tap)
+    const gesture = () => {
+      scWidget.play();
+      window.removeEventListener('pointerdown', gesture);
+      window.removeEventListener('keydown', gesture);
+      window.removeEventListener('touchstart', gesture);
+    };
     window.addEventListener('pointerdown', gesture, { once:true });
     window.addEventListener('keydown', gesture, { once:true });
     window.addEventListener('touchstart', gesture, { once:true, passive:true });
@@ -304,12 +288,15 @@
       const volInput = document.getElementById('scVol');
       const vol = Math.max(0, Math.min(100, +(volInput?.value || 85)));
       scWidget.setVolume(vol);
+
       scWidget.getCurrentSound((s) => {
         const el = document.getElementById('scNow');
         if (el) el.textContent = s?.title ? `Now: ${s.title}` : 'Ready';
       });
+
       if (document.body.classList.contains('admin')) tryPlayWithAutoplayFallback();
     });
+
     scWidget.bind(window.SC.Widget.Events.PLAY, () => {
       scWidget.getCurrentSound((s) => {
         const el = document.getElementById('scNow');
@@ -356,6 +343,7 @@
   const hintEl = $("hint");
   function hint(msg){ if(hintEl) hintEl.textContent=msg; }
   function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
+
   function setMode(m){
     mode = m;
     document.body.classList.toggle('view', m === MODE.VIEW);
@@ -366,6 +354,8 @@
     if (m === MODE.ADMIN){ scTriedAuto = false; tryPlayWithAutoplayFallback(); }
     else { if (scReady && scWidget) scWidget.pause(); }
   }
+
+  // Klávesové přepínání (desktop)
   window.addEventListener('keydown',(e)=>{
     if (IS_MOBILE) return;            // klávesy vypnuté na mobilech
     if(isTyping(e)) return;
@@ -373,10 +363,6 @@
     if(k==='a') setMode(MODE.ADMIN);
     if(k==='v') setMode(MODE.VIEW);
   }, { passive:true });
-  // Klikací přepínač (funguje i na mobilu)
-  document.getElementById('modeBtn').addEventListener('click', ()=>{
-    setMode(mode===MODE.VIEW ? MODE.ADMIN : MODE.VIEW);
-  });
 
   // Pomocná: nejbližší power-of-two
   function nearestPOT(n, cap){ 
@@ -517,7 +503,7 @@
     left.material = unlit("#242424");
 
     const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
+    right.position set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
     right.rotation.y =  Math.PI/2;
     right.material = unlit("#242424");
   }
@@ -711,7 +697,7 @@
     return mm;
   }
 
-  // Cedulka
+  // Cedulka (plaketa)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
     const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
@@ -759,7 +745,7 @@
 
     dt.update();
     const mat = unlitTex(dt, { doubleSided:false });
-    mat.zOffset = -2;
+    mat.zOffset = -2; // anti z-fighting
     plac.material = mat;
   }
 
@@ -779,7 +765,7 @@
     box.rotation.y = rotY;
     box.isPickable = true;
 
-    // submeshe a MultiMaterial
+    // Submesh slicing + MultiMaterial s gradienty
     box.subMeshes = [];
     const indices = box.getIndices();
     const verticesCount = box.getTotalVertices();
@@ -791,7 +777,7 @@
     }
     box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
 
-    // obrazová plocha
+    // Přední obrazová plocha
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
       width: FRAME_SIZE.W,
       height: FRAME_SIZE.H,
@@ -807,7 +793,7 @@
     fMat.zOffset = -1;
     f.material  = fMat;
 
-    // cedulka
+    // Cedulka
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
@@ -823,13 +809,28 @@
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-  // LOGO – inline SVG
+  /* =========================
+     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+  ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
     <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <!-- (zkráceno; celé tvé SVG je zachováno) -->
+    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
+    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
+  </g>
+  <g>
+    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
@@ -873,6 +874,7 @@
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
+      // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
       hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
@@ -1108,14 +1110,18 @@
   // iOS – zamezit stránkovému pinch/gesture (ruší canvas)
   document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
-  // Start: VIEW
+  // Start mód
   setMode(MODE.VIEW);
+  // Volitelně: umožni start rovnou v ADMIN módu přes #admin v URL
+  if (location.hash && location.hash.toLowerCase().includes('admin')) {
+    setMode(MODE.ADMIN);
+  }
 
   (async function boot(){
     await ensurePoppins();
     await applyLayoutFromUI();
     handleResize();
-    console.log("✔ Boot hotovo – stiskni 'A' nebo tlačítko 'A/V mód' pro ADMIN.");
+    console.log("✔ Boot hotovo – klávesy: 'A' ADMIN · 'V' VIEW (SoundCloud jen v ADMIN).");
   })();
 
   </script>
