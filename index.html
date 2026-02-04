@@ -838,21 +838,37 @@
   }
 
   const DATA = {
-    front: [
-      { img:"./assets/one.jpg",   label:"Produkt A", href:"https://everpress.com/the-future-phaser-collection2" },
-      { img:"./assets/two.jpg",   label:"Produkt B", href:"https://example.com/b" },
-      { img:"./assets/three.jpg", label:"Produkt C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Produkt D", href:"https://example.com/d" }
-    ],
-    back: [
-      { img:"./assets/one.jpg",   label:"Back A", href:"https://example.com/a" },
-      { img:"./assets/two.jpg",   label:"Back B", href:"https://example.com/b" },
-      { img:"./assets/three.jpg", label:"Back C", href:"https://example.com/c" },
-      { img:"./assets/one.jpg",   label:"Back D", href:"https://example.com/d" }
-    ],
-    left:  Array.from({length:6}, (_,i)=>({ img:"./assets/one.jpg",  label:`Levá ${i+1}`,  href:`https://example.com/left-${i+1}`  })),
-    right: Array.from({length:6}, (_,i)=>({ img:"./assets/two.jpg",  label:`Pravá ${i+1}`, href:`https://example.com/right-${i+1}` }))
-  };
+  front: [
+    { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
+    { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
+    { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
+    { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+  ],
+  back: [
+    { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
+    { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
+    { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
+    { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+  ],
+  left: [
+    { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
+    { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
+    { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
+    { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
+    { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
+    { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
+    { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+  ],
+  right: [
+    { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
+    { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
+    { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
+    { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
+    { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
+    { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
+    { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+  ]
+};
 
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
