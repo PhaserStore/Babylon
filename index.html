@@ -438,6 +438,13 @@ function scUpdateProgress(rel){
   fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
 }
 ``Ready = true;
+        scWidget.getCurrentSound(s => {
+  updateNowTitle(s);
+  scUpdateTitle(s);
+  scUpdateThumb(s);
+});
+scWidget.getDuration(d => scDuration = d || 0);
+scUpdateTime(0, scDuration);
         
 
         // Volume init (admin > view fallback)
