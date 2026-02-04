@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Virtual Gallery — LED · Layout · Publish</title>
+  <title>Virtual Gallery — Clean View + SoundCloud Bar</title>
 
   <!-- ✅ Poppins font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,11 +12,7 @@
 
   <style>
     :root{
-      --ui-bg: rgba(15,15,18,.65);
-      --ui-brd: rgba(255,255,255,.15);
-      --ui-chip: rgba(40,40,44,.5);
       --txt:#fff; --txt-dim:#ccc;
-      --touch:44px;
       --safe-top: env(safe-area-inset-top);
       --safe-right: env(safe-area-inset-right);
       --safe-bottom: env(safe-area-inset-bottom);
@@ -27,218 +23,69 @@
       font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--txt);
     }
     #renderCanvas{
-      position:fixed;inset:0;display:block;touch-action:none;width:100vw;height:100vh;
+      position:fixed; inset:0; display:block; touch-action:none; width:100vw; height:100vh;
       will-change: transform; transform: translateZ(0);
     }
-/* === VIEW: full-width bottom bar === */
-#scBar{
-  position:fixed; left:0; right:0; bottom:0;
-  height:54px; background:#1a1a1a;
-  border-top:1px solid rgba(255,255,255,.15);
-  display:flex; align-items:center; padding:0 14px; gap:20px;
-  z-index:50; font-size:13px; color:#eee; font-family:'Poppins', sans-serif;
-}
-body.admin #scBar{ display:none; }   /* schovat v ADMIN */
-body.view  #scBar{ display:flex; }   /* zobrazit ve VIEW */
 
-#scBar button{
-  width:34px; height:34px; border-radius:8px;
-  border:1px solid rgba(255,255,255,.15);
-  background:#2b2b2b; color:#fff; cursor:pointer;
-}
-#scBar button:hover{ background:#3a3a3a; }
-
-.sc-left{ display:flex; gap:6px; align-items:center; }
-
-/* progress bar */
-.sc-center{
-  flex:1; display:flex; align-items:center; gap:10px; user-select:none;
-}
-#scSeek{
-  flex:1; height:6px; background:#555; border-radius:4px; position:relative; cursor:pointer;
-}
-#scSeekFill{
-  position:absolute; left:0; top:0; bottom:0; width:0%;
-  background:#ff6a00; border-radius:4px;
-}
-
-.sc-right{
-  display:flex; align-items:center; gap:12px; min-width:260px;
-}
-#scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
-#barVol{ width:80px; }
-    /* ===== ADMIN UI ===== */
-    #ui{
-      position:fixed;left:12px;right:12px;top:calc(12px + var(--safe-top));z-index:10;
-      display:flex;flex-wrap:wrap;gap:8px;align-items:center;
-      background:var(--ui-bg);border:1px solid var(--ui-brd);
-      border-radius:12px;padding:10px 12px;color:#fff;backdrop-filter:blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      overflow:auto; scrollbar-width:thin; max-height:40vh;
+    /* === VIEW: full-width bottom SoundCloud bar === */
+    #scBar{
+      position:fixed; left:0; right:0; bottom:0;
+      height:54px; background:#1a1a1a;
+      border-top:1px solid rgba(255,255,255,.15);
+      display:flex; align-items:center; padding:0 14px; gap:20px;
+      z-index:50; font-size:13px; color:#eee; font-family:'Poppins', sans-serif;
     }
-    @media (max-width: 900px){
-      #ui{flex-wrap:nowrap;overflow:auto;white-space:nowrap;}
-      #ui::-webkit-scrollbar{height:6px}
+    #scBar button{
+      width:34px; height:34px; border-radius:8px;
+      border:1px solid rgba(255,255,255,.15);
+      background:#2b2b2b; color:#fff; cursor:pointer;
     }
-    .group{display:flex;gap:8px;align-items:center;background:var(--ui-chip);padding:8px 10px;border-radius:10px}
-    input,button{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#3a3a3a;color:#fff;min-height:36px}
-    input[type="number"]{width:80px}
-    input[type="color"]{padding:0 4px;height:36px;min-width:44px;border-radius:8px;background:#3a3a3a}
-    button{cursor:pointer} button:hover{background:#575757}
-    label{display:flex;gap:6px;align-items:center}
-    #hint{flex-basis:100%;font-size:12px;color:var(--txt-dim);white-space:normal}
+    #scBar button:hover{ background:#3a3a3a; }
+    .sc-left{ display:flex; gap:6px; align-items:center; }
 
-    /* VIEW mód = čistá výstava (UI nevidět) */
-    body.view #ui{display:none}
-
-    /* Publish btn — respekt safe-area */
-    #publishBtn{
-      position:fixed;top:calc(12px + var(--safe-top));right:calc(12px + var(--safe-right));
-      z-index:9999;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
-      background:#212121;color:#fff
+    /* progress bar */
+    .sc-center{
+      flex:1; display:flex; align-items:center; gap:10px; user-select:none;
     }
-    body.view #publishBtn{display:none}
-
-    /* === SoundCloud panel (ADMIN only) === */
-    #scWrap{
-      position:fixed; z-index:12; left:12px; bottom:12px; width:min(420px, 92vw);
-      background:var(--ui-bg); border:1px solid var(--ui-brd);
-      border-radius:12px; padding:8px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      display:none;
+    #scSeek{
+      flex:1; height:6px; background:#555; border-radius:4px; position:relative; cursor:pointer;
     }
-    #scWrap .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    #scWrap button, #scWrap input[type="range"]{
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
-      background:#3a3a3a; color:#fff; min-height:36px; cursor:pointer;
+    #scSeekFill{
+      position:absolute; left:0; top:0; bottom:0; width:0%;
+      background:#ff6a00; border-radius:4px;
     }
-    #scWrap button:hover{ background:#575757 }
-    #scWrap .title{ font-size:12px; color:var(--txt-dim); margin-top:6px; }
-    /* Host pro iframe – vložíme až po prvním Play (lazy-load) */
-    #scIframeHost{ width:100%; height:102px; border-radius:8px; overflow:hidden; background:#222; display:grid; place-items:center; color:#aaa }
 
-    body.admin #scWrap{ display:block }  /* zobrazit jen v admin módu */
+    .sc-right{
+      display:flex; align-items:center; gap:12px; min-width:260px;
+    }
+    #scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
+    #barVol{ width:80px; }
 
-    <!-- === VIEW: fullscreen bottom SoundCloud bar === -->
-<div id="scBar" aria-label="SoundCloud Bar (View)">
-  <div class="sc-left">
-    <button id="barPrev" title="Previous">⏮</button>
-    <button id="barPlay" title="Play">▶️</button>
-    <button id="barPause" title="Pause">⏸</button>
-  </div>
-
-  <div class="sc-center">
-    <span id="scTimeCur">0:00</span>
-    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-      <div id="scSeekFill"></div>
-    </div>
-    <span id="scTimeDur">0:00</span>
-  </div>
-
-  <div class="sc-right">
-    <button id="barMute" title="Mute/Unmute">🔈</button>
-    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-    <img id="scThumb" src="" alt="cover" />
-    <span id="scTitle">–</span>
-  </div>
-</div>
-``
-
-    /* === VIEW: plovoucí fokus/reset ikona (větší) === */
+    /* === VIEW: plovoucí fokus/reset ikona (nad dolním barem) === */
     .focusIcon{
       position:fixed;
       right:calc(12px + var(--safe-right));
-      bottom:calc(78px + var(--safe-bottom)); /* nad SC ovladači (~60px) */
+      bottom:calc(78px + var(--safe-bottom)); /* nad tenkým barem */
       z-index:10000;
-      width:56px; height:56px;               /* mírně zvětšeno */
+      width:56px; height:56px;
       cursor:pointer; user-select:none; -webkit-user-drag:none;
       filter: drop-shadow(0 8px 16px rgba(0,0,0,.45));
       opacity:.96; transition: transform .12s ease, opacity .12s ease;
     }
     .focusIcon:hover{ transform:translateY(-1px); opacity:1; }
-    body.admin .focusIcon{ display:none; } /* jen ve VIEW */
-    body.view  .focusIcon{ display:block; }
   </style>
 
   <!-- ✅ Babylon.js + GUI -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-
-  <!-- ⚠️ SoundCloud API NELOADOVAT zde; načteme ho dynamicky až při Play -->
+  <!-- ⚠️ SoundCloud API načteme lazy až při Play -->
 </head>
 
-<!-- Startujeme rovnou ve VIEW módu -->
-<body class="view">
-  <button id="publishBtn">Publish to GitHub</button>
-
-  <!-- ===== UI ===== -->
-  <div id="ui">
-    <div class="group">
-      <strong>Nastavení:</strong>
-      <label>Ochranná zóna&nbsp;<input id="safeWall" type="number" step="0.05" value="1" /></label>
-      <label>Rohová rezerva&nbsp;<input id="cornerSafe" type="number" step="0.05" value="1" /></label>
-    </div>
-
-    <div class="group">
-      <strong>Počty rámů:</strong>
-      <label>Front&nbsp;<input id="cntFront" type="number" step="1" min="0" value="4" style="width:70px"></label>
-      <label>Back&nbsp;<input  id="cntBack"  type="number" step="1" min="0" value="4" style="width:70px"></label>
-      <label>Left&nbsp;<input  id="cntLeft"  type="number" step="1" min="0" value="7" style="width:70px"></label>
-      <label>Right&nbsp;<input id="cntRight" type="number" step="1" min="0" value="7" style="width:70px"></label>
-    </div>
-
-    <div class="group">
-      <strong>Rám:</strong>
-      <label>Šířka&nbsp;<input  id="frmW"      type="number" step="0.05" value="2"></label>
-      <label>Výška&nbsp;<input  id="frmH"      type="number" step="0.05" value="2"></label>
-      <label>Lišta&nbsp;<input  id="frmBorder" type="number" step="0.02" value="0.08"></label>
-      <label>Barva&nbsp;<input  id="frmColor"  type="color"  value="#717171"></label>
-    </div>
-
-    <div class="group">
-      <button id="btnApplyLayout">Použít layout</button>
-      <button id="btnResetCam">🎥 Reset kamery</button>
-    </div>
-
-    <div id="hint">A = ADMIN (jen desktop) · V = VIEW (jen desktop) · Dvojklik/Double‑tap = přiblížení na bod. Klik na cedulku = skrytá URL.</div>
-  </div>
-
-  <!-- === SoundCloud (ADMIN) – widget lazy-load na první Play === -->
-  <div id="scWrap" aria-label="SoundCloud Player (Admin)">
-    <div class="row" style="justify-content:space-between">
-      <strong>🎧 Detroit Techno</strong>
-      <span class="title" id="scNow">Idle</span>
-    </div>
-    <!-- Sem se při Play vloží <iframe id="scIframe"> -->
-    <div id="scIframeHost"><small>Player will load on first Play</small></div>
-
-    <div class="row" style="margin-top:8px">
-      <button id="scPrev">⏮ Prev</button>
-      <button id="scPlay">▶️ Play</button>
-      <button id="scPause">⏸ Pause</button>
-      <button id="scNext">⏭ Next</button>
-      <label style="display:flex;align-items:center;gap:6px;margin-left:auto">
-        Vol: <input id="scVol" type="range" min="0" max="100" value="85" />
-      </label>
-    </div>
-  </div>
-
-  <!-- === VIEW ovladače (bez widgetu) – pravý dolní roh === -->
-  <div id="scControls" aria-label="Audio Controls (View)">
-    <div class="row">
-      <button id="vPrev" title="Previous">⏮</button>
-      <button id="vPlay" title="Play">▶️</button>
-      <button id="vPause" title="Pause">⏸</button>
-      <button id="vNext" title="Next">⏭</button>
-      <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
-        Vol: <input id="vVol" type="range" min="0" max="100" value="70" />
-      </label>
-    </div>
-  </div>
-
+<body>
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- === VIEW: jedna focus ikona (reset kamera) – pravý dolní roh nad ovladači === -->
+  <!-- === VIEW: reset kamery (pravý dolní roh, nad barem) === -->
   <img
     id="resetCamIcon"
     class="focusIcon"
@@ -250,342 +97,48 @@ body.view  #scBar{ display:flex; }   /* zobrazit ve VIEW */
     aria-label="Reset kamery"
   />
 
-  <!-- ===== Publish (Issue s JSONem) ===== -->
-  <script>
-    function collectGalleryData() {
-      const out = {
-        settings: {
-          safeWall:   +document.getElementById('safeWall').value   || 1,
-          cornerSafe: +document.getElementById('cornerSafe').value || 1,
-          frame: {
-            width:  +document.getElementById('frmW').value      || 2,
-            height: +document.getElementById('frmH').value      || 2,
-            border: +document.getElementById('frmBorder').value || 0.2,
-            color:  document.getElementById('frmColor').value   || '#717171'
-          },
-          counts: {
-            front: +document.getElementById('cntFront').value || 0,
-            back:  +document.getElementById('cntBack').value  || 0,
-            left:  +document.getElementById('cntLeft').value  || 0,
-            right: +document.getElementById('cntRight').value || 0
-          }
-        },
-        front: [], back: [], left: [], right: []
-      };
-      if (!window.framesByWall) return out;
-      for (const wall of Object.keys(framesByWall)) {
-        out[wall] = (framesByWall[wall] || []).map(it => ({
-          img:   it.data.src   || '',
-          label: it.data.title || '',
-          href:  it.data.url   || ''
-        })));
-      }
-      return out;
-    }
+  <!-- === VIEW: fullscreen bottom SoundCloud bar === -->
+  <div id="scBar" aria-label="SoundCloud Bar">
+    <div class="sc-left">
+      <button id="barPrev" title="Previous">⏮</button>
+      <button id="barPlay" title="Play">▶️</button>
+      <button id="barPause" title="Pause">⏸</button>
+    </div>
 
-    function openPrefilledIssueWithJson(jsonString) {
-      const title = encodeURIComponent('Update gallery');
-      const body  = encodeURIComponent(jsonString);
-      const url   = `https://github.com/PhaserStore/Babylon/issues/new?title=${title}&body=${body}`;
+    <div class="sc-center">
+      <span id="scTimeCur">0:00</span>
+      <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+        <div id="scSeekFill"></div>
+      </div>
+      <span id="scTimeDur">0:00</span>
+    </div>
 
-      if (url.length > 7500) {
-        try {
-          navigator.clipboard.writeText(jsonString);
-          alert('JSON je moc dlouhý pro URL, zkopíroval jsem ho do schránky. Vlož ho ručně do těla issue.');
-          window.open(`https://github.com/PhaserStore/Babylon/issues/new?title=${title}`, '_blank', 'noopener');
-        } catch {
-          alert('JSON je moc dlouhý pro URL. Zkopíruj prosím JSON ručně.');
-          window.open(`https://github.com/PhaserStore/Babylon/issues/new?title=${title}`, '_blank', 'noopener');
-        }
-        return;
-      }
-      window.open(url, '_blank', 'noopener');
-    }
+    <div class="sc-right">
+      <button id="barMute" title="Mute/Unmute">🔈</button>
+      <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+      <img id="scThumb" src="" alt="cover" />
+      <span id="scTitle">–</span>
+    </div>
+  </div>
 
-    document.getElementById('publishBtn').addEventListener('click', async () => {
-      try {
-        const dataObj = (window.lastAppliedGalleryData && Object.keys(window.lastAppliedGalleryData).length)
-          ? window.lastAppliedGalleryData
-          : collectGalleryData();
-
-        const minified = JSON.stringify(dataObj);
-        JSON.parse(minified);
-        localStorage.setItem('draftGalleryJson', minified);
-        openPrefilledIssueWithJson(minified);
-        if (window.hint) hint('Export odeslán do GitHub Issue (nová záložka).');
-      } catch (e) {
-        console.warn('Export selhal – collectGalleryData()', e);
-        if (window.hint) hint('Export selhal – viz konzoli.');
-      }
-    });
-
-    async function loadGallery() {
-      try {
-        const res = await fetch('./data/gallery.json', { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        window.galleryData = data;
-        if (window.assignDataAllWalls) assignDataAllWalls(data);
-      } catch (e) {
-        console.warn('Nepodařilo se načíst data/gallery.json (možná zatím neexistuje).', e);
-      }
-    }
-    loadGallery();
-  </script>
+  <!-- Host pro SC iframe (skrytý) -->
+  <div id="scIframeHost" style="display:none"></div>
 
   <!-- ===== Hlavní skript ===== -->
   <script>
   "use strict";
 
-  const MODE = { ADMIN: "admin", VIEW: "view" };
-  let mode = MODE.VIEW; // start ve VIEW
+  /* =========================
+     Pomocné
+  ========================= */
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
-
-  /* ==== SoundCloud LAZY-LOAD (rozšířené eventy + metadata) ==== */
-  const SC_PLAYLIST_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
-  let scWidget = null, scReady = false, scLoading = false, scDuration = 0;
-
-  function loadScApiOnce(){
-    return new Promise((resolve, reject)=>{
-      if (window.SC && window.SC.Widget) return resolve();
-      const s = document.createElement('script');
-      s.src = "https://w.soundcloud.com/player/api.js";
-      s.async = true;
-      s.onload = ()=> resolve();
-      s.onerror = ()=> reject(new Error("SC API failed to load"));
-      document.head.appendChild(s);
-    });
-  }
-
-  function mountScIframeOnce(){
-    return new Promise((resolve)=>{
-      const host = document.getElementById('scIframeHost');
-      if (!host) return resolve(null);
-      let iframe = host.querySelector('iframe');
-      if (iframe) return resolve(iframe);
-
-      const url = "https://w.soundcloud.com/player/?"
-        + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
-        + "&auto_play=false&hide_related=false&show_comments=false"
-        + "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
-
-      iframe = document.createElement('iframe');
-      iframe.id = "scIframe";
-      iframe.title = "SoundCloud Player";
-      iframe.allow = "autoplay";
-      iframe.setAttribute("scrolling","no");
-      iframe.setAttribute("frameborder","no");
-      iframe.style.width = "100%";
-      iframe.style.height= "102px";
-      iframe.style.border = "0";
-      iframe.style.borderRadius = "8px";
-      iframe.src = url;
-
-      host.innerHTML = "";
-      host.appendChild(iframe);
-      resolve(iframe);
-    });
-  }
 
   function fmtTime(ms){
     const sec = Math.max(0, Math.floor((ms||0)/1000));
     const m = Math.floor(sec/60), s = sec%60;
     return `${m}:${s.toString().padStart(2,'0')}`;
   }
-
-  function updateNowTitle(s){
-    const el = document.getElementById('scNow');
-    if (!el) return;
-    if (!s){ el.textContent = 'Ready'; return; }
-    const artist = (s.user && s.user.username) ? s.user.username : (s.publisher_metadata?.artist || 'SoundCloud');
-    el.textContent = s.title ? `Now: ${s.title} — ${artist}` : 'Playing…';
-  }
-
-  function initScWidgetOnce(){
-    return new Promise((resolve)=>{
-      const iframe = document.getElementById('scIframe');
-      if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
-      if (scWidget) return resolve(scWidget);
-
-      scWidget = window.SC.Widget(iframe);
-
-      scWidget.bind(window.SC.Widget.Events.READY, ()=>{
-        sc// === NEW BAR UPDATE HELPERS ===
-function scUpdateTime(cur, dur){
-  const curEl = document.getElementById("scTimeCur");
-  const durEl = document.getElementById("scTimeDur");
-  if (!curEl || !durEl) return;
-  curEl.textContent = fmtTime(cur);
-  durEl.textContent = fmtTime(dur);
-}
-function scUpdateThumb(s){
-  const t = document.getElementById("scThumb");
-  if (!t) return;
-  let art = s?.artwork_url || s?.user?.avatar_url || "";
-  if (art) art = art.replace("-large.jpg","-t200x200.jpg");
-  t.src = art || "";
-}
-function scUpdateTitle(s){
-  const el = document.getElementById("scTitle");
-  if (!el) return;
-  if (!s){ el.textContent = "–"; return; }
-  el.textContent = s.title || "Unknown";
-}
-function scUpdateProgress(rel){
-  const fill = document.getElementById("scSeekFill");
-  if (!fill) return;
-  fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
-}
-``Ready = true;
-        scWidget.getCurrentSound(s => {
-  updateNowTitle(s);
-  scUpdateTitle(s);
-  scUpdateThumb(s);
-});
-scWidget.getDuration(d => scDuration = d || 0);
-scUpdateTime(0, scDuration);
-        
-
-        // Volume init (admin > view fallback)
-        const adminVol = document.getElementById('scVol');
-        const viewVol  = document.getElementById('vVol');
-        const vol = Math.max(0, Math.min(100, +(adminVol?.value || viewVol?.value || 80)));
-        scWidget.setVolume(vol);
-
-        // Init meta + duration
-        scWidget.getCurrentSound((s)=> updateNowTitle(s));
-        scWidget.getDuration((d)=>{ scDuration = d || 0; });
-
-        // Eventy
-       scWidget.bind(window.SC.Widget.Events.PLAY, () =>{
-  scWidget.getCurrentSound(s =>{
-    updateNowTitle(s);     // tvoje původní
-    scUpdateTitle(s);      // nový bar
-    scUpdateThumb(s);      // nový bar
-  });
-});
-
-scWidget.bind(window.SC.Widget.Events.PAUSE, () => { /* beze změny */ });
-
-scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, e =>{
-  scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
-  const cur = e.currentPosition || 0;
-  const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
-  scUpdateTime(cur, scDuration);
-  scUpdateProgress(rel);
-});
-        resolve(scWidget);
-      });
-    });
-  }
-
-  async function ensureScReadyAndPlay(){
-    if (scLoading) return;
-    scLoading = true;
-    try{
-      await loadScApiOnce();
-      await mountScIframeOnce();
-      const w = await initScWidgetOnce();
-      if (w) w.play(); // v rámci uživatelského gesta → povoleno
-    }catch(e){
-      console.warn("SC lazy-load failed:", e);
-    }finally{
-      scLoading = false;
-    }
-  }
-
-  function bindAdminControls(){
-    const prev = document.getElementById('scPrev');
-    const next = document.getElementById('scNext');
-    const play = document.getElementById('scPlay');
-    const pause= document.getElementById('scPause');
-    const vol  = document.getElementById('scVol');
-
-    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
-    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
-    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
-    if (vol)   vol.addEventListener('input',   (e)=>{
-      const v = Math.max(0, Math.min(100, +e.target.value || 80));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
-  }
-
-  function bindViewControls(){
-    const prev = document.getElementById('vPrev');
-    const next = document.getElementById('vNext');
-    const play = document.getElementById('vPlay');
-    const pause= document.getElementById('vPause');
-    const vol  = document.getElementById('vVol');
-
-    if (play)  play.addEventListener('click',  () => ensureScReadyAndPlay());
-    if (pause) pause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (prev)  prev.addEventListener('click',  () => scReady ? scWidget && scWidget.prev() : ensureScReadyAndPlay());
-    if (next)  next.addEventListener('click',  () => scReady ? scWidget && scWidget.next() : ensureScReadyAndPlay());
-    if (vol)   vol.addEventListener('input',   (e)=>{
-      const v = Math.max(0, Math.min(100, +e.target.value || 70));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
-  }
-function bindBarControls(){
-  const pPrev = document.getElementById("barPrev");
-  const pPlay = document.getElementById("barPlay");
-  const pPause= document.getElementById("barPause");
-  const vol   = document.getElementById("barVol");
-  const mute  = document.getElementById("barMute");
-  const seek  = document.getElementById("scSeek");
-
-  // Play/Pause/Prev
-  if (pPlay)  pPlay.addEventListener('click', () => ensureScReadyAndPlay());
-  if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-  if (pPrev)  pPrev.addEventListener('click', () => scReady ? (scWidget && scWidget.prev()) : ensureScReadyAndPlay());
-
-  // Volume + mute toggle
-  if (vol) vol.addEventListener('input', e =>{
-    const v = Math.min(100, Math.max(0, +e.target.value || 75));
-    if (scReady && scWidget) scWidget.setVolume(v);
-  });
-  if (mute) mute.addEventListener('click', ()=>{
-    if (!scReady || !scWidget) return;
-    scWidget.getVolume(v=>{
-      const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
-      scWidget.setVolume(newV);
-    });
-  });
-
-  // Seek click
-  if (seek){
-    const doSeek = (px) => {
-      if (!scReady || !scWidget || !scDuration) return;
-      const rect = seek.getBoundingClientRect();
-      const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
-      scWidget.seekTo(rel * scDuration);
-    };
-    seek.addEventListener("click", e => doSeek(e.clientX));
-    seek.addEventListener("keydown", e=>{
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
-        e.preventDefault();
-        const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
-        const step = 0.02;
-        const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
-        if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
-      }
-    });
-  }
-}
-  // Předrender fontů
-  async function ensurePoppins() {
-    if (document?.fonts?.load) {
-      try {
-        await document.fonts.load('400 16px Poppins');
-        await document.fonts.load('600 16px Poppins');
-        await document.fonts.ready;
-      } catch(e) {}
-    }
-  }
-
-  // Edge/Safari DPR snapping
   function snapDpr(raw) {
     const v = Math.max(1, Math.min(raw || 1, 3));
     const steps = [1, 1.25, 1.5, 2, 2.5, 3];
@@ -596,58 +149,35 @@ function bindBarControls(){
   const DPR_RAW = window.devicePixelRatio || 1;
   const DPR = snapDpr(DPR_RAW);
 
-  const $ = (id)=>document.getElementById(id);
-  const hintEl = $("hint");
-  function hint(msg){ if(hintEl) hintEl.textContent=msg; }
-  function isTyping(e){ const t=e.target?.tagName?.toLowerCase(); return t==="input"||t==="textarea"||t==="select"||e.target?.isContentEditable; }
-
-  function setMode(m){
-    mode = m;
-    document.body.classList.toggle('view', m === MODE.VIEW);
-    document.body.classList.toggle('admin', m === MODE.ADMIN);
-    hint(m === MODE.ADMIN ? "ADMIN mód: nastavení povoleno" : "VIEW mód: čistá výstava");
-
-    // Při přechodu do VIEW pauzneme (uživatel spustí Play ručně)
-    if (m === MODE.VIEW){
-      if (scReady && scWidget) scWidget.pause();
-    }
-  }
-
-  // Klávesové přepínání (desktop)
-  window.addEventListener('keydown',(e)=>{
-    if (IS_MOBILE) return;
-    if (isTyping(e)) return;
-    const k=e.key.toLowerCase();
-    if(k==='a') setMode(MODE.ADMIN);
-    if(k==='v') setMode(MODE.VIEW);
-  }, { passive:true });
-
-  // Pomocná: nejbližší power-of-two
-  function nearestPOT(n, cap){ 
-    const p = Math.pow(2, Math.round(Math.log2(Math.max(2, n))));
-    return Math.min(p, cap || p);
-  }
-
-  // Textury – základ dle zařízení (finální po získání GPU cap)
-  const TEX_BASE = IS_MOBILE ? 1024 : 2048;
-  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
-
-  const canvas = $("renderCanvas");
+  /* =========================
+     Babylon init
+  ========================= */
+  const canvas = document.getElementById("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false,
     powerPreference: "high-performance"
   });
   if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
 
-  // GPU limity
   const CAPS = engine.getCaps ? engine.getCaps() : {};
   const MAX_TEX_CAP = Math.max(512, CAPS.maxTextureSize || 2048);
   const MOBILE_TEX_CAP  = Math.min(MAX_TEX_CAP, 1024);
   const DESKTOP_TEX_CAP = Math.min(MAX_TEX_CAP, 4096);
+  const TEX_BASE = IS_MOBILE ? 1024 : 2048;
+  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
-
-  // anisotropie
   const MAX_ANISO = CAPS.maxAnisotropy || 4;
+
+  function nearestPOT(n, cap){ 
+    const p = Math.pow(2, Math.round(Math.log2(Math.max(2, n))));
+    return Math.min(p, cap || p);
+  }
+
+  let scene, camera, glow, hl;
+
+  const ROOM = { W: 16, D: 30, H: 10.6 };
+  const MIN_RADIUS = 0.28;
+  const MAX_RADIUS = 40;
 
   // HW scale
   const BASE_LEVEL = Math.max(0.33, Math.min(1 / DPR, 1));
@@ -671,12 +201,6 @@ function bindBarControls(){
     accMs: 0, frames: 0, lastEval: performance.now()
   };
 
-  let scene, camera, glow, hl;
-
-  const ROOM = { W: 16, D: 30, H: 10.6 };
-  const MIN_RADIUS = 0.28;
-  const MAX_RADIUS = 40;
-
   function createScene(){
     scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
@@ -684,15 +208,9 @@ function bindBarControls(){
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
 
-    // Anti-flicker
-    camera.minZ = 0.2;
-    camera.maxZ = 200;
-
-    camera.lowerBetaLimit = 0.1;
-    camera.upperBetaLimit = Math.PI - 0.1;
-    camera.lowerRadiusLimit = MIN_RADIUS;
-    camera.upperRadiusLimit = MAX_RADIUS;
-
+    camera.minZ = 0.2; camera.maxZ = 200;
+    camera.lowerBetaLimit = 0.1; camera.upperBetaLimit = Math.PI - 0.1;
+    camera.lowerRadiusLimit = MIN_RADIUS; camera.upperRadiusLimit = MAX_RADIUS;
     camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
     camera.pinchDeltaPercentage = IS_MOBILE ? 0.006 : 0.008;
     camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
@@ -713,9 +231,6 @@ function bindBarControls(){
     return scene;
   }
 
-  /* =========================
-     ROOM + LED
-  ========================= */
   function unlit(hex){
     const m=new BABYLON.StandardMaterial("m",scene);
     m.diffuseColor=BABYLON.Color3.FromHexString(hex);
@@ -887,7 +402,6 @@ function bindBarControls(){
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171";
 
-  /* === FAKE stínování rámů – MultiMaterial === */
   function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
     const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     const ctx = dt.getContext();
@@ -940,8 +454,7 @@ function bindBarControls(){
     const mk = (name, dt)=>{
       const m = new BABYLON.StandardMaterial(name, scene);
       m.disableLighting = true;
-      m.diffuseTexture  = dt;
-      m.emissiveTexture = dt;
+      m.diffuseTexture  = dt; m.emissiveTexture = dt;
       m.specularColor   = new BABYLON.Color3(0,0,0);
       m.backFaceCulling = false;
       m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
@@ -1132,15 +645,55 @@ function bindBarControls(){
       }
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); };
   }
 
   /* =========================
      Generátor rámů + data
   ========================= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
+
+  // Rozložení: fixní počty + fixní parametry
+  const FIXED_LAYOUT = {
+    safeWall: 1.0,
+    cornerSafe: 1.0,
+    frame: { width: 2, height: 2, border: 0.08, color: "#717171" },
+    counts: { front: 4, back: 4, left: 7, right: 7 }
+  };
+
+  const DATA = {
+    front: [
+      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
+      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+    ],
+    back: [
+      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
+      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+    ],
+    left: [
+      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
+      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
+      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
+      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
+      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+    ],
+    right: [
+      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
+      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
+      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+    ]
+  };
 
   function distributeCenters(min, max, count, frameW){
     if (count <= 1) return [ (min+max)/2 ];
@@ -1187,38 +740,14 @@ function bindBarControls(){
     });
   }
 
-  const DATA = {
-    front: [
-      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
-    ],
-    back: [
-      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
-    ],
-    left: [
-      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
-    ],
-    right: [
-      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
-    ]
-  };
+  function makeDTandSetToFrame(img, targetItem){
+    const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
+    const ctx = dt.getContext();
+    drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
+    const mat = unlitTex(dt,{doubleSided:false});
+    mat.zOffset = -1;
+    targetItem.frame.material = mat;
+  }
 
   function assignDataAllWalls(data){
     const loadLocal = (url, targetItem)=>{
@@ -1226,14 +755,7 @@ function bindBarControls(){
       const img = new Image();
       if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
       img.decoding = "async";
-      img.onload = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
-        const ctx=dt.getContext(); drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-        const mat = unlitTex(dt,{doubleSided:false});
-        mat.zOffset = -1;
-        targetItem.frame.material = mat;
-        autosave();
-      };
+      img.onload = ()=> makeDTandSetToFrame(img, targetItem);
       img.onerror = ()=>{
         const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, false);
         const ctx = dt.getContext();
@@ -1254,85 +776,228 @@ function bindBarControls(){
         it.data.title = d.label || it.data.title || "(bez názvu)";
         it.data.url   = d.href  || it.data.url || "";
         drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
-
-        if (d.img){
-          if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it);
-        }
+        if (d.img){ if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it); }
       }
     });
   }
 
-  function autosave(){
-    try{
-      const data = collectGalleryData();
-      localStorage.setItem('draftGalleryJson', JSON.stringify(data));
-    }catch(e){ /* ignore */ }
-  }
-
-  async function applyLayoutFromUI() {
+  async function applyFixedLayout() {
     const YCENTER = ROOM.H * 0.55;
-    const safeWall   = +$("safeWall").value   || 1;
-    const cornerSafe = +$("cornerSafe").value || 1;
-    FRAME_SIZE.W     = +$("frmW").value       || 2;
-    FRAME_SIZE.H     = +$("frmH").value       || 2;
-    FRAME_BOX_BORDER = +$("frmBorder").value  || 0.2;
-    FRAME_COLOR      = $("frmColor").value    || "#717171";
+    const safeWall   = FIXED_LAYOUT.safeWall;
+    const cornerSafe = FIXED_LAYOUT.cornerSafe;
+    FRAME_SIZE.W     = FIXED_LAYOUT.frame.width;
+    FRAME_SIZE.H     = FIXED_LAYOUT.frame.height;
+    FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
+    FRAME_COLOR      = FIXED_LAYOUT.frame.color;
 
-    createFixedFramesForWall('front', +$("cntFront").value||0,  YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('back',  +$("cntBack").value||0,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('left',  +$("cntLeft").value||0,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('right', +$("cntRight").value||0,  YCENTER, safeWall, cornerSafe);
+    createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  YCENTER, safeWall, cornerSafe);
+    createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   YCENTER, safeWall, cornerSafe);
+    createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   YCENTER, safeWall, cornerSafe);
+    createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  YCENTER, safeWall, cornerSafe);
 
-    const data = (window.galleryData && Object.keys(window.galleryData).length) ? window.galleryData : DATA;
-    assignDataAllWalls(data);
-
-    try {
-      const applied = collectGalleryData();
-      window.lastAppliedGalleryData = applied;
-      localStorage.setItem('draftGalleryJson', JSON.stringify(applied));
-    } catch(e) { /* ignore */ }
-
-    autosave();
-    hint("Layout aplikován.");
+    assignDataAllWalls(DATA);
   }
 
-  let applying = false;
-  $("btnApplyLayout").addEventListener("click", async ()=>{
-    if (applying) return;
-    applying = true;
-    try { await applyLayoutFromUI(); }
-    finally { applying = false; }
-  });
+  /* =========================
+     SoundCloud player (tenký bar)
+  ========================= */
+  const SC_PLAYLIST_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
+  let scWidget = null, scReady = false, scLoading = false, scDuration = 0;
 
-  $("btnResetCam").addEventListener("click", ()=>{
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius=11.5;
-    hint("Kamera resetována.");
-  });
+  function loadScApiOnce(){
+    return new Promise((resolve, reject)=>{
+      if (window.SC && window.SC.Widget) return resolve();
+      const s = document.createElement('script');
+      s.src = "https://w.soundcloud.com/player/api.js";
+      s.async = true;
+      s.onload = ()=> resolve();
+      s.onerror = ()=> reject(new Error("SC API failed to load"));
+      document.head.appendChild(s);
+    });
+  }
 
-  // === VIEW reset kamery – jen kamera (nezávislé na SC) ===
-  function resetCameraViewOnly(){
+  function mountScIframeOnce(){
+    return new Promise((resolve)=>{
+      const host = document.getElementById('scIframeHost');
+      let iframe = host.querySelector('iframe');
+      if (iframe) return resolve(iframe);
+
+      const url = "https://w.soundcloud.com/player/?"
+        + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
+        + "&auto_play=false&hide_related=false&show_comments=false"
+        + "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
+
+      iframe = document.createElement('iframe');
+      iframe.id = "scIframe";
+      iframe.title = "SoundCloud Player";
+      iframe.allow = "autoplay";
+      iframe.setAttribute("scrolling","no");
+      iframe.setAttribute("frameborder","no");
+      iframe.style.width = "0";
+      iframe.style.height= "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+
+      host.appendChild(iframe);
+      resolve(iframe);
+    });
+  }
+
+  // === NEW BAR UPDATE HELPERS ===
+  function scUpdateTime(cur, dur){
+    const curEl = document.getElementById("scTimeCur");
+    const durEl = document.getElementById("scTimeDur");
+    if (!curEl || !durEl) return;
+    curEl.textContent = fmtTime(cur);
+    durEl.textContent = fmtTime(dur);
+  }
+  function scUpdateThumb(s){
+    const t = document.getElementById("scThumb");
+    if (!t) return;
+    let art = s?.artwork_url || s?.user?.avatar_url || "";
+    if (art) art = art.replace("-large.jpg","-t200x200.jpg");
+    t.src = art || "";
+  }
+  function scUpdateTitle(s){
+    const el = document.getElementById("scTitle");
+    if (!el) return;
+    if (!s){ el.textContent = "–"; return; }
+    el.textContent = s.title || "Unknown";
+  }
+  function scUpdateProgress(rel){
+    const fill = document.getElementById("scSeekFill");
+    if (!fill) return;
+    fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
+  }
+
+  function initScWidgetOnce(){
+    return new Promise((resolve)=>{
+      const iframe = document.getElementById('scIframe');
+      if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
+      if (scWidget) return resolve(scWidget);
+
+      scWidget = window.SC.Widget(iframe);
+
+      scWidget.bind(window.SC.Widget.Events.READY, ()=>{
+        scReady = true;
+
+        // Volume init
+        const barVol = document.getElementById('barVol');
+        const vol = Math.max(0, Math.min(100, +(barVol?.value || 80)));
+        scWidget.setVolume(vol);
+
+        // Init meta + duration + bar
+        scWidget.getCurrentSound((s) => {
+          scUpdateTitle(s);
+          scUpdateThumb(s);
+        });
+        scWidget.getDuration((d) => {
+          scDuration = d || 0;
+          scUpdateTime(0, scDuration);
+        });
+
+        // Eventy
+        scWidget.bind(window.SC.Widget.Events.PLAY, () => {
+          scWidget.getCurrentSound((s) => {
+            scUpdateTitle(s);
+            scUpdateThumb(s);
+          });
+        });
+
+        scWidget.bind(window.SC.Widget.Events.PAUSE, () => { /* beze změny */ });
+
+        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
+          scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
+          const cur = e.currentPosition || 0;
+          const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
+          scUpdateTime(cur, scDuration);
+          scUpdateProgress(rel);
+        });
+
+        resolve(scWidget);
+      });
+    });
+  }
+
+  async function ensureScReadyAndPlay(){
+    if (scLoading) return;
+    scLoading = true;
+    try{
+      await loadScApiOnce();
+      await mountScIframeOnce();
+      const w = await initScWidgetOnce();
+      if (w) w.play(); // v rámci uživatelského gesta → povoleno
+    }catch(e){
+      console.warn("SC lazy-load failed:", e);
+    }finally{
+      scLoading = false;
+    }
+  }
+
+  function bindBarControls(){
+    const pPrev = document.getElementById("barPrev");
+    const pPlay = document.getElementById("barPlay");
+    const pPause= document.getElementById("barPause");
+    const vol   = document.getElementById("barVol");
+    const mute  = document.getElementById("barMute");
+    const seek  = document.getElementById("scSeek");
+
+    if (pPlay)  pPlay.addEventListener('click', () => ensureScReadyAndPlay());
+    if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
+    if (pPrev)  pPrev.addEventListener('click', () => scReady ? (scWidget && scWidget.prev()) : ensureScReadyAndPlay());
+
+    if (vol) vol.addEventListener('input', e =>{
+      const v = Math.min(100, Math.max(0, +e.target.value || 75));
+      if (scReady && scWidget) scWidget.setVolume(v);
+    });
+    if (mute) mute.addEventListener('click', ()=>{
+      if (!scReady || !scWidget) return;
+      scWidget.getVolume(v=>{
+        const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
+        scWidget.setVolume(newV);
+      });
+    });
+
+    if (seek){
+      const doSeek = (px) => {
+        if (!scReady || !scWidget || !scDuration) return;
+        const rect = seek.getBoundingClientRect();
+        const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
+        scWidget.seekTo(rel * scDuration);
+      };
+      seek.addEventListener("click", e => doSeek(e.clientX));
+      seek.addEventListener("keydown", e=>{
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+          e.preventDefault();
+          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
+          const step = 0.02;
+          const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
+          if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
+        }
+      });
+    }
+  }
+
+  /* =========================
+     Reset kamery
+  ========================= */
+  function resetCamera(){
     if (!camera) return;
     camera.target.set(0, ROOM.H*0.48, 0);
     camera.radius = 11.5;
     camera.alpha  = -Math.PI/2;
     camera.beta   =  Math.PI/2.25;
   }
-  const resetCamIcon = document.getElementById('resetCamIcon');
-  if (resetCamIcon){
-    resetCamIcon.addEventListener('click', resetCameraViewOnly);
-    resetCamIcon.addEventListener('keydown', (e)=>{
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCameraViewOnly(); }
-    });
-  }
 
   // Boot
   createScene();
-
-  // SC ovladače (lazy-load až na Play)
-  bindAdminControls();
-  bindViewControls();
+  (async function boot(){
+    await document.fonts?.load?.('400 16px Poppins');
+    await document.fonts?.load?.('600 16px Poppins');
+    await applyFixedLayout();
     bindBarControls();
+    resetCamera();
+  })();
 
   // Render loop + mobilní auto-quality sledování
   engine.runRenderLoop(()=>{
@@ -1379,17 +1044,14 @@ function bindBarControls(){
   // iOS – zamezit stránkovému pinch/gesture (ruší canvas)
   document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
-  // Start mód: VIEW (viz body.class="view")
-  setMode(MODE.VIEW);
-
-  (async function boot(){
-    await ensurePoppins();
-    await applyLayoutFromUI();
-    handleResize();
-    console.log("✔ Boot hotovo – start ve VIEW. Klávesy: 'A' ADMIN · 'V' VIEW (VIEW ovladače vpravo dole). Ikona vpravo dole resetuje kameru.");
-  })();
-
+  // Reset ikona
+  const resetCamIcon = document.getElementById('resetCamIcon');
+  if (resetCamIcon){
+    resetCamIcon.addEventListener('click', resetCamera);
+    resetCamIcon.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera(); }
+    });
+  }
   </script>
 </body>
 </html>
-``
