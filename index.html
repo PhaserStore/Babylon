@@ -650,60 +650,18 @@
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
-    // --- Stav + helpers pro logo (umístění a škálování) ---
-let LOGO_TOP_MARGIN = 0.7; // [m] vzdálenost horní hrany loga od stropu
-const logoMeshes = [];     // dvojice (zadní/čelní) plane s logem
-let logoDim = { w: 0, h: 0 }; // aktuální rozměry v metrech (počítané)
-let logoMat = null;           // materiál loga (pro případné budoucí úpravy)
+   // --- LOGO / PLACEMENT KONFIG ---
+// přesný poměr stran z viewBoxu "0 0 941.43 272.86"
+const LOGO_ASPECT = 941.43 / 272.86;
 
-/** Spočítá Y tak, aby horní hrana loga byla LOGO_TOP_MARGIN pod stropem */
-function getLogoY(logoH){
-  return (ROOM.H - LOGO_TOP_MARGIN) - (logoH / 2);
-}
+// šířka loga v metrech; výška se dopočítá poměrově
+const LOGO_WIDTH_M   = 5.0;   // ← nastav, jak velké logo chceš
 
-/** Aplikuje rozměry a vertikální pozici na obě logo meshe */
-function applyLogoWHAndY(newW, newH){
-  logoDim.w = newW;
-  logoDim.h = newH;
-  const y = getLogoY(newH);
+// odsazení horní hrany loga od stropu (v metrech)
+const LOGO_TOP_MARGIN = 0.65; // ← nastav vzdálenost od stropu
 
-  for (const m of logoMeshes){
-    if (!m) continue;
-    // změna geometry (plane) – v Babylonu je nejčistší re-create; tady stačí scaling:
-    m.scaling.x = newW / m._baseSizeW;  // _baseSizeW/_baseSizeH nastavíme při vytvoření
-    m.scaling.y = newH / m._baseSizeH;
-    m.position.y = y;
-  }
-}
-
-/** Přenastaví velikost loga podle ZADANÉ ŠÍŘKY (v metrech) se zachovaným poměrem stran */
-function setLogoWidthMeters(w){
-  w = Math.max(0.1, +w || (ROOM.W * LOGO_SCALE)); // ochrana proti 0/NaN
-  const h = w / LOGO_ASPECT;
-  applyLogoWHAndY(w, h);
-}
-
-/** Přenastaví velikost loga podle ZADANÉ VÝŠKY (v metrech) se zachovaným poměrem stran */
-function setLogoHeightMeters(h){
-  h = Math.max(0.1, +h || ((ROOM.W * LOGO_SCALE) / LOGO_ASPECT));
-  const w = h * LOGO_ASPECT;
-  applyLogoWHAndY(w, h);
-}
-
-/** Změní top offset od stropu a přepočítá Y (rozměry zachová) */
-function setLogoTopMargin(m){
-  LOGO_TOP_MARGIN = Math.max(0, +m || 0);
-  if (!logoMeshes.length || !logoDim.h) return;
-  const y = getLogoY(logoDim.h);
-  for (const mm of logoMeshes){ mm.position.y = y; }
-}
-
-/** Pohodlné škálování: násobek vůči šířce místnosti (původní chování) */
-function setLogoScaleByRoomWidth(scale){
-  const w = ROOM.W * (Math.max(0.01, +scale || LOGO_SCALE));
-  const h = w / LOGO_ASPECT;
-  applyLogoWHAndY(w, h);
-}
+// jemné odsazení od stěny (aby neprolínalo)
+const FRONT_BACK_OFFSET = 0.05;
 
   function buildGalleryLogo(){
     const img = new Image();
