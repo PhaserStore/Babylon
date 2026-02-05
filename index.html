@@ -198,12 +198,13 @@
   const canvas = document.getElementById("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
   preserveDrawingBuffer: false,
-  stencil: true,                // zapnout stencil buffer pro HighlightLayer
+  stencil: true,
   antialias: true,
   adaptToDeviceRatio: false,
   powerPreference: "high-performance"
-  });
-  if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
+});
+
+if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
 
   const CAPS = engine.getCaps ? engine.getCaps() : {};
   const MAX_TEX_CAP = Math.max(512, CAPS.maxTextureSize || 2048);
