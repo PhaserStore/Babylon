@@ -39,26 +39,19 @@
       border-top:1px solid rgba(255,255,255,.15);
       display:flex; align-items:center; padding:0 14px; gap:20px;
       z-index:50; font-size:13px; color:#eee; font-family:'Poppins', sans-serif;
-      -webkit-tap-highlight-color: transparent; /* iOS tap highlight pryč */
+      -webkit-tap-highlight-color: transparent;
     }
     #scBar button{
       width:34px; height:34px; border-radius:8px;
       border:1px solid var(--btn-brd);
       background:var(--btn-bg); color:#fff; cursor:pointer;
       display:inline-grid; place-items:center;
-      outline: none; /* odstraní defaultní modrý outline */
+      outline: none;
     }
     #scBar button:hover{ background:var(--btn-bg-hover); }
-    /* Vlastní přístupný focus ring (místo modrého čtverce) */
-    #scBar button:focus-visible{
-      box-shadow: 0 0 0 2px rgba(255,255,255,.25);
-    }
+    #scBar button:focus-visible{ box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
 
-    /* SVG ikony (bílé, stejné na všech platformách) */
-    .icon{
-      width:18px; height:18px; display:block; fill:#fff;
-      pointer-events:none; /* klik jen na button */
-    }
+    .icon{ width:18px; height:18px; display:block; fill:#fff; pointer-events:none; }
 
     .sc-left{ display:flex; gap:6px; align-items:center; }
 
@@ -98,12 +91,32 @@
     }
     .focusIcon:hover{ transform:translateY(-1px); opacity:1; }
 
+    /* 🔧 Fullscreen ikona – jen desktop (nad reset ikonou) */
+    .fullscreenIcon{
+      position:fixed;
+      right:calc(12px + var(--safe-right));
+      /* o ~68px výš než reset */
+      bottom:calc(12px + var(--bar-h) + var(--safe-bottom) + 68px);
+      z-index:10000;
+      width:56px; height:56px;
+      cursor:pointer; user-select:none; -webkit-user-drag:none;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,.45));
+      opacity:.96; transition: transform .12s ease, opacity .12s ease;
+      display:block;
+    }
+    .fullscreenIcon:hover{ transform:translateY(-1px); opacity:1; }
+
+    /* Skryj fullscreen ikonu na mobilech / tablet s coarse pointerem nebo úzkou šířkou */
+    @media (pointer:coarse), (max-width: 900px){
+      .fullscreenIcon{ display:none !important; }
+    }
+
     /* Mobilní drobná úprava spacingu */
     @media (max-width: 560px){
       #scBar{ gap:12px; padding:0 10px; }
       .sc-right{ min-width:200px; gap:10px; }
       #barVol{ width:70px; }
-      .time{ display:none; } /* na hodně úzkých zařízeních můžeme skrýt časy */
+      .time{ display:none; }
     }
   </style>
 
@@ -116,6 +129,19 @@
 <body>
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
+
+  <!-- 🔧 === Fullscreen (pravý dolní roh, nad reset) === -->
+  <img
+    id="fullscreenIcon"
+    class="fullscreenIcon"
+    src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
+    alt="Režim celé obrazovky"
+    title="Přepnout celé okno"
+    role="button"
+    tabindex="0"
+    aria-pressed="false"
+    aria-label="Přepnout režim celé obrazovky"
+  />
 
   <!-- === Reset kamery (pravý dolní roh, nad barem) === -->
   <img
@@ -133,28 +159,16 @@
   <div id="scBar" aria-label="SoundCloud Bar">
     <div class="sc-left">
       <button id="barPrev" title="Previous" aria-label="Previous">
-        <!-- Prev (double chevron left) -->
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/>
-        </svg>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
       </button>
       <button id="barPlay" title="Play" aria-label="Play">
-        <!-- Play (white triangle) -->
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
       </button>
       <button id="barPause" title="Pause" aria-label="Pause">
-        <!-- Pause -->
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M6 5h4v14H6zM14 5h4v14h-4z"/>
-        </svg>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
       </button>
       <button id="barNext" title="Next" aria-label="Next">
-        <!-- Next (double chevron right) -->
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/>
-        </svg>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
       </button>
     </div>
 
@@ -168,10 +182,7 @@
 
     <div class="sc-right">
       <button id="barMute" title="Mute/Unmute" aria-label="Mute or unmute">
-        <!-- Mute icon -->
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 9v6h4l5 5V4L8 9H4z"/>
-        </svg>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
       </button>
       <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
       <img id="scThumb" src="" alt="cover" />
@@ -226,7 +237,7 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = CAPS.maxAnisotropy || 4;
 
-  function nearestPOT(n, cap){ 
+  function nearestPOT(n, cap){
     const p = Math.pow(2, Math.round(Math.log2(Math.max(2, n))));
     return Math.min(p, cap || p);
   }
@@ -275,8 +286,9 @@
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 18 : 48 });
-    glow.intensity = IS_MOBILE ? 0.5 : 0.9;
+    // 🔧 GlowLayer – výraznější kernel + intenzita (vrací „LED blur“)
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 36 : 96 });
+    glow.intensity = IS_MOBILE ? 0.7 : 1.15;
 
     hl = new BABYLON.HighlightLayer("hl", scene);
 
@@ -358,7 +370,7 @@
       m.material=mat;
       m.isPickable=false;
       m.parent=n;
-      glow.addIncludedOnlyMesh(m);
+      glow.addIncludedOnlyMesh(m); // LED do glow
     };
 
     [[xL,y0,zF,xR,y0,zF],[xR,y0,zF,xR,y0,zB],[xR,y0,zB,xL,y0,zB],[xL,y0,zB,xL,y0,zF],
@@ -638,6 +650,7 @@
 
   /* =========================
      LOGO – inline SVG (ostrý + glow)
+     + 🔧 funkce pro umístění podle stropu
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
@@ -663,9 +676,16 @@
   const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.40;
   const FRONT_BACK_OFFSET = 0.05;
-  const LOGO_HEIGHT_M = 7.50;
-  const GLOW_BLUR_PX = 18;
 
+  // 🔧 Parametry a úložiště pro logo
+  let LOGO_TOP_MARGIN = 0.7; // [m] – vzdálenost horní hrany loga od stropu
+  const logoMeshes = [];     // [BABYLON.Mesh] sharp front/back
+  let logoDim = { w: 0, h: 0 };
+
+  // Pomocná – spočítá Y tak, aby horní hrana loga byla LOGO_TOP_MARGIN pod stropem
+  function getLogoY(logoH){
+    return (ROOM.H - LOGO_TOP_MARGIN) - (logoH/2);
+  }
 
   function buildGalleryLogo(){
     const img = new Image();
@@ -680,22 +700,43 @@
       ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
 
       const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
-      sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
-      sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1); sharpMat.backFaceCulling = false;
+      sharpMat.disableLighting = true;
+      sharpMat.diffuseTexture  = dt;
+      sharpMat.opacityTexture  = dt;
+      sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+      sharpMat.backFaceCulling = false;
 
+      // Rozměry loga v metrech (šířka škáluje s šířkou místnosti, výšku dopočítáme)
       const logoW = ROOM.W * LOGO_SCALE;
-      const logoH = LOGO_HEIGHT_M;
-      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+      const logoH = logoW / LOGO_ASPECT;
+      logoDim = { w: logoW, h: logoH };
+
+      const yPos = getLogoY(logoH); // 🔧 pozice odvozená od stropu
 
       function placeLogo(z, rotY, idx){
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+        s.position.set(0, yPos, z + Math.sign(z)*0.005);
+        s.rotation.y = rotY;
+        s.material = sharpMat;
+        logoMeshes.push(s);
+
+        // 🔧 Přidej i logo do GlowLayer -> vrací „LED blur“ efekt
+        glow.addIncludedOnlyMesh(s);
       }
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
     };
     img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); };
   }
+
+  // 🔧 Public API: nastav offset loga od stropu (v metrech) a přepočítej Y
+  function setLogoTopMargin(m){
+    LOGO_TOP_MARGIN = Math.max(0, +m || 0);
+    if (!logoMeshes.length || !logoDim.h) return;
+    const yPos = getLogoY(logoDim.h);
+    for (const m of logoMeshes){ m.position.y = yPos; }
+  }
+  // Př.: kdykoli můžete volat v konzoli: setLogoTopMargin(0.9);
 
   /* =========================
      Generátor rámů + data (pevné)
@@ -1024,6 +1065,29 @@
     camera.beta   =  Math.PI/2.25;
   }
 
+  // 🔧 Fullscreen API helpers
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+  function requestFs(el){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) req.call(el);
+  }
+  function exitFs(){
+    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if (ex) ex.call(document);
+  }
+  function toggleFullscreen(){
+    if (isFullscreen()) exitFs(); else requestFs(document.documentElement);
+  }
+  function syncFsButton(){
+    const btn = document.getElementById('fullscreenIcon');
+    if (!btn) return;
+    const on = isFullscreen();
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno';
+  }
+
   // Boot
   createScene();
   (async function boot(){
@@ -1059,25 +1123,9 @@
         if (changed){
           applyHardwareScale(currentScaleLevel);
           if (glow){
-            const k = currentScaleLevel; // 0.33..1
-            glow.blurKernelSize = Math.round( (IS_MOBILE ? 18 : 48) * (0.9 + 0.2*(1 - (k-0.33)/(1-0.33))) );
-          }
-        }
-        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
-      }
-    }
-  });
-
-  // Resize
-  function handleResize(){
-    applyHardwareScale();
-    engine.resize(true);
-  }
-  window.addEventListener("resize", handleResize, { passive:true });
-  window.addEventListener("orientationchange", handleResize);
-
-  // iOS – potlačit stránkový pinch/gesture
-  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
+            // jemné škálování kernelu dle úrovně výkonu
+            const base = IS_MOBILE ? 36 : 96;
+            glow.blurKernelSize = { passive:false });
 
   // Reset ikona
   const resetCamIcon = document.getElementById('resetCamIcon');
@@ -1086,6 +1134,19 @@
     resetCamIcon.addEventListener('keydown', (e)=>{
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera(); }
     });
+  }
+
+  // 🔧 Fullscreen ikona – jen desktop
+  const fullscreenIcon = document.getElementById('fullscreenIcon');
+  if (fullscreenIcon){
+    fullscreenIcon.addEventListener('click', toggleFullscreen);
+    fullscreenIcon.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); }
+    });
+    document.addEventListener('fullscreenchange', syncFsButton);
+    document.addEventListener('webkitfullscreenchange', syncFsButton);
+    document.addEventListener('mozfullscreenchange', syncFsButton);
+    document.addEventListener('MSFullscreenChange', syncFsButton);
   }
   </script>
 </body>
