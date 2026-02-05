@@ -197,11 +197,12 @@
   ========================= */
   const canvas = document.getElementById("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
-  preserveDrawingBuffer:false, 
-  stencil:true,                      // 👈 zapnout stencil buffer
-  antialias:true, 
-  adaptToDeviceRatio:false,
+  preserveDrawingBuffer: false,
+  stencil: true,                // zapnout stencil buffer pro HighlightLayer
+  antialias: true,
+  adaptToDeviceRatio: false,
   powerPreference: "high-performance"
+});
 });
   });
   if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
