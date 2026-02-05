@@ -269,6 +269,20 @@
     buildRoom();
     buildLED();
     buildGalleryLogo();
+    // === HVĚZDNÝ SKYBOX ===
+const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 500 }, scene);
+const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMat", scene);
+skyboxMaterial.backFaceCulling = false;
+skyboxMaterial.disableLighting = true;
+
+skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(
+  "https://assets.babylonjs.com/environments/skybox", 
+  scene
+);
+
+skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+skybox.Material = skyboxMaterial;
+skybox.material = skyboxMaterial;
 
     setupPicking();
     setupZoomUX();
