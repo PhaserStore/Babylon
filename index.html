@@ -197,7 +197,7 @@
   ========================= */
   const canvas = document.getElementById("renderCanvas");
   const engine = new BABYLON.Engine(canvas, true, {
-    preserveDrawingBuffer:false, stencil:false, antialias:true, adaptToDeviceRatio:false,
+    preserveDrawingBuffer:false, stencil:true, antialias:true, adaptToDeviceRatio:false,
     powerPreference: "high-performance"
   });
   if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
