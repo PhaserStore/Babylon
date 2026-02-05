@@ -77,7 +77,7 @@
     }
     .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
 
-    /* 🔧 Fullscreen vlevo od resetu, na stejné „linii“ (níže u bar/Focus) */
+    /* Fullscreen vlevo od resetu, na stejné linii */
     #fullscreenIcon{
       right:calc(12px + var(--safe-right) + 56px + 8px); /* 8px mezera, vlevo od resetu */
     }
@@ -106,7 +106,7 @@
   <!-- ===== Canvas ===== -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- 🔧 Fullscreen (vlevo), Reset (vpravo) – stejná spodní linie -->
+  <!-- Fullscreen (vlevo) + Reset (vpravo) -->
   <img
     id="fullscreenIcon"
     class="hudIcon"
@@ -260,7 +260,7 @@
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    // Glow – vrací „LED blur“ (adaptivní)
+    // Glow – LED blur (adaptivní)
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 36 : 96 });
     glow.intensity = IS_MOBILE ? 0.7 : 1.15;
 
@@ -621,9 +621,12 @@
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
- /* =========================
+  /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     PEVNÉ POMĚROVÉ ŠKÁLOVÁNÍ + UMÍSTĚNÍ HORNÍ HRANY POD STROP
   ========================= */
+
+  // INLINE SVG (Phaser logo)
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
@@ -645,67 +648,66 @@
     <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86;
-  const LOGO_SCALE = 0.30;
-  const FRONT_BACK_OFFSET = 0.25;
-  const LOGO_HEIGHT_M = 6.30;
-  const GLOW_BLUR_PX = 18;
-   // --- LOGO / PLACEMENT KONFIG ---
-// přesný poměr stran z viewBoxu "0 0 941.43 272.86"
-const LOGO_ASPECT = 941.43 / 202.86;
 
-// šířka loga v metrech; výška se dopočítá poměrově
-const LOGO_WIDTH_M   = 5.0;   // ← nastav, jak velké logo chceš
-
-// odsazení horní hrany loga od stropu (v metrech)
-const LOGO_TOP_MARGIN = 0.35; // ← nastav vzdálenost od stropu
-
-// jemné odsazení od stěny (aby neprolínalo)
-const FRONT_BACK_OFFSET = 0.05;
+  // LOGO KONFIG – poměr, šířka v metrech, top offset od stropu, offset od stěny
+  const LOGO_ASPECT = 941.43 / 272.86;   // správný poměr z viewBoxu
+  const LOGO_WIDTH_M = 5.0;               // ← měň pro změnu velikosti (šířka v m)
+  const LOGO_TOP_MARGIN = 0.35;           // ← horní hrana tolik pod stropem (m)
+  const FRONT_BACK_OFFSET = 0.05;         // mezera od stěny (m)
 
   function buildGalleryLogo(){
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
+
     img.onload = () => {
       const SIZE = 1024;
+
+      // textura z inline SVG (s alfou)
       const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
+      dt.hasAlpha = true;
       const ctx = dt.getContext();
-      const maxW = SIZE * 0.92;
-      const w = maxW, h = Math.round(maxW / LOGO_ASPECT);
-      const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
-      ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
 
-      const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
-      const gc = glowDT.getContext();
-      gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${GLOW_BLUR_PX}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
+      const drawW = Math.floor(SIZE * 0.92);
+      const drawH = Math.round(drawW / LOGO_ASPECT);
+      const dx = Math.round((SIZE - drawW)/2);
+      const dy = Math.round((SIZE - drawH)/2);
 
-      const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
-      sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
-      sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1); sharpMat.backFaceCulling = false;
+      ctx.clearRect(0,0,SIZE,SIZE);
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      dt.update();
 
-      const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
-      glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture   = glowDT;
-      glowMat.emissiveColor    = new BABYLON.Color3(1,1,1); glowMat.backFaceCulling  = false;
+      // materiál (emissive + opacity)
+      const logoMat = new BABYLON.StandardMaterial("logoMat", scene);
+      logoMat.disableLighting = true;
+      logoMat.emissiveTexture = dt;
+      logoMat.opacityTexture  = dt;
+      logoMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+      logoMat.diffuseColor    = new BABYLON.Color3(0,0,0);
+      logoMat.backFaceCulling = false;
 
-      const logoW = ROOM.W * LOGO_SCALE;
-      const logoH = LOGO_HEIGHT_M;
-      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+      // rozměry v m (poměr drží výška = šířka / aspect)
+      const logoW = LOGO_WIDTH_M;
+      const logoH = logoW / LOGO_ASPECT;
 
-      function placeLogo(z, rotY, idx){
-        const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
-        g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
+      // y podle horní hrany (strop = ROOM.H)
+      const yPos = (ROOM.H - LOGO_TOP_MARGIN) - (logoH/2);
 
-        const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
-      }
+      const placeLogo = (z, rotY, name) => {
+        const m = BABYLON.MeshBuilder.CreatePlane(name, { width:logoW, height:logoH }, scene);
+        m.position.set(0, yPos, z);
+        m.rotation.y = rotY;
+        m.material = logoMat;
+        m.isPickable = false;
+        glow.addIncludedOnlyMesh(m); // ať svítí
+      };
+
       // zadní + přední stěna
-      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
-      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
+      placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, 0,       "logoBack");
+      placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, Math.PI, "logoFront");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
-  }
 
+    img.onerror = (e) => console.error("Logo SVG nešlo načíst nebo vykreslit.", e);
+  }
 
   /* =========================
      Generátor rámů + data (pevné)
@@ -881,23 +883,23 @@ const FRONT_BACK_OFFSET = 0.05;
         + "&auto_play=false&hide_related=false&show_comments=false"
         + "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
 
-      iframe = document.createElement('iframe');
-      iframe.id = "scIframe";
-      iframe.title = "SoundCloud Player";
-      iframe.allow = "autoplay";
-      iframe.setAttribute("scrolling","no");
-      iframe.setAttribute("frameborder","no");
-      iframe.style.width = "0";
-      iframe.style.height= "0";
-      iframe.style.border = "0";
-      iframe.src = url;
+      const iframeNew = document.createElement('iframe');
+      iframeNew.id = "scIframe";
+      iframeNew.title = "SoundCloud Player";
+      iframeNew.allow = "autoplay";
+      iframeNew.setAttribute("scrolling","no");
+      iframeNew.setAttribute("frameborder","no");
+      iframeNew.style.width = "0";
+      iframeNew.style.height= "0";
+      iframeNew.style.border = "0";
+      iframeNew.src = url;
 
-      host.appendChild(iframe);
-      resolve(iframe);
+      host.appendChild(iframeNew);
+      resolve(iframeNew);
     });
   }
 
-  // === Bar helpers ===
+  // Bar helpers
   function scUpdateTime(cur, dur){
     const curEl = document.getElementById("scTimeCur");
     const durEl = document.getElementById("scTimeDur");
@@ -1011,24 +1013,7 @@ const FRONT_BACK_OFFSET = 0.05;
       seek.addEventListener("keydown", e=>{
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
           e.preventDefault();
-          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
-          const step = 0.02;
-          const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
-          if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
-        }
-      });
-    }
-  }
-
-  /* =========================
-     Reset kamery
-  ========================= */
-  function resetCamera(){
-    if (!camera) return;
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius = 11.5;
-    camera.alpha  = -Math.PI/2;
-    camera.beta   =  Math.PI/2.25;
+          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width ||2.25;
   }
 
   /* =========================
@@ -1066,7 +1051,7 @@ const FRONT_BACK_OFFSET = 0.05;
     resetCamera();
   })();
 
-  // Render loop + mobilní auto-quality
+  // Render loop + mobilní auto-quality sledování
   engine.runRenderLoop(()=>{
     if (!scene) return;
     scene.render();
