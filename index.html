@@ -771,43 +771,66 @@ if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
     return skybox;
   }
 
-  function createStarfieldParticles(){
-    if (starParticles) return starParticles;
+  function createStarfieldParticles() {
+  if (starParticles) return starParticles; // už existuje → vrať
 
-    const p = new BABYLON.ParticleSystem("stars", 4000, scene);
-   p.particleTexture = new BABYLON.Texture(
-  "https://playground.babylonjs.com/textures/flare.png",
-  scene
-);
+  const p = new BABYLON.ParticleSystem("stars", 4000, scene);
 
-    // prostor částic (okolo i nad místností)
-    p.minEmitBox = new BABYLON.Vector3(-120, -10, -120);
-    p.maxEmitBox = new BABYLON.Vector3( 120,  80,  120);
+  // --- textura částic: primární + záložní URL (fallback) ---
+  const primaryFlare = "https://playground.babylonjs.com/textures/flare.png";
+  const backupFlare  = "https://assets.babylonjs.com/textures/flare.png";
 
-    // barvy hvězd
-    p.color1 = new BABYLON.Color4(1, 1, 1, 1);
-    p.color2 = new BABYLON.Color4(0.85, 0.9, 1, 1);
-    p.colorDead = new BABYLON.Color4(0, 0, 0, 0);
+  // Zkusíme načíst primární, při chybě automaticky přepneme na záložní
+  const flareTex = new BABYLON.Texture(
+    primaryFlare,
+    scene,
+    /* noMipMap */ false,
+    /* invertY  */ false,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+    // onLoad
+    () => {},
+    // onError
+    () => {
+      console.warn("[Particles] Primary flare.png selhal → přepínám na backup");
+      p.particleTexture = new BABYLON.Texture(
+        backupFlare,
+        scene,
+        false,
+        false,
+        BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+      );
+    }
+  );
+  p.particleTexture = flareTex;
 
-    // velikost a život
-    p.minSize = 0.03;
-    p.maxSize = 0.12;
-    p.minLifeTime = 8;
-    p.maxLifeTime = 16;
+  // --- prostor částic (okolo i nad místností) ---
+  p.minEmitBox = new BABYLON.Vector3(-120, -10, -120);
+  p.maxEmitBox = new BABYLON.Vector3( 120,  80,  120);
 
-    p.emitRate = 1200;
-    p.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-    p.gravity = new BABYLON.Vector3(0,0,0);
+  // --- barvy hvězd ---
+  p.color1     = new BABYLON.Color4(1.00, 1.00, 1.00, 1);
+  p.color2     = new BABYLON.Color4(0.85, 0.90, 1.00, 1);
+  p.colorDead  = new BABYLON.Color4(0.00, 0.00, 0.00, 0);
 
-    // lehký pohyb (živost)
-    p.direction1 = new BABYLON.Vector3(0.06, 0.06, 0.06);
-    p.direction2 = new BABYLON.Vector3(-0.06,-0.06,-0.06);
+  // --- velikost + život ---
+  p.minSize      = 0.03;
+  p.maxSize      = 0.12;
+  p.minLifeTime  = 8;
+  p.maxLifeTime  = 16;
 
-    p.start();
-    starParticles = p;
-    return p;
-  }
+  // --- emise + blend ---
+  p.emitRate   = 1200;
+  p.blendMode  = BABYLON.ParticleSystem.BLENDMODE_ADD;
+  p.gravity    = new BABYLON.Vector3(0, 0, 0);
 
+  // --- jemný pohyb (živost) ---
+  p.direction1 = new BABYLON.Vector3( 0.06,  0.06,  0.06);
+  p.direction2 = new BABYLON.Vector3(-0.06, -0.06, -0.06);
+
+  p.start();
+  starParticles = p;
+  return p;
+}
   // Pomocné toggly na klávesy: N (ceiling), B (skybox), P (particles)
   window.addEventListener('keydown', (e)=>{
     if (!scene) return;
