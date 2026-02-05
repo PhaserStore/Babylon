@@ -775,10 +775,10 @@ if (!window.BABYLON) { console.error("Babylon.js se nenačetl."); }
     if (starParticles) return starParticles;
 
     const p = new BABYLON.ParticleSystem("stars", 4000, scene);
-    p.particleTexture = new BABYLON.Texture(
-      "https://raw.githubusercontent.com/BabylonJS/Assets/master/Flare/flare.png",
-      scene
-    );
+   p.particleTexture = new BABYLON.Texture(
+  "https://playground.babylonjs.com/textures/flare.png",
+  scene
+);
 
     // prostor částic (okolo i nad místností)
     p.minEmitBox = new BABYLON.Vector3(-120, -10, -120);
