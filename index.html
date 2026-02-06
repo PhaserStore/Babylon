@@ -256,9 +256,42 @@
   );
   camera.attachControl(canvas, true);
   camera.minZ = 0.2;
-  camera.maxZ = 5000;     // skybox je obří, malý dohled by ho „uřezal“
+  camera.maxZ = 5000;
 
   new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+
+  // Glow
+  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
+  glow.intensity = IS_MOBILE ? 0.45 : 0.65;
+
+  // Image processing – vypnuto, ať se netahá do modra
+  scene.imageProcessingConfiguration.toneMappingEnabled = false;
+  scene.imageProcessingConfiguration.exposure = 1.0;
+  scene.imageProcessingConfiguration.applyByPostProcess = false;
+  scene.imageProcessingConfiguration.contrast = 1.0;
+  scene.imageProcessingConfiguration.isEnabled = false;
+
+  buildRoom();
+  buildLED();
+  buildGalleryLogo();
+
+  // ⭐ Particles hvězdná obloha (bez dalšího <script>!)
+  const stars = buildStars(scene, engine, {
+    radius: 1200,
+    starCount: 60000,
+    pointSize: 1.4,
+    twinkleCount: 1500
+  });
+
+  // přesný strop s otvorem podle LED
+  buildCeilingWithAperture({ inw: 0.1 });
+
+  // POZOR: žádné `` tady!
+  setupPicking();
+  setupZoomUX();
+  return scene;
+}
+``
 
   // (volitelné) zjemni glow, ať nahoře nepřebije oblohu
   glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
