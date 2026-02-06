@@ -1228,21 +1228,21 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
   }
 
   async function applyFixedLayout() {
-    const YCENTER = ROOM.H * 0.55;
-    const safeWall   = FIXED_LAYOUT.safeWall;
-    const cornerSafe = FIXED_LAYOUT.cornerSafe;
-    FRAME_SIZE.W     = FIXED_LAYOUT.frame.width;
-    FRAME_SIZE.H     = FIXED_LAYOUT.frame.height;
-    FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
-    FRAME_COLOR      = FIXED_LAYOUT.frame.color;
+  const YCENTER = ROOM.H * 0.55;
+  const safeWall   = FIXED_LAYOUT.safeWall;
+  const cornerSafe = FIXED_LAYOUT.cornerSafe;
+  FRAME_SIZE.W     = FIXED_LAYOUT.frame.width;
+  FRAME_SIZE.H     = FIXED_LAYOUT.frame.height;
+  FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
+  FRAME_COLOR      = FIXED_LAYOUT.frame.color;
 
-    createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   YCENTER, safeWall, cornerSafe);
-    createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  YCENTER, safeWall, cornerSafe);
+  createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  YCENTER, safeWall, cornerSafe);
+  createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   YCENTER, safeWall, cornerSafe);
+  createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   YCENTER, safeWall, cornerSafe);
+  createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  YCENTER, safeWall, cornerSafe);
 
-    assignDataAllWalls(DATA);
-  }
+  assignDataAllWalls(DATA);
+}
 
   /* =========================
      SoundCloud player (tenký bar)
