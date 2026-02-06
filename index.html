@@ -333,7 +333,7 @@ function unlitTex(tex, { doubleSided=false } = {}){
 }
 
 function buildSkyDome() {
-  // 1) Koule "pozadí"
+  // 1) Koule pozadí
   const dome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
     diameter: 3000,
     segments: 32,
@@ -341,46 +341,26 @@ function buildSkyDome() {
   }, scene);
   dome.isPickable = false;
 
-  // 2) Materiál – hned ho obarvíme na modro, ať okamžitě vidíš, že se DOOM kreslí
+  // 2) Materiál – nejdřív pevná barva (okamžitý vizuální test)
   const mat = new BABYLON.StandardMaterial("skyMat", scene);
   mat.disableLighting = true;
   mat.backFaceCulling = false;
-  mat.emissiveColor = new BABYLON.Color3(0.08, 0.12, 0.32); // modrá "obloha", dokud se nenahraje textura
+  mat.emissiveColor   = new BABYLON.Color3(0.10, 0.15, 0.35);   // budeš ihned vidět "modrou oblohu"
   dome.material = mat;
 
-  // 3) Zkusíme NALÍTAT LOKÁLNÍ ASSET ./assets/sky.jpg
-  const tex = new BABYLON.Texture("./assets/sky.jpg", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-    () => {
-      console.log("[SkyDome] sky.jpg loaded (local) ✅");
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      mat.emissiveTexture = tex;
-      mat.emissiveColor   = new BABYLON.Color3(1,1,1);
-    },
-    (message, exception) => {
-      console.warn("[SkyDome] local sky.jpg failed, using fallback gradient…", message || exception);
-      // 4) Nouzový fallback: dynamická textura – tmavý radiální gradient
-      const SIZE = 1024;
-      const dt = new BABYLON.DynamicTexture("skyFallback", {width: SIZE, height: SIZE}, scene, true);
-      const ctx = dt.getContext();
-      const cx = SIZE/2, cy = SIZE/2, r = Math.sqrt(cx*cx + cy*cy);
-      const g = ctx.createRadialGradient(cx, cy, r*0.05, cx, cy, r);
-      g.addColorStop(0.0, "#0a1033");
-      g.addColorStop(0.4, "#070a24");
-      g.addColorStop(1.0, "#02030c");
-      ctx.fillStyle = g; ctx.fillRect(0,0,SIZE,SIZE);
-      // pár jemných "hvězd"
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      for (let i=0;i<250;i++){
-        const x = Math.random()*SIZE, y = Math.random()*SIZE;
-        ctx.fillRect(x, y, 1, 1);
-      }
-      dt.update();
-      dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  // 3) Načti lokální JPG (stejně jako ostatní assety)
+  const tex = new BABYLON.Texture("./assets/sky.jpg", scene, /*noMipmap*/ undefined, /*invertY*/ false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
 
-      mat.emissiveTexture = dt;
-      mat.emissiveColor   = new BABYLON.Color3(1,1,1);
-    }
-  );
+  // Diagnostické logy
+  tex.onLoadObservable.addOnce(() => {
+    console.log("[SkyDome] sky.jpg loaded ✅", tex);
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    mat.emissiveTexture = tex;
+    mat.emissiveColor   = new BABYLON.Color3(1,1,1);            // přepne z modré na texturu
+  });
+  tex.onError = (msg, e) => {
+    console.warn("[SkyDome] sky.jpg load error ❌", msg || e);
+  };
 }
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
