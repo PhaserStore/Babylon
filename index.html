@@ -332,8 +332,7 @@ function unlitTex(tex, { doubleSided=false } = {}){
   return m;
 }
 
-// --- SKYDOME (obloha 1× JPG; viditelná jen "otvorem" ve stropě) ------------
-
+// --- SKYDOME (obloha 1× JPG z GitHub RAW) ----------------------------------
 function buildSkyDome() {
   const dome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
     diameter: 3000,
@@ -346,32 +345,20 @@ function buildSkyDome() {
   mat.disableLighting = true;
   mat.backFaceCulling = false;
 
-  // 1) pokus o lokální soubor
-  let tex = new BABYLON.Texture(
-    "./assets/sky.jpg",
-    scene,
-    true,   // generateMipMaps
-    false,  // invertY
-    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-    () => console.log("[SkyDome] sky.jpg loaded (local) ✅"),
-    (msg, ex) => {
-      console.warn("[SkyDome] local sky.jpg failed, trying RAW…", msg || ex);
-      // 2) fallback: RAW GitHub
-      tex = new BABYLON.Texture(
-        "https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/sky.jpg",
-        scene,
-        true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-        () => console.log("[SkyDome] sky.jpg loaded (RAW) ✅"),
-        (m2, e2) => console.error("[SkyDome] RAW sky.jpg failed ❌", m2 || e2)
-      );
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      mat.emissiveTexture = tex;
-    }
+  // ✔️ GitHub RAW URL (externí obrázek)
+  const tex = new BABYLON.Texture(
+    "https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/sky.jpg",
+    scene
   );
 
+  // Volitelné logy – uvidíš v Console, že je textura v GPU
+  tex.onLoadObservable.addOnce(() => console.log("[SkyDome] sky.jpg loaded (RAW) ✅"));
+  tex.onError = (msg, e) => console.warn("[SkyDome] sky.jpg load error ❌", msg || e);
+
+  // Doporučené nastavení adresace + „svítivý“ materiál (bez světel)
   tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
   mat.emissiveTexture = tex;
-  mat.emissiveColor   = new BABYLON.Color3(1,1,1);
+  mat.emissiveColor   = new BABYLON.Color3(1, 1, 1);
 
   dome.material = mat;
 }
