@@ -333,35 +333,30 @@ function unlitTex(tex, { doubleSided=false } = {}){
   return m;
 }
 
-function buildSkyDome() {
-  // 1) Koule pozadí
-  const dome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
-    diameter: 3000,
-    segments: 32,
-    sideOrientation: BABYLON.Mesh.BACKSIDE
-  }, scene);
-  dome.isPickable = false;
+// --- NEBULA SKYBOX (CubeTexture z Babylon Playground) ----------------------
+function buildNebulaSkybox() {
+  // Obří krychle, kreslená zevnitř
+  const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
 
-  // 2) Materiál – nejdřív pevná barva (okamžitý vizuální test)
-  const mat = new BABYLON.StandardMaterial("skyMat", scene);
-  mat.disableLighting = true;
-  mat.backFaceCulling = false;
-  mat.emissiveColor   = new BABYLON.Color3(0.10, 0.15, 0.35);   // budeš ihned vidět "modrou oblohu"
-  dome.material = mat;
+  const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+  skyMat.backFaceCulling = false;     // kreslit i vnitřní strany
+  skyMat.disableLighting = true;      // nehrajeme si se světlem, textura „svítí“ sama
 
-  // 3) Načti lokální JPG (stejně jako ostatní assety)
-  const tex = new BABYLON.Texture("./assets/sky.jpg", scene, /*noMipmap*/ undefined, /*invertY*/ false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  // Ověřený set krychlové textury z Playgroundu
+  const cubetex = new BABYLON.CubeTexture(
+    "https://playground.babylonjs.com/textures/skybox", // bez přípony; Babylon si sáhne na px, py, pz, nx, ny, nz
+    scene
+  );
+  cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
 
-  // Diagnostické logy
-  tex.onLoadObservable.addOnce(() => {
-    console.log("[SkyDome] sky.jpg loaded ✅", tex);
-    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    mat.emissiveTexture = tex;
-    mat.emissiveColor   = new BABYLON.Color3(1,1,1);            // přepne z modré na texturu
-  });
-  tex.onError = (msg, e) => {
-    console.warn("[SkyDome] sky.jpg load error ❌", msg || e);
-  };
+  skyMat.reflectionTexture = cubetex;
+  skyMat.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+  skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
+  skyMat.specularColor = new BABYLON.Color3(0,0,0);
+
+  skybox.material = skyMat;
+  skybox.isPickable = false;
+  skybox.infiniteDistance = true;     // drží se u kamery a nebliká při pohybu
 }
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
