@@ -1694,6 +1694,10 @@ await setMarqueeText(MARQUEE.msg);
   const dtSec = dtMs * 0.001;
 
     scene.render();
+    // ⬇⬇⬇ POSUN MARQUEE + střídání welcome/now playing
+  tickMarquee(dtSec);
+  alternateMarqueeUpdate(dtMs);
+  // ⬆⬆⬆
 
     if (AutoScale.enabled){
       const now = performance.now();
