@@ -1739,6 +1739,10 @@ await setMarqueeText(MARQUEE.msg);
   // Render loop + mobilní auto-quality
   engine.runRenderLoop(()=>{
     if (!scene) return;
+        
+ const dtMs = engine.getDeltaTime();      // ms od posledního frame
+  const dtSec = dtMs * 0.001;
+
     scene.render();
 
     if (AutoScale.enabled){
