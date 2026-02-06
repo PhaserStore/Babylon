@@ -1730,6 +1730,8 @@ async function applyFixedLayout() {
     await document.fonts?.load?.('400 16px Poppins');
     await document.fonts?.load?.('600 16px Poppins');
     await applyFixedLayout();
+        await buildMarqueeBands();
+await setMarqueeText(MARQUEE.msg);
     bindBarControls();
     resetCamera();
   })();
