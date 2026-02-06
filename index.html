@@ -283,7 +283,7 @@ function buildSkyDome() {
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
 
-    camera.minZ = 0.2; camera.maxZ = 200;
+    camera.minZ = 0.2; camera.maxZ = 5000;
     camera.lowerBetaLimit = 0.1; camera.upperBetaLimit = Math.PI - 0.1;
     camera.lowerRadiusLimit = MIN_RADIUS; camera.upperRadiusLimit = MAX_RADIUS;
     camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
