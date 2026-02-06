@@ -278,7 +278,13 @@ scene.imageProcessingConfiguration.isEnabled = false; // ale bez post-processu
 buildLED();
 // buildCeilingLip();  // volitelné
 buildGalleryLogo();
-buildMySkybox();       // ⬅️ místo původního skyboxu/skydome
+// buildMySkybox();  // teď NE – chceme vidět čistě particles
+const stars = buildStars(scene, engine, {
+  radius: 1200,
+  starCount: 60000,
+  pointSize: 1.4,
+  twinkleCount: 1500
+});
 buildCeilingWithAperture({ inw: 0.1 });
 ``
 
