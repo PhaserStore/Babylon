@@ -471,6 +471,10 @@ function buildMySkybox() {
   skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
   skyMat.specularColor = new BABYLON.Color3(0,0,0);
 
+  // v buildMySkybox(), po vytvoření skyMat:
+skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10); // jemně projasní - klidně 0.08–0.15
+skybox.applyFog = false;
+
   // ⬇️ Explicitně zadáme 6 PNG souborů (žádné 404, žádné .jpg defaulty)
  const cubetex = BABYLON.CubeTexture.CreateFromImages([
   "./assets/mySky_px.png", // +X
