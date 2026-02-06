@@ -249,17 +249,32 @@ function buildSkyDome() {
     segments: 32,
     sideOrientation: BABYLON.Mesh.BACKSIDE
   }, scene);
+  dome.isPickable = false;
 
   const mat = new BABYLON.StandardMaterial("skyMat", scene);
   mat.disableLighting = true;
   mat.backFaceCulling = false;
 
-  mat.emissiveTexture = new BABYLON.Texture("./assets/sky.jpg", scene);
-  mat.emissiveColor = new BABYLON.Color3(1,1,1);
+  // ⚠️ vyber JEDNU z možností:
+
+  // A) Lokální soubor v projektu (doporučeno pro výrobu):
+  // const tex = new BABYLON.Texture("./assets/sky.jpg", scene);
+
+  // B) RAW GitHub URL (když zatím nemáš lokální soubor):
+  const tex = new BABYLON.Texture(
+    "https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/sky.jpg",
+    scene
+  );
+
+  // Logy pro jistotu:
+  tex.onLoadObservable.addOnce(() => console.log("[SkyDome] sky.jpg loaded ✅"));
+  tex.onError = (m, e) => console.warn("[SkyDome] texture load error:", m || e);
+
+  mat.emissiveTexture = tex;           // svítí bez světel
+  mat.emissiveColor   = new BABYLON.Color3(1,1,1);
 
   dome.material = mat;
 }
-
 
   function createScene(){
     scene = new BABYLON.Scene(engine);
