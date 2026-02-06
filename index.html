@@ -256,42 +256,9 @@
   );
   camera.attachControl(canvas, true);
   camera.minZ = 0.2;
-  camera.maxZ = 5000;
+  camera.maxZ = 5000;     // skybox je obří, malý dohled by ho „uřezal“
 
   new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
-
-  // Glow
-  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
-  glow.intensity = IS_MOBILE ? 0.45 : 0.65;
-
-  // Image processing – vypnuto, ať se netahá do modra
-  scene.imageProcessingConfiguration.toneMappingEnabled = false;
-  scene.imageProcessingConfiguration.exposure = 1.0;
-  scene.imageProcessingConfiguration.applyByPostProcess = false;
-  scene.imageProcessingConfiguration.contrast = 1.0;
-  scene.imageProcessingConfiguration.isEnabled = false;
-
-  buildRoom();
-  buildLED();
-  buildGalleryLogo();
-
-  // ⭐ Particles hvězdná obloha (bez dalšího <script>!)
-  const stars = buildStars(scene, engine, {
-    radius: 1200,
-    starCount: 60000,
-    pointSize: 1.4,
-    twinkleCount: 1500
-  });
-
-  // přesný strop s otvorem podle LED
-  buildCeilingWithAperture({ inw: 0.1 });
-
-  // POZOR: žádné `` tady!
-  setupPicking();
-  setupZoomUX();
-  return scene;
-}
-``
 
   // (volitelné) zjemni glow, ať nahoře nepřebije oblohu
   glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
@@ -305,21 +272,15 @@ scene.imageProcessingConfiguration.applyByPostProcess = false;
 
 // pro jistotu standardizuj gamma
 scene.imageProcessingConfiguration.contrast = 1.0;
-scene.imageProcessingConfiguration.isEnabled = false; // ale bez post-processu
+scene.imageProcessingConfiguration.isEnabled = true; // ale bez post-processu
 
   buildRoom();
 buildLED();
 // buildCeilingLip();  // volitelné
 buildGalleryLogo();
-// buildMySkybox();  // teď NE – chceme vidět čistě particles
-const stars = buildStars(scene, engine, {
-  radius: 1200,
-  starCount: 60000,
-  pointSize: 1.4,
-  twinkleCount: 1500
-});
+buildMySkybox();       // ⬅️ místo původního skyboxu/skydome
 buildCeilingWithAperture({ inw: 0.1 });
-
+``
 
   setupPicking();
   setupZoomUX();
@@ -409,95 +370,7 @@ buildCeilingWithAperture({ inw: 0.1 });
   // Volitelně: Pokud chceš fotopanel přesně v otvoru (místo oblohy):
   // buildCeilingPhoto("./assets/yourCeilingPhoto.jpg", { bleed: 0.003, texSize: 2048, fit: "cover" });
 }
-``function buildStars(scene, engine, options = {}) {
-  const opt = {
-    radius: 1200,
-    starCount: 60000,
-    pointSize: 1.4,
-    twinkleCount: 1500,
-    twinkleMin: 0.5,
-    twinkleMax: 1.6,
-    twinkleAlpha1: 0.55,
-    twinkleAlpha2: 0.30,
-    ...options
-  };
-
-  // drž černou skutečně černou
-  scene.imageProcessingConfiguration.isEnabled = false;
-  scene.imageProcessingConfiguration.applyByPostProcess = false;
-
-  // kopule
-  const skyDome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
-    segments: 8, diameter: opt.radius*2, sideOrientation: BABYLON.Mesh.BACKSIDE
-  }, scene);
-  skyDome.isPickable = false;
-  skyDome.renderingGroupId = 0;
-  const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
-  skyMat.disableLighting = true;
-  skyMat.diffuseColor = skyMat.specularColor = skyMat.emissiveColor = new BABYLON.Color3(0,0,0);
-  skyDome.material = skyMat;
-
-  // body – PCS
-  const pcs = new BABYLON.PointsCloudSystem("pcsStars", { pointSize: opt.pointSize, updatable:false }, scene);
-  function randomOnSphere(r){
-    const u = Math.random(), v = Math.random();
-    const th = 2*Math.PI*u, ph = Math.acos(2*v-1);
-    return new BABYLON.Vector3(
-      r*Math.sin(ph)*Math.cos(th),
-      r*Math.cos(ph),
-      r*Math.sin(ph)*Math.sin(th)
-    );
-  }
-  pcs.addPoints(opt.starCount, p => {
-    p.position = randomOnSphere(opt.radius - 1);
-    const w = Math.random();
-    const lum = Math.pow(w,3)*0.85 + 0.15;
-    p.color = new BABYLON.Color4(lum, lum*0.98, lum*0.97, 1.0);
-  });
-  pcs.buildMeshAsync().then(() => {
-    const pm = new BABYLON.PointsMaterial("starsPM", scene);
-    pm.disableLighting = true;
-    pm.pointSize = opt.pointSize;
-    pm.useAlpha = false;
-    pcs.mesh.material = pm;
-    pcs.mesh.isPickable = false;
-    pcs.mesh.renderingGroupId = 0;
-    pcs.mesh.freezeWorldMatrix();
-  });
-
-  // twinkle – GPU částice (lehký overlay)
-  const cap = Math.min(opt.twinkleCount, (engine.getCaps().maxGPUContexts ? 4000 : 2000));
-  const tw = new BABYLON.GPUParticleSystem("twinkle", { capacity: cap }, scene);
-  tw.particleTexture = new BABYLON.Texture(
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMByV4bVtEAAAAASUVORK5CYII=",
-    scene, true, false
-  );
-  tw.minEmitPower = 0; tw.maxEmitPower = 0;
-  tw.minSize = opt.twinkleMin; tw.maxSize = opt.twinkleMax;
-  tw.minLifeTime = 2.5; tw.maxLifeTime = 5.5;
-  tw.emitRate = cap;
-  tw.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-  tw.isBillboardBased = true;
-  const emitter = new BABYLON.SphereParticleEmitter(opt.radius - 2);
-  emitter.radiusRange = 0;
-  tw.particleEmitterType = emitter;
-  tw.color1 = new BABYLON.Color4(1.00, 0.97, 0.95, opt.twinkleAlpha1);
-  tw.color2 = new BABYLON.Color4(0.95, 0.95, 1.00, opt.twinkleAlpha2);
-  tw.colorDead = new BABYLON.Color4(0.9, 0.9, 0.9, 0);
-  const t0 = performance.now();
-  tw.updateFunction = parts => {
-    const t = (performance.now() - t0)/1000;
-    for (const p of parts){
-      const k = 0.5 + 0.5*Math.sin(t*0.6 + p.angle);
-      p.color.a = p.color.a*0.5 + 0.5*k;
-      p.size = p.size*(0.9 + 0.2*k);
-    }
-  };
-  tw.renderingGroupId = 0;
-  tw.start();
-
-  return { pcs, tw, skyDome };
-}
+``
 // --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
 
 function unlit(hex){
@@ -585,126 +458,46 @@ function buildCeilingPhoto(url, { bleed = 0.002, texSize = 2048, fit = "cover" }
   try { glow?.removeIncludedOnlyMesh?.(plane); } catch (e) {}
   return plane;
 }
+function buildMySkybox() {
+  // Velká krychle vykreslovaná zevnitř
+  const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
+  skybox.isPickable = false;
+  skybox.infiniteDistance = true;
 
-// ===============================
-//  STAR SKY (PCS + GPU twinkle)
-// ===============================
-function buildStars(scene, engine, options = {}) {
-  const opt = {
-    radius: 1200,          // poloměr „kopule“ s hvězdami
-    starCount: 60000,      // počet statických bodů (30–100k je OK i na mobilech)
-    pointSize: 1.4,        // velikost hvězd (pixely)
-    twinkleCount: 1500,    // počet „mihotajících“ částic (GPU)
-    twinkleMin: 0.5,
-    twinkleMax: 1.6,
-    twinkleAlpha1: 0.55,
-    twinkleAlpha2: 0.30,
-    ...options
-  };
-
-  // 0) Zajisti „černou je černá“ (bez modrého nádechu)
-  scene.imageProcessingConfiguration.isEnabled = false;
-  scene.imageProcessingConfiguration.applyByPostProcess = false;
-
-  // 1) Vytvoř invertovanou sféru (jen kvůli měřítku a správné hloubce)
-  const skyDome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
-    segments: 8,
-    diameter: opt.radius * 2,
-    sideOrientation: BABYLON.Mesh.BACKSIDE
-  }, scene);
-  skyDome.isPickable = false;
-  skyDome.renderingGroupId = 0;
-
+  // Materiál pro skybox
   const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+  skyMat.backFaceCulling = false;
   skyMat.disableLighting = true;
   skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
   skyMat.specularColor = new BABYLON.Color3(0,0,0);
-  skyMat.emissiveColor = new BABYLON.Color3(0,0,0);
-  skyDome.material = skyMat;
 
-  // 2) Statické hvězdy jako body (PointsCloudSystem)
-  const pcs = new BABYLON.PointsCloudSystem("pcsStars", {
-    pointSize: opt.pointSize,
-    updatable: false
-  }, scene);
+  // v buildMySkybox(), po vytvoření skyMat:
+skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10); // jemně projasní - klidně 0.08–0.15
+skybox.applyFog = false;
 
-  function randomOnSphere(radius) {
-    const u = Math.random(), v = Math.random();
-    const theta = 2 * Math.PI * u;
-    const phi   = Math.acos(2*v - 1);
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.cos(phi);
-    const z = radius * Math.sin(phi) * Math.sin(theta);
-    return new BABYLON.Vector3(x, y, z);
-  }
+  // ⬇️ Explicitně zadáme 6 PNG souborů (žádné 404, žádné .jpg defaulty)
+const cubetex = BABYLON.CubeTexture.CreateFromImages([
+  "./assets/mySky_px.png",
+  "./assets/mySky_nx.png",
+  "./assets/mySky_py.png",
+  "./assets/mySky_ny.png",
+  "./assets/mySky_pz.png",
+  "./assets/mySky_nz.png"
+], scene);
 
-  pcs.addPoints(opt.starCount, particle => {
-    particle.position = randomOnSphere(opt.radius - 1);
-    // méně jasných, více slabých – realističtější rozdělení
-    const w = Math.random();
-    const lum = Math.pow(w, 3.0) * 0.85 + 0.15;
-    // jemně teplejší než čistá modrá bílá
-    particle.color = new BABYLON.Color4(lum, lum*0.98, lum*0.97, 1.0);
-  });
+cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+cubetex.gammaSpace = true;           
+cubetex.lodGenerationOffset = 0;
+cubetex.lodGenerationScale  = 0;
 
-  pcs.buildMeshAsync().then(() => {
-    const pm = new BABYLON.PointsMaterial("starsPM", scene);
-    pm.disableLighting = true;
-    pm.pointSize = opt.pointSize;
-    pm.useAlpha = false;
-    pcs.mesh.material = pm;
-    pcs.mesh.alwaysSelectAsActiveMesh = true;
-    pcs.mesh.isPickable = false;
-    pcs.mesh.renderingGroupId = 0;
+skyMat.reflectionTexture = cubetex;
+skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10);
+skybox.material = skyMat;
 
-    // Statické optimalizace
-    pcs.mesh.freezeWorldMatrix();
-  });
-
-  // 3) Jemné mihotání (GPU Particle System)
-  const cap = Math.min(opt.twinkleCount, (engine.getCaps().maxGPUContexts ? 4000 : 2000));
-  const tw = new BABYLON.GPUParticleSystem("twinkle", { capacity: cap }, scene);
-
-  // 1×1 bílý pixel (base64) = nejlehčí možná „tečka“
-  tw.particleTexture = new BABYLON.Texture(
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMByV4bVtEAAAAASUVORK5CYII=",
-    scene, true, false
-  );
-
-  tw.minEmitPower = 0.0; tw.maxEmitPower = 0.0;  // částice stojí na místě
-  tw.minSize = opt.twinkleMin; tw.maxSize = opt.twinkleMax;
-  tw.minLifeTime = 2.5; tw.maxLifeTime = 5.5;
-  tw.emitRate = cap;
-  tw.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-  tw.isBillboardBased = true;
-
-  const emitter = new BABYLON.SphereParticleEmitter(opt.radius - 2);
-  emitter.radiusRange = 0;
-  tw.particleEmitterType = emitter;
-
-  // jemně teplejší barvy, aby se vyhnula „studené modři“
-  tw.color1 = new BABYLON.Color4(1.00, 0.97, 0.95, opt.twinkleAlpha1);
-  tw.color2 = new BABYLON.Color4(0.95, 0.95, 1.00, opt.twinkleAlpha2);
-  tw.colorDead = new BABYLON.Color4(0.9, 0.9, 0.9, 0.0);
-
-  // „dýchání“ alpha + size – decentní
-  const t0 = performance.now();
-  tw.updateFunction = (particles) => {
-    const t = (performance.now() - t0) / 1000;
-    for (let p of particles) {
-      const k = 0.5 + 0.5 * Math.sin(t * 0.6 + p.angle);
-      p.color.a = p.color.a * 0.5 + 0.5 * k;
-      p.size = p.size * (0.9 + 0.2 * k);
-    }
-  };
-
-  tw.renderingGroupId = 0;
-  tw.start();
-
-  // Pomocný objekt pro další úpravy
-  return { pcs, tw, skyDome };
+  // (Volitelně) pootočení skyboxu, pokud chceš „otočit“ hvězdnou mapu
+  // skybox.rotation.y = Math.PI / 2;
 }
-</script>
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
     width: ROOM.W, 
