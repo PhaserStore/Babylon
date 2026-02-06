@@ -245,17 +245,22 @@
   };
 function buildSkybox(){
   const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
+
   const mat = new BABYLON.StandardMaterial("skyMat", scene);
   mat.backFaceCulling = false;
   mat.disableLighting = true;
-  const tex = new BABYLON.CubeTexture("https://playground.babylonjs.com/textures/skybox", scene);
-  tex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+
+  // ⭐ Noční galaxie z Playground knihovny
+  const tex = new BABYLON.CubeTexture("https://playground.babylonjs.com/textures/space", scene);
+  tex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE; // správný mód pro skybox
   mat.reflectionTexture = tex;
+  mat.diffuseColor = new BABYLON.Color3(0,0,0);
+  mat.specularColor = new BABYLON.Color3(0,0,0);
+
   skybox.material = mat;
   skybox.infiniteDistance = true;
 
-  tex.onLoadObservable.addOnce(() => console.log("[Skybox] cube texture loaded ✅"));
-  tex.onError = (m, e) => console.warn("[Skybox] cube load error:", m || e);
+  tex.onLoadObservable.addOnce(() => console.log("[Skybox] space loaded ✅"));
 }
 ``
 
