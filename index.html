@@ -663,112 +663,256 @@ function buildLED() {
     }, { passive:true });
   }
 
-  /* =========================
-     Obrázky / textury
-  ========================= */
-  function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(
-      name,
-      { width:w, height:h },
-      scene,
-      genMipmaps,
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    );
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-    return dt;
+ /* =========================
+   Obrázky / videa / textury – unified
+========================= */
+
+// Globál: výsledné 9:16 (nebo jiné) rozměry rámu se čtou z FRAME_SIZE
+// (FRAME_SIZE nastavuješ v applyFixedLayout – u tebe natvrdo 9:16)
+const FRAME_SIZE = { W: 2, H: 2 };   // init; skutečnou výšku přepíše applyFixedLayout()
+let FRAME_BOX_BORDER = 0.08;
+let FRAME_COLOR = "#717171";
+
+function makeDT(name, w, h, genMipmaps=true) {
+  const dt = new BABYLON.DynamicTexture(
+    name,
+    { width:w, height:h },
+    scene,
+    genMipmaps,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.hasAlpha = false;
+  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+  return dt;
+}
+
+/**
+ * Vykreslí zdroj (Image/Canvas/Video frame) do canvasu s "cover" nebo "contain" fitem,
+ * bez deformace, s centrací.
+ * - targetW/H = rozměr cílové textury (typicky TEX_SIZE x TEX_SIZE)
+ * - frameW/H  = Fyzický poměr plátna v rámu (FRAME_SIZE.W/H)
+ */
+function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
+  const targetR = frameW / frameH;     // poměr fyzického plátna (např. 9:16)
+  const r       = bmp.width / bmp.height;
+
+  let dw, dh, dx=0, dy=0;
+  if (mode === "cover"){
+    if (r > targetR){                 // zdroj "širší" než cíl → plná výška, oříznout do šířky
+      dh = targetH;
+      dw = Math.round(dh * r);
+      dx = Math.round((targetW - dw) / 2);
+    } else {                          // zdroj "užší" než cíl → plná šířka, oříznout do výšky
+      dw = targetW;
+      dh = Math.round(dw / r);
+      dy = Math.round((targetH - dh) / 2);
+    }
+  } else { // "contain"
+    if (r > targetR){                 // zdroj "širší" → plná šířka, doladit výšku
+      dw = targetW;
+      dh = Math.round(dw / r);
+      dy = Math.round((targetH - dh) / 2);
+    } else {
+      dh = targetH;
+      dw = Math.round(dh * r);
+      dx = Math.round((targetW - dw) / 2);
+    }
   }
 
-  function drawFitted(ctx,bmp,frameW,frameH){
-    const targetR=frameW/frameH, r=bmp.width/bmp.height; let dw=TEX_SIZE,dh=TEX_SIZE,dx=0,dy=0;
-    if(r>targetR){ dh=TEX_SIZE; dw=Math.round(dh*r); dx=Math.round((TEX_SIZE-dw)/2);}
-    else{ dw=TEX_SIZE; dh=Math.round(dw/r); dy=Math.round((TEX_SIZE-dh)/2);}
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp,0,0,bmp.width,bmp.height,dx,dy,dw,dh);
+  if (bg){
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,targetW,targetH);
   }
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
+}
 
-  function drawChecker(ctx, w, h) {
-    const tile = 32;
-    for (let y = 0; y < h; y += tile) {
-      for (let x = 0; x < w; x += tile) {
-        const even = ((x / tile) + (y / tile)) % 2 === 0;
-        ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
-        ctx.fillRect(x, y, tile, tile);
+function drawChecker(ctx, w, h) {
+  const tile = 32;
+  for (let y = 0; y < h; y += tile) {
+    for (let x = 0; x < w; x += tile) {
+      const even = ((x / tile) + (y / tile)) % 2 === 0;
+      ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
+      ctx.fillRect(x, y, tile, tile);
+    }
+  }
+}
+
+/**
+ * Obrázek → DynamicTexture → unlit materiál na frame
+ * - používá fit "cover" a poměr FRAME_SIZE (portrait 9:16 nebo dle tvého nastavení)
+ */
+function setImageToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
+  targetItem.data.src = url;
+  const img = new Image();
+  if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
+  img.decoding = "async";
+  img.onload = () => {
+    const dt  = makeDT("imgDT_"+Math.random(), texSize, texSize, !IS_MOBILE);
+    const ctx = dt.getContext();
+    fitDrawToCanvas(ctx, img, texSize, texSize, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
+    dt.update();
+
+    const mat = unlitTex(dt, { doubleSided:false });
+    mat.zOffset = -1;
+    targetItem.frame.material = mat;
+  };
+  img.onerror = () => {
+    const dt = makeDT("imgErr_"+Math.random(), texSize, texSize, false);
+    const ctx = dt.getContext();
+    drawChecker(ctx, texSize, texSize);
+    dt.update();
+    targetItem.frame.material = unlitTex(dt,{doubleSided:false});
+  };
+  img.src = url;
+}
+
+/**
+ * Video → VideoTexture → unlit materiál na frame
+ * - autoplay funguje na mobilech, pokud je video muted a po gestu uživatele
+ */
+function setVideoToFrame(url, targetItem, {
+  loop=true, muted=true, autoplay=true, texSampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+} = {}){
+  const vt = new BABYLON.VideoTexture(
+    "vidTex_"+Math.random(),
+    url,
+    scene,
+    true,         // generateMipmaps
+    false,        // invertY
+    texSampling,
+    { autoPlay: autoplay, loop: loop, muted: muted }
+  );
+  try {
+    vt.video.muted = !!muted;
+    vt.video.loop = !!loop;
+    vt.video.playsInline = true;
+  } catch(e){ /* ignore */ }
+
+  // Pozn.: VideoTexture se promítá přímo, bez ručního "cover" ořezu.
+  // Aspect fit řeší geometrie plátna (FRAME_SIZE) a UV rámu (plane).
+  const mat = unlitTex(vt, { doubleSided:false });
+  mat.zOffset = -1;
+  targetItem.frame.material = mat;
+  targetItem.videoTex = vt;
+}
+
+/**
+ * Unified assign: rozhodne podle přípony, zda je to obrázek nebo video.
+ * - preferuje d.src; zpětně kompatibilní s d.video / d.img
+ */
+function assignDataAllWalls(data){
+  const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
+  const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif)$/i.test(u || "");
+
+  ["front","back","left","right"].forEach(side=>{
+    const items = data[side] || [];
+    const arr   = framesByWall[side] || [];
+    const n = Math.min(items.length, arr.length);
+
+    for (let i=0;i<n;i++){
+      const it = arr[i];
+      const d  = items[i] || {};
+
+      const src = d.src || d.video || d.img || "";
+      it.data.src   = src;
+      it.data.title = d.label || it.data.title || "(bez názvu)";
+      it.data.url   = d.href  || it.data.url || "";
+
+      // Cedulka
+      drawPlacard(
+        it.placard,
+        it.data,
+        it.rotY,
+        it.placard._width  || FRAME_SIZE.W,
+        it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10)
+      );
+
+      if (!src) continue;
+
+      if (isVideoUrl(src)) {
+        setVideoToFrame(src, it, {
+          loop: d.loop !== false,
+          muted: d.muted !== false, // autoplay na mobilech chce muted
+          autoplay: true
+        });
+      } else if (isImageUrl(src)) {
+        // GIF se vykreslí jako statický (první frame). Pro animaci použij MP4/WebM.
+        setImageToFrame(src, it, TEX_SIZE, "cover");
+      } else {
+        // fallback: zkus jako obrázek
+        setImageToFrame(src, it, TEX_SIZE, "cover");
       }
     }
+  });
+}
+
+/* ====== Rám: multi-material se stínovanými plochami (ponecháno, jen přesunuto) ====== */
+function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
+  const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  const ctx = dt.getContext();
+  ctx.clearRect(0,0,w,h);
+  if (radial){
+    const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
+    const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
+    g.addColorStop(0, from);
+    g.addColorStop(1, to);
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+  } else {
+    const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
+    g.addColorStop(0, from);
+    g.addColorStop(1, to);
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
   }
+  dt.update();
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+  return dt;
+}
+function lighten(col, f){ return new BABYLON.Color3(
+  Math.min(1, col.r + (1-col.r)*f),
+  Math.min(1, col.g + (1-col.g)*f),
+  Math.min(1, col.b + (1-col.b)*f)
+);}
+function darken(col, f){ return new BABYLON.Color3(
+  Math.max(0, col.r*(1-f)),
+  Math.max(0, col.g*(1-f)),
+  Math.max(0, col.b*(1-f))
+);}
+function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
+  const c = BABYLON.Color3.FromHexString(baseHex);
+  const topLight    = lighten(c, 0.20).toHexString();
+  const bottomDark  = darken(c,  0.25).toHexString();
+  const sideMidTop  = lighten(c, 0.08).toHexString();
+  const sideMidBot  = darken(c,  0.12).toHexString();
+  const frontTop    = lighten(c, 0.12).toHexString();
+  const frontBot    = darken(c,  0.18).toHexString();
+  const backCol     = darken(c,  0.10).toHexString();
 
-  const FRAME_SIZE = { W: 2, H: 2 };
-  let FRAME_BOX_BORDER = 0.08;
-  let FRAME_COLOR = "#717171";
+  const W=256,H=256;
+  const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
+  const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
+  const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+  const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+  const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});
+  const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});
 
-  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
-    const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    const ctx = dt.getContext();
-    ctx.clearRect(0,0,w,h);
-    if (radial){
-      const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
-      const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
-      g.addColorStop(0, from);
-      g.addColorStop(1, to);
-      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    } else {
-      const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
-      g.addColorStop(0, from);
-      g.addColorStop(1, to);
-      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    }
-    dt.update();
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-    return dt;
-  }
-  function lighten(col, f){ return new BABYLON.Color3(
-    Math.min(1, col.r + (1-col.r)*f),
-    Math.min(1, col.g + (1-col.g)*f),
-    Math.min(1, col.b + (1-col.b)*f)
-  );}
-  function darken(col, f){ return new BABYLON.Color3(
-    Math.max(0, col.r*(1-f)),
-    Math.max(0, col.g*(1-f)),
-    Math.max(0, col.b*(1-f))
-  );}
-  function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
-    const c = BABYLON.Color3.FromHexString(baseHex);
-    const topLight    = lighten(c, 0.20).toHexString();
-    const bottomDark  = darken(c,  0.25).toHexString();
-    const sideMidTop  = lighten(c, 0.08).toHexString();
-    const sideMidBot  = darken(c,  0.12).toHexString();
-    const frontTop    = lighten(c, 0.12).toHexString();
-    const frontBot    = darken(c,  0.18).toHexString();
-    const backCol     = darken(c,  0.10).toHexString();
-
-    const W=256,H=256;
-    const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
-    const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
-    const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-    const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-    const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});
-    const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});
-
-    const mk = (name, dt)=>{
-      const m = new BABYLON.StandardMaterial(name, scene);
-      m.disableLighting = true;
-      m.diffuseTexture  = dt; m.emissiveTexture = dt;
-      m.specularColor   = new BABYLON.Color3(0,0,0);
-      m.backFaceCulling = false;
-      m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      return m;
-    };
-    const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
-    const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
-    mats.forEach(m => mm.subMaterials.push(m));
-    return mm;
-  }
-
+  const mk = (name, dt)=>{
+    const m = new BABYLON.StandardMaterial(name, scene);
+    m.disableLighting = true;
+    m.diffuseTexture  = dt; m.emissiveTexture = dt;
+    m.specularColor   = new BABYLON.Color3(0,0,0);
+    m.backFaceCulling = false;
+    m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    return m;
+  };
+  const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
+  const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
+  mats.forEach(m => mm.subMaterials.push(m));
+  return mm;
+}
   // Cedulka (plaketa)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
