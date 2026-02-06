@@ -1019,6 +1019,11 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     plac.rotation.y = rotY + Math.PI;
     plac.isPickable = true;
 
+    // Kompenzace — ať se cedulka výsledně posune přesně o Δ (ne ~1.33×Δ)
+if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
+  plac.position.y += FRAME_DELTA_H * (1/3);
+}
+
     const data = { title: "(bez názvu)", url: "", src: "" };
     drawPlacard(plac, data, rotY, placW, placH);
 
