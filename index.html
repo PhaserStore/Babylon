@@ -243,27 +243,21 @@
     maxLevel: 1.00,
     accMs: 0, frames: 0, lastEval: performance.now()
   };
-function buildSkybox() {
-  // robustní varianta: prefiltrovaná .env mapa (oficiální Babylon assets)
-  const envUrl = "https://assets.babylonjs.com/environments/environmentSpecular.env";
+function buildSkybox(){
+  const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
+  const mat = new BABYLON.StandardMaterial("skyMat", scene);
+  mat.backFaceCulling = false;
+  mat.disableLighting = true;
+  const tex = new BABYLON.CubeTexture("https://playground.babylonjs.com/textures/skybox", scene);
+  tex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+  mat.reflectionTexture = tex;
+  skybox.material = mat;
+  skybox.infiniteDistance = true;
 
-  const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
-  scene.environmentTexture = envTex; // můžeš využít i na PBR materiály (do budoucna)
-
-  // Vytvoří a přidá skybox mesh s korektním materiálem a módy
-  const skybox = scene.createDefaultSkybox(envTex, /*pbr=*/ true, /*scale=*/ 2000, /*blur=*/ 0.0, /*setEnvironmentTexture=*/ false);
-  if (skybox) {
-    skybox.name = "skyBox";
-    skybox.isPickable = false;
-    skybox.infiniteDistance = true;  // „drží“ se za scénou
-    skybox.renderingGroupId = 0;     // jistota, že je úplně vzadu
-  }
-
-  // debug: ověř, že je textura opravdu načtená
-  envTex.onLoadObservable.addOnce(() => console.log("[Skybox] ENV texture loaded ✅"));
-  envTex.onError = (msg, ex) => console.warn("[Skybox] ENV load error:", msg || ex);
+  tex.onLoadObservable.addOnce(() => console.log("[Skybox] cube texture loaded ✅"));
+  tex.onError = (m, e) => console.warn("[Skybox] cube load error:", m || e);
 }
-
+``
 
   function createScene(){
     scene = new BABYLON.Scene(engine);
