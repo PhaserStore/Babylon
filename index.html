@@ -1104,95 +1104,200 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
   }
 
 
-  /* =========================
-     Generátor rámů + data (pevné)
-  ========================= */
-  const framesByWall = { back: [], front: [], left: [], right: [] };
-  const FIXED_LAYOUT = {
-    safeWall: 1.0, cornerSafe: 1.0,
-    frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
-    counts: { front: 4, back: 4, left: 7, right: 7 }
-  };
-  const DATA = {
-    front: [
-      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
-    ],
-    back: [
-      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
-    ],
-    left: [
-      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
-    ],
-    right: [
-      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
-    ]
-  };
+  //* =========================
+   Generátor rámů + data (pevné)
+========================= */
+const framesByWall = { back: [], front: [], left: [], right: [] };
 
-  function distributeCenters(min, max, count, frameW){
-    if (count <= 1) return [ (min+max)/2 ];
-    const span = max - min;
-    const totalFramesWidth = count * frameW;
-    let gap = (span - totalFramesWidth) / (count - 1);
-    const MIN_GAP = 0.05;
-    if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
-    const centers = [];
-    let x = min + frameW/2;
-    for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
-    if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
-      const step = (max - min) / (count - 1);
-      centers.length = 0;
-      for (let i=0;i<count;i++) centers.push(min + i*step);
-    }
-    return centers;
+const FIXED_LAYOUT = {
+  safeWall: 1.0, cornerSafe: 1.0,
+  frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
+  counts: { front: 4, back: 4, left: 7, right: 7 }
+};
+
+// ✅ ZACHOVÁNO: DATA se "img" (a volitelně "href")
+const DATA = {
+  front: [
+    { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
+    { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
+    { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
+    { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+  ],
+  back: [
+    { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
+    { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
+    { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
+    { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+  ],
+  left: [
+    { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
+    { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
+    { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
+    { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
+    { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
+    { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
+    { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+  ],
+  right: [
+    { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
+    { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
+    { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
+    { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
+    { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
+    { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
+    { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+  ]
+};
+
+function distributeCenters(min, max, count, frameW){
+  if (count <= 1) return [ (min+max)/2 ];
+  const span = max - min;
+  const totalFramesWidth = count * frameW;
+  let gap = (span - totalFramesWidth) / (count - 1);
+  const MIN_GAP = 0.05;
+  if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
+  const centers = [];
+  let x = min + frameW/2;
+  for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
+  if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
+    const step = (max - min) / (count - 1);
+    centers.length = 0;
+    for (let i=0;i<count;i++) centers.push(min + i*step);
+  }
+  return centers;
+}
+
+function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
+  const rotY =
+    wall==='front' ? Math.PI :
+    wall==='back'  ? 0 :
+    wall==='left'  ? Math.PI/2 :
+    wall==='right' ? -Math.PI/2 : 0;
+
+  const axisX  = (wall==='front'||wall==='back');
+  const length = axisX ? ROOM.W : ROOM.D;
+
+  const min = -length/2 + safeWall + cornerSafe;
+  const max =  length/2 - safeWall - cornerSafe;
+
+  // ⚠️ Potřebujeme mít VŽDY definované FRAME_SIZE.W (applyFixedLayout to dělá)
+  const frameW = (typeof FRAME_SIZE?.W === "number" && FRAME_SIZE.W > 0) ? FRAME_SIZE.W : (FIXED_LAYOUT.frame.width || 2.2);
+  const centers = distributeCenters(min, max, count, frameW);
+
+  // cleanup starých meshů
+  framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+  framesByWall[wall] = [];
+
+  centers.forEach(val=>{
+    const pos = axisX
+      ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
+      : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
+    const it = addFrame(pos, rotY, wall);
+    framesByWall[wall].push(it);
+  });
+}
+
+/* =========================
+   MÉDIA → rám (jistý loader pro IMG/VIDEO)
+========================= */
+(function ensureMediaAssignment(){
+  // 1) malý cover-fit fallback, pokud by nebyl k dispozici "setImageToFrame"
+  function _fallbackImageToFrame(url, targetItem, texSize=TEX_SIZE){
+    const img = new Image();
+    const local = url.startsWith("./") || url.startsWith("/") || url.startsWith("../");
+    if (!local) img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      const dt = new BABYLON.DynamicTexture("imgDT_"+Math.random(), { width:texSize, height:texSize }, scene, !IS_MOBILE, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      const ctx = dt.getContext();
+      // cover podle poměru rámu (FRAME_SIZE.W/H)
+      const frameW = FRAME_SIZE?.W || FIXED_LAYOUT.frame.width;
+      const frameH = FRAME_SIZE?.H || FIXED_LAYOUT.frame.height;
+      const targetR = frameW / frameH;
+      const r = img.width / img.height;
+      let dw, dh, dx=0, dy=0;
+      if (r > targetR){ dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
+      else            { dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
+      ctx.fillStyle = "#000"; ctx.fillRect(0,0,texSize,texSize);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img,0,0,img.width,img.height, dx,dy,dw,dh);
+      dt.update();
+      const mat = unlitTex(dt,{doubleSided:false}); mat.zOffset = -1;
+      targetItem.frame.material = mat;
+      console.log("[IMG OK]", url, img.width + "x" + img.height);
+    };
+    img.onerror = () => {
+      const dt = new BABYLON.DynamicTexture("imgERR_"+Math.random(), { width:texSize, height:texSize }, scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      const ctx = dt.getContext();
+      // checker fallback
+      const tile=32; for (let y=0;y<texSize;y+=tile){ for (let x=0;x<texSize;x+=tile){
+        ctx.fillStyle = (((x/tile)+(y/tile))%2===0) ? "#dcdcdc" : "#f4f4f4"; ctx.fillRect(x,y,tile,tile);
+      }} dt.update();
+      targetItem.frame.material = unlitTex(dt,{doubleSided:false});
+      console.warn("[IMG ERR]", url);
+    };
+    img.src = url;
   }
 
-  function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
-    const rotY =
-      wall==='front' ? Math.PI :
-      wall==='back'  ? 0 :
-      wall==='left'  ? Math.PI/2 :
-      wall==='right' ? -Math.PI/2 : 0;
+  // 2) Malý helper na video, pokud bys neměl definovaný "setVideoToFrame"
+  function _fallbackVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
+    const vt = new BABYLON.VideoTexture("vidTex_"+Math.random(), url, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, { autoPlay: autoplay, loop: loop, muted: muted });
+    try{ vt.video.muted = !!muted; vt.video.loop = !!loop; vt.video.playsInline = true; }catch(e){}
+    const mat = unlitTex(vt, { doubleSided:false }); mat.zOffset = -1;
+    targetItem.frame.material = mat;
+    targetItem.videoTex = vt;
+    console.log("[VIDEO SET]", url);
+  }
 
-    const axisX  = (wall==='front'||wall==='back');
-    const length = axisX ? ROOM.W : ROOM.D;
+  // 3) finální přiřazení médií: d.src | d.video | d.img
+  window.assignDataAllWalls = function(data){
+    const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u||"");
+    const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif)$/i.test(u||"");
 
-    const min = -length/2 + safeWall + cornerSafe;
-    const max =  length/2 - safeWall - cornerSafe;
+    ["front","back","left","right"].forEach(side=>{
+      const items = data[side] || [];
+      const arr   = framesByWall[side] || [];
+      const n = Math.min(items.length, arr.length);
 
-    const centers = distributeCenters(min, max, count, FRAME_SIZE.W);
+      for (let i=0;i<n;i++){
+        const it = arr[i];
+        const d  = items[i] || {};
+        const src = d.src || d.video || d.img || "";   // ✅ podporujeme "img" (tvé DATA), ale i "src"/"video"
 
-    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
-    framesByWall[wall] = [];
+        it.data.src   = src;
+        it.data.title = d.label || it.data.title || "(bez názvu)";
+        it.data.url   = d.href  || it.data.url || "";
 
-    centers.forEach(val=>{
-      const pos = axisX
-        ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
-        : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
-      const it = addFrame(pos, rotY, wall);
-      framesByWall[wall].push(it);
+        // Plaketa
+        drawPlacard(
+          it.placard,
+          it.data,
+          it.rotY,
+          it.placard._width  || (FRAME_SIZE?.W || FIXED_LAYOUT.frame.width),
+          it.placard._height || Math.max(0.22, (FRAME_SIZE?.H || FIXED_LAYOUT.frame.height) * 0.10)
+        );
+
+        if (!src){ console.warn("[assign] prázdný src", side, i); continue; }
+        console.log("[assign]", side, i, "src=", src);
+
+        // ⚙️ preferuj tvoje existující helpery, jinak fallback
+        if (isVideoUrl(src)) {
+          if (typeof setVideoToFrame === "function") setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
+          else _fallbackVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
+        } else if (isImageUrl(src)) {
+          if (typeof setImageToFrame === "function") setImageToFrame(src, it, TEX_SIZE, "cover");
+          else _fallbackImageToFrame(src, it, TEX_SIZE);
+        } else {
+          // neznámá přípona — zkus jako obrázek
+          if (typeof setImageToFrame === "function") setImageToFrame(src, it, TEX_SIZE, "cover");
+          else _fallbackImageToFrame(src, it, TEX_SIZE);
+        }
+      }
     });
-  }
 
-
-
+    console.log("assignDataAllWalls done");
+  };
+})();
   // Globály pro posun cedulek (dej je klidně nad funkci, jednou pro celé JS)
 let FRAME_BASE_H  = 2.2;  // původní výška z FIXED_LAYOUT (kvůli výpočtu Δ)
 let FRAME_DELTA_H = 0;    // o kolik jsme rám prodloužili
