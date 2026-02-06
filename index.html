@@ -277,56 +277,56 @@ function buildSkyDome() {
 }
 
   function createScene(){
-    scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0.06,0.06,0.06,1);
+  // Scéna
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // čistě černé pozadí (ideální pro noc)
 
-    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
-    camera.attachControl(canvas, true);
+  // Kamera
+  camera = new BABYLON.ArcRotateCamera(
+    "cam",
+    -Math.PI/2,            // alpha
+    Math.PI/2.25,          // beta
+    11.5,                  // radius (výchozí odstup)
+    new BABYLON.Vector3(0, ROOM.H*0.48, 0), // target
+    scene
+  );
+  camera.attachControl(canvas, true);
 
-    camera.minZ = 0.2; camera.maxZ = 5000;
-    camera.lowerBetaLimit = 0.1; camera.upperBetaLimit = Math.PI - 0.1;
-    camera.lowerRadiusLimit = MIN_RADIUS; camera.upperRadiusLimit = MAX_RADIUS;
-    camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
-    camera.pinchDeltaPercentage = IS_MOBILE ? 0.006 : 0.008;
-    camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
+  // Klíčové pro SkyDome: velká vzdálenost dohledu
+  camera.minZ = 0.2;
+  camera.maxZ = 5000;           // ⬅️ dříve 200 → dóm by byl mimo „fog“ a nic by se nevykreslilo
+  camera.lowerBetaLimit = 0.1;
+  camera.upperBetaLimit = Math.PI - 0.1;
+  camera.lowerRadiusLimit = MIN_RADIUS;
+  camera.upperRadiusLimit = MAX_RADIUS;
+  camera.wheelDeltaPercentage  = IS_MOBILE ? 0.18 : 0.22;
+  camera.pinchDeltaPercentage  = IS_MOBILE ? 0.006 : 0.008;
+  camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
 
-    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+  // Světlo (měkké ambient)
+  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-    // Glow – vrací „LED blur“ (adaptivní)
-    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 36 : 96 });
-    glow.intensity = IS_MOBILE ? 0.7 : 1.15;
+  // Glow – „LED blur“ (ponechána tvoje logika)
+  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 36 : 96 });
+  glow.intensity = IS_MOBILE ? 0.7 : 1.15;
 
-    hl = new BABYLON.HighlightLayer("hl", scene);
+  // Highlight layer (připraveno pro interakce)
+  hl = new BABYLON.HighlightLayer("hl", scene);
 
-    buildRoom();
-    buildLED();
-    buildGalleryLogo();
-    buildSkyDome();
+  // Geometrie scény
+  buildRoom();          // stěny až pod LED (bez mezer/štěrbin)
+  buildLED();           // horní/dolní LED rám
+  buildGalleryLogo();   // logo
 
-    setupPicking();
-    setupZoomUX();
-    return scene;
-  }
+  // ⭐ SkyDome s jedním JPG (uvnitř velké koule)
+  buildSkyDome();
 
-  function unlit(hex){
-    const m=new BABYLON.StandardMaterial("m",scene);
-    m.diffuseColor=BABYLON.Color3.FromHexString(hex);
-    m.disableLighting=true;
-    return m;
-  }
-  function unlitTex(tex,{doubleSided=false}={}){
-    const m=new BABYLON.StandardMaterial("mt",scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = tex;
-    m.emissiveTexture = tex;
-    m.backFaceCulling = !doubleSided;
-    if (tex) {
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      tex.anisotropicFilteringLevel = MAX_ANISO || 4;
-    }
-    return m;
-  }
+  // UX
+  setupPicking();
+  setupZoomUX();
+
+  return scene;
+}
 
   function buildRoom(){
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
