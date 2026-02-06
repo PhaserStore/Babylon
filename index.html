@@ -296,7 +296,75 @@
 
   return scene;
 }
+// --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
 
+function unlit(hex){
+  const m = new BABYLON.StandardMaterial("m", scene);
+  m.diffuseColor    = BABYLON.Color3.FromHexString(hex);
+  m.disableLighting = true;
+  m.backFaceCulling = false;           // kreslit i zadní stranu (z interiéru místnosti)
+  m.specularColor   = new BABYLON.Color3(0,0,0);
+  return m;
+}
+
+function unlitTex(tex, { doubleSided=false } = {}){
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting   = true;
+  m.diffuseTexture    = tex;
+  m.emissiveTexture   = tex;
+  m.backFaceCulling   = !doubleSided;
+  m.specularColor     = new BABYLON.Color3(0,0,0);
+  if (tex){
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = (engine.getCaps()?.maxAnisotropy || 4);
+  }
+  return m;
+}
+
+// --- SKYDOME (obloha 1× JPG; viditelná jen "otvorem" ve stropě) ------------
+
+function buildSkyDome() {
+  const dome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
+    diameter: 3000,
+    segments: 32,
+    sideOrientation: BABYLON.Mesh.BACKSIDE
+  }, scene);
+  dome.isPickable = false;
+
+  const mat = new BABYLON.StandardMaterial("skyMat", scene);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+
+  // 1) pokus o lokální soubor
+  let tex = new BABYLON.Texture(
+    "./assets/sky.jpg",
+    scene,
+    true,   // generateMipMaps
+    false,  // invertY
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+    () => console.log("[SkyDome] sky.jpg loaded (local) ✅"),
+    (msg, ex) => {
+      console.warn("[SkyDome] local sky.jpg failed, trying RAW…", msg || ex);
+      // 2) fallback: RAW GitHub
+      tex = new BABYLON.Texture(
+        "https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/sky.jpg",
+        scene,
+        true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+        () => console.log("[SkyDome] sky.jpg loaded (RAW) ✅"),
+        (m2, e2) => console.error("[SkyDome] RAW sky.jpg failed ❌", m2 || e2)
+      );
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      mat.emissiveTexture = tex;
+    }
+  );
+
+  tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  mat.emissiveTexture = tex;
+  mat.emissiveColor   = new BABYLON.Color3(1,1,1);
+
+  dome.material = mat;
+}
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
     width: ROOM.W, 
