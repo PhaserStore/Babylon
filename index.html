@@ -306,30 +306,37 @@ function unlitTex(tex, { doubleSided=false } = {}){
   return m;
 }
 
-// --- NEBULA SKYBOX (CubeTexture z Babylon Playground) ----------------------
-function buildNebulaSkybox() {
-  // Obří krychle, kreslená zevnitř
+function buildMySkybox() {
+  // Velká krychle vykreslovaná zevnitř
   const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
+  skybox.isPickable = false;
+  skybox.infiniteDistance = true;
 
+  // Materiál pro skybox
   const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
-  skyMat.backFaceCulling = false;     // kreslit i vnitřní strany
-  skyMat.disableLighting = true;      // nehrajeme si se světlem, textura „svítí“ sama
-
-  // Ověřený set krychlové textury z Playgroundu
-  const cubetex = new BABYLON.CubeTexture(
-  "https://playground.babylonjs.com/textures/skybox3",
-  scene
-);
-  cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-
-  skyMat.reflectionTexture = cubetex;
-  skyMat.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+  skyMat.backFaceCulling = false;
+  skyMat.disableLighting = true;
   skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
   skyMat.specularColor = new BABYLON.Color3(0,0,0);
 
+  // ⬇️ Explicitně zadáme 6 PNG souborů (žádné 404, žádné .jpg defaulty)
+  const cubetex = BABYLON.CubeTexture.CreateFromImages([
+    "./assets/mySky_px.png", // +X
+    "./assets/mySky_py.png", // +Y
+    "./assets/mySky_pz.png", // +Z
+    "./assets/mySky_nx.png", // -X
+    "./assets/mySky_ny.png", // -Y
+    "./assets/mySky_nz.png"  // -Z
+  ], scene);
+
+  // Režim mapování pro skybox
+  cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+
+  skyMat.reflectionTexture = cubetex;
   skybox.material = skyMat;
-  skybox.isPickable = false;
-  skybox.infiniteDistance = true;     // drží se u kamery a nebliká při pohybu
+
+  // (Volitelně) pootočení skyboxu, pokud chceš „otočit“ hvězdnou mapu
+  // skybox.rotation.y = Math.PI / 2;
 }
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
