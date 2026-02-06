@@ -501,6 +501,134 @@ skybox.material = skyMat;
   // (Volitelně) pootočení skyboxu, pokud chceš „otočit“ hvězdnou mapu
   // skybox.rotation.y = Math.PI / 2;
 }
+    // ====== MARQUEE TEXT BAND (kolem všech stěn) ===============================
+function buildMarqueeBand(scene, {
+  bandHeight = 0.28,              // výška pásu [m]
+  fromTopLED = 0.08,              // mezera pod horní LED [m] (pás nebude překrývat LED)
+  gapAboveLogo = 0.14,            // mezera NAD logem [m]
+  color = "#ffffff",              // barva textu
+  speed = 0.04,                   // rychlost posunu [uOffset / s]
+  customText = "Welcome to the Phaser Store", // tvůj vlastní text
+} = {}) {
+
+  // 0) Dáme dohromady globální „top loga“, aby pás byl skutečně mezi logem a LED
+  // buildGalleryLogo uloží top Y sem, jakmile logo naběhne:
+  const y1 = ROOM.H - 0.04;                          // výška horní LED (z tvého buildLED)
+  const logoTop = (window.__logoTopY || (ROOM.H * 0.62)); // fallback, dokud logo nenačte
+
+  // Vypočti Y středu pásu: co nejvýš, ale s mezerou pod LED a mezerou nad logem
+  const yMax = y1 - fromTopLED - bandHeight/2;
+  const yMin = (logoTop + gapAboveLogo) + bandHeight/2;
+  const yBand = Math.max(yMin, Math.min(yMax, yMax)); // držíme pás pod LED a nad logem
+
+  // 1) Jedna sdílená DynamicTexture pro všechny čtyři stěny (jen jednou kreslíme)
+  const texW = 4096;   // velké plátno -> krásně hladké písmo
+  const texH = 256;
+  const dt   = new BABYLON.DynamicTexture("marqueeDT", {width:texW, height:texH}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  dt.hasAlpha = true;
+  dt.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE; // wrap -> posun uOffsetem
+  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+  // Materiál pásu – čistě „unlit“
+  const mat = new BABYLON.StandardMaterial("marqueeMat", scene);
+  mat.disableLighting = true;
+  mat.diffuseTexture  = dt;
+  mat.emissiveTexture = dt;
+  mat.specularColor   = new BABYLON.Color3(0,0,0);
+  mat.backFaceCulling = false;
+  mat.zOffset = -2;
+
+  // 2) Kreslení textu do canvasu
+  const ctx = dt.getContext();
+  const PADX = 48;
+  const BASE = {
+    fontPx: 160,         // velikost písma v px pro pěknou ostrost
+    lineY:  176          // baseline
+  };
+
+  // stav – co se má psát
+  let nowPlaying = "";
+  window.setNowPlayingTitle = (title) => {
+    nowPlaying = title || "";
+  };
+
+  // Psaný obsah => "CUSTOM • NOW PLAYING: track • CUSTOM • ..."
+  function composeText() {
+    const A = (customText || "").trim();
+    const B = nowPlaying ? ("Now playing: " + nowPlaying) : "";
+    const SEP = "   •   ";
+    // zopakujeme několikrát, ať máme „nekonečný“ pás
+    let msg = [A, B || A, A, B || A, A].join(SEP);
+    if (!msg) msg = " ";   // nikdy prázdné
+    return msg;
+  }
+
+  function paint() {
+    ctx.clearRect(0,0,texW,texH);
+    ctx.fillStyle = "rgba(0,0,0,0)";
+    ctx.fillRect(0,0,texW,texH);
+
+    ctx.fillStyle = color;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `700 ${BASE.fontPx}px Doto, monospace`;
+
+    const txt = composeText();
+    // změříme šířku a zopakujeme text tak, aby pokryl víc než 1× šířku plátna
+    const w = ctx.measureText(txt).width;
+    let x = PADX;
+    // minimálně 1.5× šířky plátna -> hladký wrap
+    const need = Math.ceil((texW * 1.5) / (w + PADX));
+    for (let i=0;i<need;i++){
+      ctx.fillText(txt, x, BASE.lineY);
+      x += w + PADX;
+    }
+    dt.update(false);
+  }
+
+  // 3) Vytvoření geometrie – 4 pásy (po všech stěnách), lehký přesah do rohů
+  const OVER = 0.04;             // malý přesah do rohů
+  const DEPTH = 0.02;            // offset od stěny
+  const meshes = [];
+
+  const mk = (name, width, x, z, rotY) => {
+    const p = BABYLON.MeshBuilder.CreatePlane(name, { width, height: bandHeight, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+    p.position.set(x, yBand, z);
+    p.rotation.y = rotY;
+    p.material   = mat;
+    p.isPickable = false;
+    p.renderingGroupId = 1;
+    meshes.push(p);
+  };
+
+  // front (na z=+D/2), back (z=-D/2), left (x=-W/2), right (x=+W/2)
+  mk("marquee_front", ROOM.W + OVER, 0,  ROOM.D/2 - DEPTH, Math.PI);
+  mk("marquee_back",  ROOM.W + OVER, 0, -ROOM.D/2 + DEPTH, 0);
+  mk("marquee_left",  ROOM.D + OVER, -ROOM.W/2 + DEPTH, 0, -Math.PI/2);
+  mk("marquee_right", ROOM.D + OVER,  ROOM.W/2 - DEPTH, 0,  Math.PI/2);
+
+  // 4) Animace posunu doleva pomocí uOffset
+  let u = 0;
+  scene.onBeforeRenderObservable.add(() => {
+    const dtSec = engine.getDeltaTime() / 1000;
+    u = (u - speed * dtSec) % 1;
+    if (mat.diffuseTexture) mat.diffuseTexture.uOffset = u;
+    if (mat.emissiveTexture) mat.emissiveTexture.uOffset = u;
+  });
+
+  // 5) Font Doto musíme načíst, pak poprvé přemalovat
+  Promise.all([
+    document.fonts?.load?.('700 24px Doto'),
+    document.fonts?.load?.('400 24px Doto'),
+  ]).finally(() => paint());
+
+  // veřejná API pro změnu custom textu
+  return {
+    setText(s){ customText = String(s||""); paint(); },
+    repaint(){ paint(); },
+    dispose(){ meshes.forEach(m => m.dispose()); }
+  };
+}
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
     width: ROOM.W, 
