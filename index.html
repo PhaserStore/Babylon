@@ -1227,21 +1227,43 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     });
   }
 
-  async function applyFixedLayout() {
+  // Globály pro posun cedulek (dej je klidně nad funkci, jednou pro celé JS)
+let FRAME_BASE_H  = 2.2;  // původní výška z FIXED_LAYOUT (kvůli výpočtu Δ)
+let FRAME_DELTA_H = 0;    // o kolik jsme rám prodloužili
+
+async function applyFixedLayout() {
   const YCENTER = ROOM.H * 0.55;
+
   const safeWall   = FIXED_LAYOUT.safeWall;
   const cornerSafe = FIXED_LAYOUT.cornerSafe;
-  FRAME_SIZE.W     = FIXED_LAYOUT.frame.width;
-  FRAME_SIZE.H     = FIXED_LAYOUT.frame.height;
+
+  const baseW = FIXED_LAYOUT.frame.width;   // 2.2
+  const baseH = FIXED_LAYOUT.frame.height;  // 2.2 (původně čtverec)
+  FRAME_BASE_H = baseH;
+
+  // NATVRDO portrait 9:16 — držíme šířku, dopočítáme výšku
+  const newW = baseW;
+  const newH = baseW * (16/9);
+
+  FRAME_SIZE.W     = newW;
+  FRAME_SIZE.H     = newH;
   FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
   FRAME_COLOR      = FIXED_LAYOUT.frame.color;
 
-  createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  YCENTER, safeWall, cornerSafe);
-  createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   YCENTER, safeWall, cornerSafe);
-  createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   YCENTER, safeWall, cornerSafe);
-  createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  YCENTER, safeWall, cornerSafe);
+  // Δ = rozdíl nové výšky proti původní
+  FRAME_DELTA_H = newH - baseH;
+
+  // Ukotvení nahoře: střed posuneme dolů o Δ/2 (horní hrana zůstane)
+  const centerY = YCENTER - FRAME_DELTA_H/2;
+
+  createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
+  createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
+  createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
+  createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
 
   assignDataAllWalls(DATA);
+
+  console.log("applyFixedLayout 9:16", {W:FRAME_SIZE.W, H:FRAME_SIZE.H, delta:FRAME_DELTA_H});
 }
 
   /* =========================
