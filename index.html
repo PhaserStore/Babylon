@@ -269,12 +269,10 @@
   scene.imageProcessingConfiguration.exposure = 1.0;
 
   buildRoom();
-  buildLED();
-  // buildCeilingLip(); // pokud chceš „římsu“ těsně pod LED proti přepalu, můžeš doplnit později
-  buildGalleryLogo();
-
-  // ⭐ HVĚZDNO-MLHOVINOVÝ SKYBOX (jen otvorem ve stropě)
-  buildNebulaSkybox();
+buildLED();
+// buildCeilingLip();  // volitelné
+buildGalleryLogo();
+buildMySkybox();       // ⬅️ místo původního skyboxu/skydome
 
   setupPicking();
   setupZoomUX();
