@@ -385,14 +385,14 @@ function buildMySkybox() {
   skyMat.specularColor = new BABYLON.Color3(0,0,0);
 
   // ⬇️ Explicitně zadáme 6 PNG souborů (žádné 404, žádné .jpg defaulty)
-  const cubetex = BABYLON.CubeTexture.CreateFromImages([
-    "./assets/mySky_px.png", // +X
-    "./assets/mySky_py.png", // +Y
-    "./assets/mySky_pz.png", // +Z
-    "./assets/mySky_nx.png", // -X
-    "./assets/mySky_ny.png", // -Y
-    "./assets/mySky_nz.png"  // -Z
-  ], scene);
+ const cubetex = BABYLON.CubeTexture.CreateFromImages([
+  "./assets/mySky_px.png", // +X
+  "./assets/mySky_nx.png", // -X
+  "./assets/mySky_py.png", // +Y (TOP)
+  "./assets/mySky_ny.png", // -Y (BOTTOM)
+  "./assets/mySky_pz.png", // +Z
+  "./assets/mySky_nz.png"  // -Z
+], scene);
 
   // Režim mapování pro skybox
   cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
