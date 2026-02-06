@@ -264,9 +264,15 @@
   glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
   glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
-  // (volitelné) vypni tonemapping, aby se strop při koukání nahoru netmavil
-  scene.imageProcessingConfiguration.toneMappingEnabled = false;
-  scene.imageProcessingConfiguration.exposure = 1.0;
+  // hned po createScene()
+scene.imageProcessingConfiguration.toneMappingEnabled = false;
+scene.imageProcessingConfiguration.exposure = 1.0;
+// důležité – ať se ImageProcessing neaplikuje jako post-process:
+scene.imageProcessingConfiguration.applyByPostProcess = false;
+
+// pro jistotu standardizuj gamma
+scene.imageProcessingConfiguration.contrast = 1.0;
+scene.imageProcessingConfiguration.isEnabled = true; // ale bez post-processu
 
   buildRoom();
 buildLED();
