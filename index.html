@@ -1191,46 +1191,7 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
     });
   }
 
-  function makeDTandSetToFrame(img, targetItem){
-    const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, !IS_MOBILE);
-    const ctx = dt.getContext();
-    drawFitted(ctx,img,FRAME_SIZE.W,FRAME_SIZE.H); dt.update();
-    const mat = unlitTex(dt,{doubleSided:false});
-    mat.zOffset = -1;
-    targetItem.frame.material = mat;
-  }
 
-  function assignDataAllWalls(data){
-    const loadLocal = (url, targetItem)=>{
-      targetItem.data.src = url;
-      const img = new Image();
-      if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
-      img.decoding = "async";
-      img.onload = ()=> makeDTandSetToFrame(img, targetItem);
-      img.onerror = ()=>{
-        const dt = makeDT("imgDT"+Math.random(), TEX_SIZE, TEX_SIZE, false);
-        const ctx = dt.getContext();
-        drawChecker(ctx, TEX_SIZE, TEX_SIZE);
-        dt.update();
-        targetItem.frame.material = unlitTex(dt,{doubleSided:false});
-      };
-      img.src = url;
-    };
-
-    ["front","back","left","right"].forEach(side=>{
-      const items = data[side] || [];
-      const arr   = framesByWall[side] || [];
-      const n = Math.min(items.length, arr.length);
-      for (let i=0;i<n;i++){
-        const it = arr[i], d = items[i] || {};
-        it.data.src   = d.img   || it.data.src || "";
-        it.data.title = d.label || it.data.title || "(bez názvu)";
-        it.data.url   = d.href  || it.data.url || "";
-        drawPlacard(it.placard, it.data, it.rotY, it.placard._width || FRAME_SIZE.W, it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
-        if (d.img){ if (IS_MOBILE) setTimeout(()=>loadLocal(d.img, it), i*80); else loadLocal(d.img, it); }
-      }
-    });
-  }
 
   // Globály pro posun cedulek (dej je klidně nad funkci, jednou pro celé JS)
 let FRAME_BASE_H  = 2.2;  // původní výška z FIXED_LAYOUT (kvůli výpočtu Δ)
