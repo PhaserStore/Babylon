@@ -991,10 +991,12 @@ async function buildMarqueeBands(){
   await loadDotoFontOnce();
 
   // Y pozice pásu: těsně nad topem rámů (horní hrana rámů) + malý odstup
-  const YCENTER = ROOM.H * 0.55;
-  const topOfFramesY = YCENTER + FRAME_SIZE.H / 2;
-  const y = topOfFramesY + 0.25; // jemně nad rámy (doladíš)
-  const h = MARQUEE.bandHeight;
+  // Kotva na horní LED (stálá výška bez ohledu na 9:16)
+const LED_TOP_Y = ROOM.H - 0.04;
+
+// Výška pásu a jeho svislé umístění (trochu pod LED)
+const h = MARQUEE.bandHeight;       // viz MARQUEE níže
+const y = LED_TOP_Y - 0.40;        
 
   // 4 stěny: šířky dle stěn (X/Z) a rotace do interiéru
   const items = [
