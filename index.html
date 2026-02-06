@@ -409,7 +409,95 @@ buildCeilingWithAperture({ inw: 0.1 });
   // Volitelně: Pokud chceš fotopanel přesně v otvoru (místo oblohy):
   // buildCeilingPhoto("./assets/yourCeilingPhoto.jpg", { bleed: 0.003, texSize: 2048, fit: "cover" });
 }
-``
+``function buildStars(scene, engine, options = {}) {
+  const opt = {
+    radius: 1200,
+    starCount: 60000,
+    pointSize: 1.4,
+    twinkleCount: 1500,
+    twinkleMin: 0.5,
+    twinkleMax: 1.6,
+    twinkleAlpha1: 0.55,
+    twinkleAlpha2: 0.30,
+    ...options
+  };
+
+  // drž černou skutečně černou
+  scene.imageProcessingConfiguration.isEnabled = false;
+  scene.imageProcessingConfiguration.applyByPostProcess = false;
+
+  // kopule
+  const skyDome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
+    segments: 8, diameter: opt.radius*2, sideOrientation: BABYLON.Mesh.BACKSIDE
+  }, scene);
+  skyDome.isPickable = false;
+  skyDome.renderingGroupId = 0;
+  const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+  skyMat.disableLighting = true;
+  skyMat.diffuseColor = skyMat.specularColor = skyMat.emissiveColor = new BABYLON.Color3(0,0,0);
+  skyDome.material = skyMat;
+
+  // body – PCS
+  const pcs = new BABYLON.PointsCloudSystem("pcsStars", { pointSize: opt.pointSize, updatable:false }, scene);
+  function randomOnSphere(r){
+    const u = Math.random(), v = Math.random();
+    const th = 2*Math.PI*u, ph = Math.acos(2*v-1);
+    return new BABYLON.Vector3(
+      r*Math.sin(ph)*Math.cos(th),
+      r*Math.cos(ph),
+      r*Math.sin(ph)*Math.sin(th)
+    );
+  }
+  pcs.addPoints(opt.starCount, p => {
+    p.position = randomOnSphere(opt.radius - 1);
+    const w = Math.random();
+    const lum = Math.pow(w,3)*0.85 + 0.15;
+    p.color = new BABYLON.Color4(lum, lum*0.98, lum*0.97, 1.0);
+  });
+  pcs.buildMeshAsync().then(() => {
+    const pm = new BABYLON.PointsMaterial("starsPM", scene);
+    pm.disableLighting = true;
+    pm.pointSize = opt.pointSize;
+    pm.useAlpha = false;
+    pcs.mesh.material = pm;
+    pcs.mesh.isPickable = false;
+    pcs.mesh.renderingGroupId = 0;
+    pcs.mesh.freezeWorldMatrix();
+  });
+
+  // twinkle – GPU částice (lehký overlay)
+  const cap = Math.min(opt.twinkleCount, (engine.getCaps().maxGPUContexts ? 4000 : 2000));
+  const tw = new BABYLON.GPUParticleSystem("twinkle", { capacity: cap }, scene);
+  tw.particleTexture = new BABYLON.Texture(
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMByV4bVtEAAAAASUVORK5CYII=",
+    scene, true, false
+  );
+  tw.minEmitPower = 0; tw.maxEmitPower = 0;
+  tw.minSize = opt.twinkleMin; tw.maxSize = opt.twinkleMax;
+  tw.minLifeTime = 2.5; tw.maxLifeTime = 5.5;
+  tw.emitRate = cap;
+  tw.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+  tw.isBillboardBased = true;
+  const emitter = new BABYLON.SphereParticleEmitter(opt.radius - 2);
+  emitter.radiusRange = 0;
+  tw.particleEmitterType = emitter;
+  tw.color1 = new BABYLON.Color4(1.00, 0.97, 0.95, opt.twinkleAlpha1);
+  tw.color2 = new BABYLON.Color4(0.95, 0.95, 1.00, opt.twinkleAlpha2);
+  tw.colorDead = new BABYLON.Color4(0.9, 0.9, 0.9, 0);
+  const t0 = performance.now();
+  tw.updateFunction = parts => {
+    const t = (performance.now() - t0)/1000;
+    for (const p of parts){
+      const k = 0.5 + 0.5*Math.sin(t*0.6 + p.angle);
+      p.color.a = p.color.a*0.5 + 0.5*k;
+      p.size = p.size*(0.9 + 0.2*k);
+    }
+  };
+  tw.renderingGroupId = 0;
+  tw.start();
+
+  return { pcs, tw, skyDome };
+}
 // --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
 
 function unlit(hex){
