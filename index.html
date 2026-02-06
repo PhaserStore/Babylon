@@ -284,6 +284,91 @@ buildMySkybox();       // ⬅️ místo původního skyboxu/skydome
   setupZoomUX();
   return scene;
 }
+    function buildCeilingWithAperture({ inw = 0.1, lip = 0.001 } = {}) {
+  // Výška stropu – podle horního LED (y1 = ROOM.H - 0.04)
+  const y1 = ROOM.H - 0.04;
+  const yCeil = y1 + 0.0005; // nepatrně nad LED, aby nebyl z-fighting
+
+  // Celkový stropní rozměr
+  const W = ROOM.W, D = ROOM.D;
+
+  // Vnitřní „čistý“ otvor podle LED
+  const openW = W - 2 * inw;
+  const openD = D - 2 * inw;
+
+  // Materiál stropu (neutrální, unlit)
+  const mCeil = unlit("#111111");
+
+  // Čtyři kusy „stropních desek“ kolem otvoru (sever/jih/východ/západ)
+  // 1) Severní deska (nad zadní stěnou)
+  const north = BABYLON.MeshBuilder.CreatePlane("ceil_north", {
+    width: W,
+    height: (D - openD) / 2,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  north.position.set(0, yCeil, -(openD / 2 + (D - openD) / 4));
+  north.rotation.x = Math.PI / 2;
+  north.material = mCeil;
+  north.isPickable = false;
+
+  // 2) Jižní deska (nad přední stěnou)
+  const south = BABYLON.MeshBuilder.CreatePlane("ceil_south", {
+    width: W,
+    height: (D - openD) / 2,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  south.position.set(0, yCeil, +(openD / 2 + (D - openD) / 4));
+  south.rotation.x = Math.PI / 2;
+  south.material = mCeil;
+  south.isPickable = false;
+
+  // 3) Západní deska (nad levou stěnou)
+  const west = BABYLON.MeshBuilder.CreatePlane("ceil_west", {
+    width: (W - openW) / 2,
+    height: openD,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  west.position.set(-(openW / 2 + (W - openW) / 4), yCeil, 0);
+  west.rotation.x = Math.PI / 2;
+  west.material = mCeil;
+  west.isPickable = false;
+
+  // 4) Východní deska (nad pravou stěnou)
+  const east = BABYLON.MeshBuilder.CreatePlane("ceil_east", {
+    width: (W - openW) / 2,
+    height: openD,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  east.position.set(+(openW / 2 + (W - openW) / 4), yCeil, 0);
+  east.rotation.x = Math.PI / 2;
+  east.material = mCeil;
+  east.isPickable = false;
+
+  // Volitelný „vnitřní svislý límec“ otvoru (čistá hrana stropu podél LED)
+  const lipH = 0.02; // ~2 cm
+  const mLip = unlit("#181818");
+
+  const mkLip = (name, w, h, px, pz, rotY = 0) => {
+    const p = BABYLON.MeshBuilder.CreatePlane(name, {
+      width: w, height: h, sideOrientation: BABYLON.Mesh.BACKSIDE
+    }, scene);
+    p.position.set(px, y1 - lipH / 2, pz);
+    p.rotation.y = rotY;
+    p.material = mLip;
+    p.isPickable = false;
+    return p;
+  };
+
+  // Límce na všech čtyřech stranách otvoru
+  mkLip("lip_north", openW, lipH, 0, -openD/2, 0);
+  mkLip("lip_south", openW, lipH, 0,  openD/2, Math.PI);
+  mkLip("lip_west",  openD, lipH, -openW/2, 0, -Math.PI/2);
+  mkLip("lip_east",  openD, lipH,  openW/2, 0,  Math.PI/2);
+
+  // Volitelně: Pokud chceš fotopanel přesně v otvoru (místo oblohy):
+  // buildCeilingPhoto("./assets/yourCeilingPhoto.jpg", { bleed: 0.003, texSize: 2048, fit: "cover" });
+}
+``
 // --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
 
 function unlit(hex){
