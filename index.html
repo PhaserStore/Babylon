@@ -328,10 +328,13 @@ function buildSkybox() {
     front.material = unlit("#2b2b2b");
     front.rotation.y = Math.PI;
 
-    const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
-    ceiling.position.y = ROOM.H;
-    ceiling.rotation.x = Math.PI;
-    ceiling.material = unlit("#0f0f10");
+   const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
+ceiling.position.y = ROOM.H;
+ceiling.rotation.x = Math.PI;
+ceiling.material = unlit("#0f0f10");
+
+// 🚀 otevřené nebe – skybox bude vidět
+ceiling.isVisible = false;
 
     const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
     left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
