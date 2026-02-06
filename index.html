@@ -1271,7 +1271,8 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
 
       const logoW = ROOM.W * LOGO_SCALE;
       const logoH = LOGO_HEIGHT_M;
-      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+      const LED_TOP_Y = ROOM.H - 0.04;
+const yPos = LED_TOP_Y - 0.15;   // logo cca 15 cm pod LED (doladíš -0.10 až -0.25)
 
       function placeLogo(z, rotY, idx){
         const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
