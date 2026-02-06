@@ -246,65 +246,38 @@
  
 
   function createScene(){
-  // ──────────────────────────────────────────────
-  // Scéna
-  // ──────────────────────────────────────────────
   scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // čistě černé pozadí (ideální pro noční oblohu)
-scene.imageProcessingConfiguration.toneMappingEnabled = false;
-scene.imageProcessingConfiguration.exposure = 1.0;
-  // ──────────────────────────────────────────────
-  // Kamera (ArcRotate)
-  // ──────────────────────────────────────────────
+  scene.clearColor = new BABYLON.Color4(0,0,0,1);
+
   camera = new BABYLON.ArcRotateCamera(
-    "cam",
-    -Math.PI/2,              // alpha
-    Math.PI/2.25,            // beta
-    11.5,                    // radius (výchozí odstup)
-    new BABYLON.Vector3(0, ROOM.H * 0.48, 0), // target
+    "cam", -Math.PI/2, Math.PI/2.25, 11.5,
+    new BABYLON.Vector3(0, ROOM.H*0.48, 0),
     scene
   );
   camera.attachControl(canvas, true);
-
-  // Klíčové pro viditelnost SkyDome (je to velká koule ve scéně)
   camera.minZ = 0.2;
-  camera.maxZ = 5000;        // dříve 200 → dóm by se ořízl a nebyl by vidět
+  camera.maxZ = 5000;     // skybox je obří, malý dohled by ho „uřezal“
 
-  // Limity/ovládání
-  camera.lowerBetaLimit = 0.1;
-  camera.upperBetaLimit = Math.PI - 0.1;
-  camera.lowerRadiusLimit = MIN_RADIUS;
-  camera.upperRadiusLimit = MAX_RADIUS;
-  camera.wheelDeltaPercentage = IS_MOBILE ? 0.18 : 0.22;
-  camera.pinchDeltaPercentage = IS_MOBILE ? 0.006 : 0.008;
-  camera.inertia = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.6 : 0.85;
+  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-  // ──────────────────────────────────────────────
-  // Světlo + efekty
-  // ──────────────────────────────────────────────
-  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene);
+  // (volitelné) zjemni glow, ať nahoře nepřebije oblohu
+  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
+  glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
-  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 36 : 96 });
-  glow.intensity = IS_MOBILE ? 0.7 : 1.15;
+  // (volitelné) vypni tonemapping, aby se strop při koukání nahoru netmavil
+  scene.imageProcessingConfiguration.toneMappingEnabled = false;
+  scene.imageProcessingConfiguration.exposure = 1.0;
 
-  hl = new BABYLON.HighlightLayer("hl", scene);
+  buildRoom();
+  buildLED();
+  // buildCeilingLip(); // pokud chceš „římsu“ těsně pod LED proti přepalu, můžeš doplnit později
+  buildGalleryLogo();
 
-  // ──────────────────────────────────────────────
-  // Geometrie a prvky scény
-  // ──────────────────────────────────────────────
-  buildRoom();          // stěny až pod horní LED (bez mezer)
-  buildLED();           // horní/dolní LED rám + svislé segmenty
-  buildGalleryLogo();   // logo
+  // ⭐ HVĚZDNO-MLHOVINOVÝ SKYBOX (jen otvorem ve stropě)
+  buildNebulaSkybox();
 
-  // ⭐ Obloha: 1× JPG uvnitř velké koule, viditelná jen „otvorem“ ve stropě
-  buildSkyDome();
-
-  // ──────────────────────────────────────────────
-  // UX / interakce
-  // ──────────────────────────────────────────────
   setupPicking();
   setupZoomUX();
-
   return scene;
 }
 // --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
