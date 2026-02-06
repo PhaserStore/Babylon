@@ -303,7 +303,68 @@ function unlitTex(tex, { doubleSided=false } = {}){
   }
   return m;
 }
+// === Přesná stropní fotografie uvnitř LED rámu =============================
+function buildCeilingPhoto(url, { bleed = 0.002, texSize = 2048, fit = "cover" } = {}){
+  // Rozměr otvoru z tvého buildLED: inw = 0.1; horní LED výška y1 = ROOM.H - 0.04
+  const INSET = 0.1;
+  const yTop  = ROOM.H - 0.04;
+  const y     = yTop - 0.001; // nepatrně pod LED, aby nebyl z-fighting
 
+  // Vnitřní šířka/hloubka (lehce "přesah" - bleed), ať není vidět spára
+  const w = (ROOM.W - 2*INSET) + bleed*2;
+  const d = (ROOM.D - 2*INSET) + bleed*2;
+
+  // 1) Plocha – leží vodorovně, uprostřed otvoru, viditelná z obou stran
+  const plane = BABYLON.MeshBuilder.CreatePlane("ceilingPhoto", {
+    width: w, height: d, sideOrientation: BABYLON.Mesh.DOUBLESIDE
+  }, scene);
+  plane.position.set(0, y, 0);
+  plane.rotation.x = Math.PI / 2;         // vodorovně
+  plane.isPickable = false;
+
+  // 2) Dynamická textura – slušný „cover/contain“ fit bez deformace
+  const dt  = new BABYLON.DynamicTexture("ceilingDT",
+    { width: texSize, height: texSize }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  const ctx = dt.getContext();
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,texSize,texSize);
+
+  const img = new Image();
+  img.decoding = "async";
+  img.onload = () => {
+    const r = img.width / img.height;
+    const targetR = w / d;
+
+    let dw, dh, dx = 0, dy = 0;
+    if (fit === "cover"){
+      // vyplníme plochu a případně zhorníme/zboků ořízneme
+      if (r > targetR){ dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
+      else            { dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
+    } else {
+      // contain – bez ořezu, kolem doplníme černou
+      if (r > targetR){ dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
+      else            { dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
+    }
+
+    ctx.imageSmoothingEnabled  = true;
+    ctx.imageSmoothingQuality  = "high";
+    ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
+    dt.update();
+  };
+  img.src = url;
+
+  const mat = new BABYLON.StandardMaterial("ceilingMat", scene);
+  mat.disableLighting   = true;
+  mat.backFaceCulling   = false;             // viditelné i při vytočení kamery
+  mat.diffuseTexture    = dt;
+  mat.emissiveTexture   = dt;                // „svítí“ sama – žádné ztmavnutí
+  mat.specularColor     = new BABYLON.Color3(0,0,0);
+  dt.wrapU = dt.wrapV   = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  plane.material        = mat;
+
+  // Pro jistotu držíme plochu mimo Glow „included only“
+  try { glow?.removeIncludedOnlyMesh?.(plane); } catch (e) {}
+  return plane;
+}
 function buildMySkybox() {
   // Velká krychle vykreslovaná zevnitř
   const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
