@@ -316,37 +316,39 @@ function buildSkybox() {
   }
 
   function buildRoom(){
-    const floor = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene);
-    floor.material = unlit("#151515");
+  const floor = BABYLON.MeshBuilder.CreateGround("floor",{width:ROOM.W, height:ROOM.D},scene);
+  floor.material = unlit("#151515");
 
-    const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:ROOM.H},scene);
-    back.position.set(0, ROOM.H/2, -ROOM.D/2 + 0.01);
-    back.material = unlit("#2b2b2b");
+  const WALL_H = ROOM.H - 1.0;      // ↓↓↓ zmenšeno o 1 m
+  const wallY  = WALL_H / 2;
 
-    const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:ROOM.H},scene);
-    front.position.set(0, ROOM.H/2,  ROOM.D/2 - 0.01);
-    front.material = unlit("#2b2b2b");
-    front.rotation.y = Math.PI;
+  const back = BABYLON.MeshBuilder.CreatePlane("back",{width:ROOM.W, height:WALL_H},scene);
+  back.position.set(0, wallY, -ROOM.D/2 + 0.01);
+  back.material = unlit("#2b2b2b");
 
-   const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
-ceiling.position.y = ROOM.H;
-ceiling.rotation.x = Math.PI;
-ceiling.material = unlit("#0f0f10");
+  const front = BABYLON.MeshBuilder.CreatePlane("front",{width:ROOM.W, height:WALL_H},scene);
+  front.position.set(0, wallY,  ROOM.D/2 - 0.01);
+  front.material = unlit("#2b2b2b");
+  front.rotation.y = Math.PI;
 
-// 🚀 otevřené nebe – skybox bude vidět
-ceiling.isVisible = false;
+  // žádný strop – chceme výhled na skybox
+  // (pokud ho chceš někdy vrátit, nech isVisible=false)
+  // const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling",{width:ROOM.W, height:ROOM.D},scene);
+  // ceiling.position.y = ROOM.H;
+  // ceiling.rotation.x = Math.PI;
+  // ceiling.material = unlit("#0f0f10");
+  // ceiling.isVisible = false;
 
-    const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:ROOM.H},scene);
-    left.position.set(-ROOM.W/2 + 0.01, ROOM.H/2, 0);
-    left.rotation.y = -Math.PI/2;
-    left.material = unlit("#242424");
+  const left = BABYLON.MeshBuilder.CreatePlane("leftWall",{width:ROOM.D, height:WALL_H},scene);
+  left.position.set(-ROOM.W/2 + 0.01, wallY, 0);
+  left.rotation.y = -Math.PI/2;
+  left.material = unlit("#242424");
 
-    const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:ROOM.H},scene);
-    right.position.set( ROOM.W/2 - 0.01, ROOM.H/2, 0);
-    right.rotation.y =  Math.PI/2;
-    right.material = unlit("#242424");
-  }
-
+  const right = BABYLON.MeshBuilder.CreatePlane("rightWall",{width:ROOM.D, height:WALL_H},scene);
+  right.position.set( ROOM.W/2 - 0.01, wallY, 0);
+  right.rotation.y =  Math.PI/2;
+  right.material = unlit("#242424");
+}
   function buildLED(){
     const n=new BABYLON.TransformNode("led",scene);
     const t=0.02, inw=0.1;
