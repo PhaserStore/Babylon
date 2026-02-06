@@ -251,7 +251,8 @@
   // ──────────────────────────────────────────────
   scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // čistě černé pozadí (ideální pro noční oblohu)
-
+scene.imageProcessingConfiguration.toneMappingEnabled = false;
+scene.imageProcessingConfiguration.exposure = 1.0;
   // ──────────────────────────────────────────────
   // Kamera (ArcRotate)
   // ──────────────────────────────────────────────
