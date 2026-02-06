@@ -332,8 +332,8 @@ function unlitTex(tex, { doubleSided=false } = {}){
   return m;
 }
 
-// --- SKYDOME (obloha 1× JPG z GitHub RAW) ----------------------------------
 function buildSkyDome() {
+  // 1) Koule "pozadí"
   const dome = BABYLON.MeshBuilder.CreateSphere("skyDome", {
     diameter: 3000,
     segments: 32,
@@ -341,26 +341,46 @@ function buildSkyDome() {
   }, scene);
   dome.isPickable = false;
 
+  // 2) Materiál – hned ho obarvíme na modro, ať okamžitě vidíš, že se DOOM kreslí
   const mat = new BABYLON.StandardMaterial("skyMat", scene);
   mat.disableLighting = true;
   mat.backFaceCulling = false;
-
-  // ✔️ GitHub RAW URL (externí obrázek)
-  const tex = new BABYLON.Texture(
-    "https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/sky.jpg",
-    scene
-  );
-
-  // Volitelné logy – uvidíš v Console, že je textura v GPU
-  tex.onLoadObservable.addOnce(() => console.log("[SkyDome] sky.jpg loaded (RAW) ✅"));
-  tex.onError = (msg, e) => console.warn("[SkyDome] sky.jpg load error ❌", msg || e);
-
-  // Doporučené nastavení adresace + „svítivý“ materiál (bez světel)
-  tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  mat.emissiveTexture = tex;
-  mat.emissiveColor   = new BABYLON.Color3(1, 1, 1);
-
+  mat.emissiveColor = new BABYLON.Color3(0.08, 0.12, 0.32); // modrá "obloha", dokud se nenahraje textura
   dome.material = mat;
+
+  // 3) Zkusíme NALÍTAT LOKÁLNÍ ASSET ./assets/sky.jpg
+  const tex = new BABYLON.Texture("./assets/sky.jpg", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+    () => {
+      console.log("[SkyDome] sky.jpg loaded (local) ✅");
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      mat.emissiveTexture = tex;
+      mat.emissiveColor   = new BABYLON.Color3(1,1,1);
+    },
+    (message, exception) => {
+      console.warn("[SkyDome] local sky.jpg failed, using fallback gradient…", message || exception);
+      // 4) Nouzový fallback: dynamická textura – tmavý radiální gradient
+      const SIZE = 1024;
+      const dt = new BABYLON.DynamicTexture("skyFallback", {width: SIZE, height: SIZE}, scene, true);
+      const ctx = dt.getContext();
+      const cx = SIZE/2, cy = SIZE/2, r = Math.sqrt(cx*cx + cy*cy);
+      const g = ctx.createRadialGradient(cx, cy, r*0.05, cx, cy, r);
+      g.addColorStop(0.0, "#0a1033");
+      g.addColorStop(0.4, "#070a24");
+      g.addColorStop(1.0, "#02030c");
+      ctx.fillStyle = g; ctx.fillRect(0,0,SIZE,SIZE);
+      // pár jemných "hvězd"
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let i=0;i<250;i++){
+        const x = Math.random()*SIZE, y = Math.random()*SIZE;
+        ctx.fillRect(x, y, 1, 1);
+      }
+      dt.update();
+      dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+      mat.emissiveTexture = dt;
+      mat.emissiveColor   = new BABYLON.Color3(1,1,1);
+    }
+  );
 }
  function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
