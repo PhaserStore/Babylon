@@ -317,9 +317,9 @@ function buildNebulaSkybox() {
 
   // Ověřený set krychlové textury z Playgroundu
   const cubetex = new BABYLON.CubeTexture(
-    "https://playground.babylonjs.com/textures/skybox", // bez přípony; Babylon si sáhne na px, py, pz, nx, ny, nz
-    scene
-  );
+  "https://playground.babylonjs.com/textures/space",
+  scene
+);
   cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
 
   skyMat.reflectionTexture = cubetex;
