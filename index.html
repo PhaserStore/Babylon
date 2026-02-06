@@ -913,6 +913,189 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
   mats.forEach(m => mm.subMaterials.push(m));
   return mm;
 }
+    <script>
+// ====== MARQUEE (běžící text po stěnách) ====================================
+
+const MARQUEE = {
+  meshes: [],    // plane meshe po stěnách
+  textures: [],  // DynamicTexture pro každou stěnu
+  speed: 0.015,  // rychlost posunu doleva (uOffset za sekundu)
+  color: "#ff2838", // sytě červená
+  bandHeight: 0.35, // výška pásu v metrech (jemně doladíš)
+  marginX: 0.12,    // odsazení od rohů stěn (aby nelezlo do rohů)
+  zEps: 0.02,       // jak „blízko“ ke stěně
+  fontPx: 120,      // velikost fontu v px na textuře (pro Doto 700)
+  msg: "WELCOME TO THE PHASER STORE — FUTURE VISUALS · SOUND · MOTION — ",
+  // střídání s názvem tracku
+  alternateWithTrack: true,
+  alternateEveryMs: 8000,  // po kolika ms přepnout welcome <-> track
+  _altTimer: 0,
+  _mode: 0  // 0 = welcome, 1 = track
+};
+
+// Počkej na font „Doto“, ať je kresba ostrá
+async function loadDotoFontOnce(){
+  try{
+    await document.fonts?.load?.('700 16px "Doto"');
+  }catch(e){}
+}
+
+function makeMarqueeDT(message, texW=2048, texH=256){
+  const dt  = new BABYLON.DynamicTexture("marqueeDT_"+Math.random(), {width:texW, height:texH}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  const ctx = dt.getContext();
+
+  // pozadí – černé, ale necháme text „svítit“ přes emissive
+  ctx.clearRect(0,0,texW,texH);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,texW,texH);
+
+  // text – Doto 700, horizontální opakování
+  const fsize = MARQUEE.fontPx; // např. 120 px
+  ctx.font = `700 ${fsize}px "Doto", system-ui`;
+  ctx.fillStyle = MARQUEE.color;
+  ctx.textBaseline = "middle";
+
+  // Spočti šířku zprávy a kolikrát jí „vysypeme“ do šířky
+  const gap = Math.round(fsize * 0.75); // mezera mezi opakováními
+  const msgW = Math.ceil(ctx.measureText(message).width);
+  const tileW = msgW + gap;
+
+  const y = Math.round(texH/2) + Math.round(fsize*0.08); // jemná optická korekce baseline
+  // Nakresli 2–3x přes celou šířku, ať máme spojitelný pattern (WRAP)
+  // Začneme záporně, aby byl „seamless“ wrap při posunu uOffsetem
+  let x = -tileW;
+  while (x < texW + tileW){
+    ctx.fillText(message, x, y);
+    x += tileW;
+  }
+
+  dt.update();
+  // opakování po U (Wrap), aby uOffset kontinuálně „otáčel“
+  dt.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+  return dt;
+}
+
+function makeMarqueeMat(dt){
+  const m = new BABYLON.StandardMaterial("marqueeMat_"+Math.random(), scene);
+  m.disableLighting   = true;
+  m.backFaceCulling   = false;
+  m.diffuseTexture    = dt;         // difuzní pro barevnost
+  m.emissiveTexture   = dt;         // „svítí“ – čistý look bez světel
+  m.specularColor     = new BABYLON.Color3(0,0,0);
+  return m;
+}
+
+async function buildMarqueeBands(){
+  await loadDotoFontOnce();
+
+  // Y pozice pásu: těsně nad topem rámů (horní hrana rámů) + malý odstup
+  const YCENTER = ROOM.H * 0.55;
+  const topOfFramesY = YCENTER + FRAME_SIZE.H / 2;
+  const y = topOfFramesY + 0.25; // jemně nad rámy (doladíš)
+  const h = MARQUEE.bandHeight;
+
+  // 4 stěny: šířky dle stěn (X/Z) a rotace do interiéru
+  const items = [
+    { name:"front", w: ROOM.W - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(0, y,  ROOM.D/2 - MARQUEE.zEps), rotY: Math.PI },
+    { name:"back",  w: ROOM.W - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(0, y, -ROOM.D/2 + MARQUEE.zEps), rotY: 0 },
+    { name:"left",  w: ROOM.D - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(-ROOM.W/2 + MARQUEE.zEps, y, 0),  rotY: -Math.PI/2 },
+    { name:"right", w: ROOM.D - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3( ROOM.W/2 - MARQUEE.zEps, y, 0),  rotY:  Math.PI/2 }
+  ];
+
+  // připrav texturu pro aktuální zprávu
+  const baseMsg = MARQUEE.msg;
+  const dt = makeMarqueeDT(baseMsg, 2048, 256);
+
+  MARQUEE.meshes.length = 0;
+  MARQUEE.textures.length = 0;
+
+  for (const it of items){
+    const p = BABYLON.MeshBuilder.CreatePlane("marquee_"+it.name, {
+      width: it.w, height: it.h, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    p.position.copyFrom(it.pos);
+    p.rotation.y = it.rotY;
+    p.isPickable = false;
+
+    const mat = makeMarqueeMat(dt);
+    p.material = mat;
+
+    // Každá stěna dostane vlastní instanci textury, ať můžeme posouvat nezávisle
+    const cloneDT = dt.clone(); // klon (sdílí image, má vlastní transform/offset)
+    mat.diffuseTexture  = cloneDT;
+    mat.emissiveTexture = cloneDT;
+
+    // Jemný „svit“ – necháme glow, ale ať to nepřebije
+    try { glow?.addIncludedOnlyMesh?.(p); } catch(e){}
+    MARQUEE.meshes.push(p);
+    MARQUEE.textures.push(cloneDT);
+  }
+}
+
+// Změna textu v běhu – překreslí DynamicTexture všech stěn
+async function setMarqueeText(newMsg){
+  await loadDotoFontOnce();
+  const baseMsg = (newMsg || "").trim();
+  if (!baseMsg) return;
+
+  // vygeneruj novou základní DT (seamless) a přepiš všem
+  const dtNewBase = makeMarqueeDT(baseMsg, 2048, 256);
+  MARQUEE.textures.forEach((oldDT, i)=>{
+    // z bezpečnostních důvodů nový klon pro každou stěnu
+    const clone = dtNewBase.clone();
+    const mat = MARQUEE.meshes[i]?.material;
+    if (mat) {
+      mat.diffuseTexture  = clone;
+      mat.emissiveTexture = clone;
+    }
+    MARQUEE.textures[i] = clone;
+  });
+}
+
+// (Volitelné) přepnout text podle aktuálního tracku z SC
+function setMarqueeFromTrack(trackTitle){
+  const t = (trackTitle || "").trim();
+  if (!t) return;
+  const msg = `NOW PLAYING: ${t} — `;
+  setMarqueeText(msg);
+}
+
+// Spusť animaci – v render loopu posouváme uOffset
+function tickMarquee(deltaSec){
+  if (!MARQUEE.textures?.length) return;
+  const du = MARQUEE.speed * deltaSec;
+  for (const tex of MARQUEE.textures){
+    // uOffset jde doleva
+    tex.uOffset = (tex.uOffset - du) % 1;
+  }
+}
+
+// (Volitelné) střídání welcome <-> „now playing“
+function alternateMarqueeUpdate(deltaMs){
+  if (!MARQUEE.alternateWithTrack) return;
+  MARQUEE._altTimer += deltaMs;
+  if (MARQUEE._altTimer < MARQUEE.alternateEveryMs) return;
+  MARQUEE._altTimer = 0;
+
+  if (MARQUEE._mode === 0){
+    // přepni na track
+    try{
+      if (window.scReady && window.scWidget){
+        window.scWidget.getCurrentSound((s)=>{
+          const title = s?.title || "";
+          if (title) { setMarqueeFromTrack(title); MARQUEE._mode = 1; }
+        });
+      }
+    }catch(e){}
+  } else {
+    // zpět na welcome
+    setMarqueeText(MARQUEE.msg);
+    MARQUEE._mode = 0;
+  }
+}
+</script>
   // Cedulka (plaketa)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
