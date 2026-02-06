@@ -1164,11 +1164,12 @@ function buildLED() {
     t.src = art || "";
   }
   function scUpdateTitle(s){
-    const el = document.getElementById("scTitle");
-    if (!el) return;
-    if (!s){ el.textContent = "–"; return; }
-    el.textContent = s.title || "Unknown";
-  }
+  const el = document.getElementById("scTitle");
+  if (!el) return;
+  if (!s){ el.textContent = "–"; window.setNowPlayingTitle?.(""); return; }
+  el.textContent = s.title || "Unknown";
+  window.setNowPlayingTitle?.(s.title || "Unknown"); // ⬅️ přidané
+}
   function scUpdateProgress(rel){
     const fill = document.getElementById("scSeekFill");
     if (!fill) return;
