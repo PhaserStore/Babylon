@@ -1067,8 +1067,11 @@ function buildLED() {
       glowMat.emissiveColor    = new BABYLON.Color3(1,1,1); glowMat.backFaceCulling  = false;
 
       const logoW = ROOM.W * LOGO_SCALE;
-      const logoH = LOGO_HEIGHT_M;
-      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+const logoH = LOGO_HEIGHT_M;
+const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
+
+// Ulož top-hranu loga pro marquee pás
+window.__logoTopY = yPos + logoH/2;
 
       function placeLogo(z, rotY, idx){
         const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
