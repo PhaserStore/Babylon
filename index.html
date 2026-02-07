@@ -81,8 +81,9 @@
     }
   </style>
 
-  <!-- Babylon.js -->
+  <!-- Babylon.js + loaders (KTX2) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 </head>
 
 <body>
@@ -348,41 +349,26 @@
     }
   }
 
-  function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
-    const targetR = frameW / frameH, r = bmp.width / bmp.height;
-    let dw, dh, dx=0, dy=0;
-    if (mode === "cover"){
-      if (r > targetR){ dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
-      else            { dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
-    } else {
-      if (r > targetR){ dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
-      else            { dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
-    }
-    if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,targetW,targetH); }
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
-  }
+  /* ===== KTX2 pouze pro rámy ===== */
+  function setKTX2ToFrame(url, targetItem){
+    // Jen ktx2; ostatní ignoruj (zůstane placeholder)
+    try{
+      const tex = new BABYLON.Texture(url, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+        () => {}, // onLoad
+        (msg, ex) => {
+          console.warn("KTX2 load failed:", url, msg || ex);
+          // při chybě ponech placeholder (vytvořen v addFrame)
+        }
+      );
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.anisotropicFilteringLevel = MAX_ANISO;
 
-  function setImageToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
-    targetItem.data.src = url;
-    const img = new Image();
-    if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.onload = () => {
-      const dt  = makeDT("imgDT_"+Math.random(), texSize, texSize, !IS_MOBILE);
-      const ctx = dt.getContext();
-      fitDrawToCanvas(ctx, img, texSize, texSize, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
-      dt.update();
-      const mat = unlitTex(dt);
+      const mat = unlitTex(tex);
       mat.zOffset = -1;
       targetItem.frame.material = mat;
-    };
-    img.onerror = () => {
-      const dt = makeDT("imgErr_"+Math.random(), texSize, texSize, false);
-      const ctx = dt.getContext(); drawChecker(ctx, texSize, texSize); dt.update();
-      targetItem.frame.material = unlitTex(dt);
-    };
-    img.src = url;
+    }catch(e){
+      console.warn("KTX2 error:", url, e);
+    }
   }
 
   function setVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
@@ -510,10 +496,12 @@
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.04)); f.rotation.y = rotY + Math.PI; f.isPickable = true;
 
+    // placeholder (šachovnice) – nahradí se ktx2 texturou
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
     const fMat = unlitTex(dt); fMat.zOffset = -1; f.material = fMat;
 
+    // Cedulka (standardní pozice z předchozí verze)
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
@@ -681,7 +669,8 @@
 
   function assignDataAllWalls(data){
     const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
-    const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif|avif)$/i.test(u || "");
+    const isKTX2Url  = (u) => /\.ktx2$/i.test(u || "");
+
     ["front","back","left","right"].forEach(side=>{
       const items = data[side] || [];
       const arr   = framesByWall[side] || [];
@@ -704,12 +693,14 @@
         );
 
         if (!src) continue;
+
         if (isVideoUrl(src)) {
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
-        } else if (isImageUrl(src)) {
-          setImageToFrame(src, it, TEX_SIZE, "cover");
+        } else if (isKTX2Url(src)) {
+          setKTX2ToFrame(src, it);
         } else {
-          setImageToFrame(src, it, TEX_SIZE, "cover");
+          console.warn("Pouze KTX2 je povolen pro rámové obrazy. Přeskakuji:", src);
+          // ponecháme placeholder
         }
       }
     });
@@ -765,7 +756,7 @@
     camera.maxZ = 5000;
     camera.lowerRadiusLimit = MIN_RADIUS;
     camera.upperRadiusLimit = 40;
-    camera.lowerBetaLimit = 0.05;            // neotáčet "podlaha" / přes vršek
+    camera.lowerBetaLimit = 0.05;            // neotáčet přes podlahu
     camera.upperBetaLimit = Math.PI - 0.05;  // neotáčet přes strop
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
@@ -822,8 +813,7 @@
   }
 
   /* ========= Soft camera bounds – keep camera inside the room ========= */
-  // vnitřní kvádr (o trochu menší než místnost), aby kamera nezajížděla za stěny/rámy
-  const CAM_MARGIN = 0.55; // můžeš jemně doladit (0.45–0.7)
+  const CAM_MARGIN = 0.55; // jemné doladění 0.45–0.7
   const CAM_BOUNDS = {
     minX: -ROOM.W/2 + CAM_MARGIN,
     maxX:  ROOM.W/2 - CAM_MARGIN,
@@ -834,10 +824,7 @@
   };
 
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-
-  // jednotkový směr z targetu k pozici kamery z (alpha,beta)
   function getOrbitDir(alpha, beta){
-    // Babylon (ArcRotate): sférické souřadnice – viz implementace positionFromAlphaBeta
     const sinBeta = Math.sin(beta);
     return new BABYLON.Vector3(
       Math.cos(alpha) * sinBeta,
@@ -845,34 +832,24 @@
       Math.sin(alpha) * sinBeta
     );
   }
-
   function constrainTarget(){
     const t = camera.target;
     t.x = clamp(t.x, CAM_BOUNDS.minX, CAM_BOUNDS.maxX);
     t.y = clamp(t.y, CAM_BOUNDS.minY, CAM_BOUNDS.maxY);
     t.z = clamp(t.z, CAM_BOUNDS.minZ, CAM_BOUNDS.maxZ);
-    camera.target = t; // explicit set (ArcRotate drží referenci, ale pro jistotu)
+    camera.target = t;
   }
-
   function constrainCameraRadius(){
-    // vypočti max. dovolený radius tak, aby pozice (t + dir * r) zůstala uvnitř bounds
     const t = camera.target;
-    const dir = getOrbitDir(camera.alpha, camera.beta); // unit vector
+    const dir = getOrbitDir(camera.alpha, camera.beta);
     let rMax = camera.upperRadiusLimit || 1e9;
-
-    // pro každou osu stanov limit
     if (dir.x > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxX - t.x) / dir.x);
     else if (dir.x < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minX - t.x) / dir.x);
-
     if (dir.y > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxY - t.y) / dir.y);
     else if (dir.y < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minY - t.y) / dir.y);
-
     if (dir.z > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxZ - t.z) / dir.z);
     else if (dir.z < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minZ - t.z) / dir.z);
-
-    // zkrať radius pokud je potřeba (a zároveň respektuj MIN)
-    const rClamped = clamp(camera.radius, MIN_RADIUS, rMax);
-    camera.radius = rClamped;
+    camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
   /* ========= SoundCloud (desktop only) ========= */
@@ -901,13 +878,13 @@
         + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
         + "&auto_play=false&hide_related=false&show_comments=false"
         + "&show_user=true&show_reposts=false&show_teaser=false&visual=false";
-      iframe = document.createElement('iframe');
-      iframe.id = "scIframe"; iframe.title = "SoundCloud Player";
-      iframe.setAttribute("allow", "autoplay; encrypted-media; clipboard-write");
-      iframe.setAttribute("scrolling","no"); iframe.setAttribute("frameborder","no");
-      iframe.style.width  = "1px"; iframe.style.height = "1px"; iframe.style.border = "0";
-      iframe.src = url; host.appendChild(iframe);
-      resolve(iframe);
+      const iframeEl = document.createElement('iframe');
+      iframeEl.id = "scIframe"; iframeEl.title = "SoundCloud Player";
+      iframeEl.setAttribute("allow", "autoplay; encrypted-media; clipboard-write");
+      iframeEl.setAttribute("scrolling","no"); iframeEl.setAttribute("frameborder","no");
+      iframeEl.style.width  = "1px"; iframeEl.style.height = "1px"; iframeEl.style.border = "0";
+      iframeEl.src = url; host.appendChild(iframeEl);
+      resolve(iframeEl);
     });
   }
   function scUpdateTime(cur, dur){
@@ -1056,8 +1033,8 @@
     if (!scene) return;
 
     // --- Soft camera bounds – kamera zůstává UVNITŘ ---
-    constrainTarget();       // 1) udrž cíl v interiéru
-    constrainCameraRadius(); // 2) zkrať radius, aby pozice zůstala uvnitř
+    constrainTarget();
+    constrainCameraRadius();
 
     scene.render();
 
