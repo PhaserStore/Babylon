@@ -84,6 +84,45 @@
   <!-- Babylon.js + loaders (KTX2) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+  <!-- KTX2 transcoder explicitní konfigurace (WASM/JS) -->
+  <script>
+  (function() {
+    const decoderURL = "https://cdn.babylonjs.com/ktx2Decoder/";
+    // Preferovaný moderní dekodér
+    if (BABYLON.KTX2Decoder && BABYLON.KTX2Decoder.URLConfig) {
+      BABYLON.KTX2Decoder.URLConfig = {
+        jsDecoderModule: decoderURL + "ktx2Decoder.js",
+        wasmUASTCToASTC: decoderURL + "uastc_astc.wasm",
+        wasmUASTCToBC7:  decoderURL + "uastc_bc7.wasm",
+        wasmUASTCToRG:   decoderURL + "uastc_rg.wasm",
+        wasmUASTCToRGB:  decoderURL + "uastc_rgb.wasm",
+        wasmMSCTranscoder: decoderURL + "msc_basis_transcoder.wasm",
+        jsMSCTranscoder:   decoderURL + "msc_basis_transcoder.js",
+        wasmZSTD:          decoderURL + "zstddec.wasm"
+      };
+    }
+    // Fallback pro starší API
+    if (BABYLON.KhronosTextureContainer2 && BABYLON.KhronosTextureContainer2.URLConfig) {
+      BABYLON.KhronosTextureContainer2.URLConfig = {
+        jsDecoderModule: decoderURL + "ktx2Decoder.js",
+        wasmUASTCToASTC: decoderURL + "uastc_astc.wasm",
+        wasmUASTCToBC7:  decoderURL + "uastc_bc7.wasm",
+        wasmUASTCToRG:   decoderURL + "uastc_rg.wasm",
+        wasmUASTCToRGB:  decoderURL + "uastc_rgb.wasm",
+        wasmMSCTranscoder: decoderURL + "msc_basis_transcoder.wasm",
+        jsMSCTranscoder:   decoderURL + "msc_basis_transcoder.js",
+        wasmZSTD:          decoderURL + "zstddec.wasm"
+      };
+    }
+    // Lehká diagnostika: za chvíli vypíše, jestli je transcoder připraven
+    setTimeout(() => {
+      const ready = (BABYLON.KTX2Decoder && BABYLON.KTX2Decoder.IsTranscoderReady && BABYLON.KTX2Decoder.IsTranscoderReady())
+                 || (BABYLON.KhronosTextureContainer2 && BABYLON.KhronosTextureContainer2.IsTranscoderReady && BABYLON.KhronosTextureContainer2.IsTranscoderReady());
+      console.log("[KTX2] Transcoder ready?", !!ready);
+    }, 900);
+  })();
+  </script>
 </head>
 
 <body>
@@ -205,13 +244,6 @@
     enabled: IS_MOBILE, windowMs: 1200, warmupMs: 1500, lowFpsMs: 30, highFpsMs: 17,
     step: 0.05, minLevel: 0.33, maxLevel: 1.00, accMs: 0, frames: 0, lastEval: performance.now()
   };
-
-  // === KTX2 decoder cesta (nutné pro spolehlivé načtení KTX2) ===
-  if (BABYLON.KhronosTextureContainer2) {
-    BABYLON.KhronosTextureContainer2.URLConfig = {
-      url: "https://cdn.babylonjs.com/ktx2Decoder/"
-    };
-  }
 
   function unlit(hex){
     const m = new BABYLON.StandardMaterial("m", scene);
@@ -359,14 +391,13 @@
   /* ===== KTX2 POUZE PRO RÁMY ===== */
   function setKTX2ToFrame(url, targetItem){
     try{
-      const safeUrl = encodeURI(url); // podporuje názvy s mezerami apod.
+      const safeUrl = encodeURI(url); // podpora názvů s mezerami apod.
 
-      // Přímý KTX2 loader s SRGB (barvy správně)
       const tex = new BABYLON.KTX2Texture(
         safeUrl,
         scene,
         { useSRGBBuffer: true },
-        false, // generateMipMaps (ktx2 už typicky nese mipy)
+        false, // generateMipMaps (ktx2 obvykle nese mipy)
         false, // invertY
         BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
         () => {
@@ -376,14 +407,20 @@
           const mat = unlitTex(tex);
           mat.zOffset = -1;
           targetItem.frame.material = mat;
+          console.log("[KTX2] OK:", safeUrl);
         },
-        (msg, ex) => {
-          console.warn("KTX2 load failed:", safeUrl, msg || ex);
-          // necháme placeholder
+        (message, exception) => {
+          console.error("[KTX2] LOAD FAILED:", safeUrl, message || exception);
+          // Placeholder (šachovnice) ponecháme – nic nepřepisuj
         }
       );
+
+      tex.onErrorObservable?.add(err => {
+        console.error("[KTX2] onErrorObservable:", safeUrl, err);
+      });
+
     }catch(e){
-      console.warn("KTX2 error:", url, e);
+      console.error("[KTX2] Exception:", url, e);
     }
   }
 
