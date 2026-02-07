@@ -77,9 +77,9 @@
     }
     .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
 
-    /* 🔧 Fullscreen vlevo od resetu, na stejné „linii“ (níže u bar/Focus) */
+    /* Fullscreen vlevo od resetu, stejná spodní linie */
     #fullscreenIcon{
-      right:calc(12px + var(--safe-right) + 56px + 8px); /* 8px mezera, vlevo od resetu */
+      right:calc(12px + var(--safe-right) + 56px + 8px);
     }
 
     /* Skryj fullscreen ikonu na mobilu */
@@ -164,8 +164,11 @@
     </div>
   </div>
 
-  <!-- Skrytý host pro SC iframe -->
-  <div id="scIframeHost" style="display:none"></div>
+  <!-- Host pro SC iframe: NENÍ display:none, je mimo viewport (bezpečné pro READY) -->
+  <div id="scIframeHost" style="
+    position:fixed; left:-99999px; top:-99999px;
+    width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;">
+  </div>
 
   <!-- ===== Hlavní skript ===== -->
   <script>
@@ -216,7 +219,7 @@
     return Math.min(p, cap || p);
   }
 
-  let scene, camera, glow, hl;
+  let scene, camera, glow;
 
   const ROOM = { W: 16, D: 30, H: 13 };
   const MIN_RADIUS = 0.28;
@@ -243,375 +246,238 @@
     maxLevel: 1.00,
     accMs: 0, frames: 0, lastEval: performance.now()
   };
- 
 
   function createScene(){
-  scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0,0,0,1);
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0,0,0,1);
 
-  camera = new BABYLON.ArcRotateCamera(
-    "cam", -Math.PI/2, Math.PI/2.25, 11.5,
-    new BABYLON.Vector3(0, ROOM.H*0.48, 0),
-    scene
-  );
-  camera.attachControl(canvas, true);
-  camera.minZ = 0.2;
-  camera.maxZ = 5000;     // skybox je obří, malý dohled by ho „uřezal“
-
-  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
-
-  // (volitelné) zjemni glow, ať nahoře nepřebije oblohu
-  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
-  glow.intensity = IS_MOBILE ? 0.45 : 0.65;
-
-  // hned po createScene()
-scene.imageProcessingConfiguration.toneMappingEnabled = false;
-scene.imageProcessingConfiguration.exposure = 1.0;
-// důležité – ať se ImageProcessing neaplikuje jako post-process:
-scene.imageProcessingConfiguration.applyByPostProcess = false;
-
-// pro jistotu standardizuj gamma
-scene.imageProcessingConfiguration.contrast = 1.0;
-scene.imageProcessingConfiguration.isEnabled = true; // ale bez post-processu
-
-  buildRoom();
-buildLED();
-// buildCeilingLip();  // volitelné
-buildGalleryLogo();
-buildMySkybox();       // ⬅️ místo původního skyboxu/skydome
-buildCeilingWithAperture({ inw: 0.1 });
-
-
-  setupPicking();
-  setupZoomUX();
-  return scene;
-}
-    function buildCeilingWithAperture({ inw = 0.1, lip = 0.001 } = {}) {
-  // Výška stropu – podle horního LED (y1 = ROOM.H - 0.04)
-  const y1 = ROOM.H - 0.04;
-  const yCeil = y1 + 0.0005; // nepatrně nad LED, aby nebyl z-fighting
-
-  // Celkový stropní rozměr
-  const W = ROOM.W, D = ROOM.D;
-
-  // Vnitřní „čistý“ otvor podle LED
-  const openW = W - 2 * inw;
-  const openD = D - 2 * inw;
-
-  // Materiál stropu (neutrální, unlit)
-  const mCeil = unlit("#111111");
-
-  // Čtyři kusy „stropních desek“ kolem otvoru (sever/jih/východ/západ)
-  // 1) Severní deska (nad zadní stěnou)
-  const north = BABYLON.MeshBuilder.CreatePlane("ceil_north", {
-    width: W,
-    height: (D - openD) / 2,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  north.position.set(0, yCeil, -(openD / 2 + (D - openD) / 4));
-  north.rotation.x = Math.PI / 2;
-  north.material = mCeil;
-  north.isPickable = false;
-
-  // 2) Jižní deska (nad přední stěnou)
-  const south = BABYLON.MeshBuilder.CreatePlane("ceil_south", {
-    width: W,
-    height: (D - openD) / 2,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  south.position.set(0, yCeil, +(openD / 2 + (D - openD) / 4));
-  south.rotation.x = Math.PI / 2;
-  south.material = mCeil;
-  south.isPickable = false;
-
-  // 3) Západní deska (nad levou stěnou)
-  const west = BABYLON.MeshBuilder.CreatePlane("ceil_west", {
-    width: (W - openW) / 2,
-    height: openD,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  west.position.set(-(openW / 2 + (W - openW) / 4), yCeil, 0);
-  west.rotation.x = Math.PI / 2;
-  west.material = mCeil;
-  west.isPickable = false;
-
-  // 4) Východní deska (nad pravou stěnou)
-  const east = BABYLON.MeshBuilder.CreatePlane("ceil_east", {
-    width: (W - openW) / 2,
-    height: openD,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  east.position.set(+(openW / 2 + (W - openW) / 4), yCeil, 0);
-  east.rotation.x = Math.PI / 2;
-  east.material = mCeil;
-  east.isPickable = false;
-
-  // Volitelný „vnitřní svislý límec“ otvoru (čistá hrana stropu podél LED)
-  const lipH = 0.02; // ~2 cm
-  const mLip = unlit("#181818");
-
-  const mkLip = (name, w, h, px, pz, rotY = 0) => {
-    const p = BABYLON.MeshBuilder.CreatePlane(name, {
-      width: w, height: h, sideOrientation: BABYLON.Mesh.BACKSIDE
-    }, scene);
-    p.position.set(px, y1 - lipH / 2, pz);
-    p.rotation.y = rotY;
-    p.material = mLip;
-    p.isPickable = false;
-    return p;
-  };
-
-  // Límce na všech čtyřech stranách otvoru
-  mkLip("lip_north", openW, lipH, 0, -openD/2, 0);
-  mkLip("lip_south", openW, lipH, 0,  openD/2, Math.PI);
-  mkLip("lip_west",  openD, lipH, -openW/2, 0, -Math.PI/2);
-  mkLip("lip_east",  openD, lipH,  openW/2, 0,  Math.PI/2);
-
-  // Volitelně: Pokud chceš fotopanel přesně v otvoru (místo oblohy):
-  // buildCeilingPhoto("./assets/yourCeilingPhoto.jpg", { bleed: 0.003, texSize: 2048, fit: "cover" });
-}
-
-// --- MATERIÁLY (vložit nad buildRoom) --------------------------------------
-
-function unlit(hex){
-  const m = new BABYLON.StandardMaterial("m", scene);
-  m.diffuseColor    = BABYLON.Color3.FromHexString(hex);
-  m.disableLighting = true;
-  m.backFaceCulling = false;           // kreslit i zadní stranu (z interiéru místnosti)
-  m.specularColor   = new BABYLON.Color3(0,0,0);
-  return m;
-}
-
-function unlitTex(tex, { doubleSided=false } = {}){
-  const m = new BABYLON.StandardMaterial("mt", scene);
-  m.disableLighting   = true;
-  m.diffuseTexture    = tex;
-  m.emissiveTexture   = tex;
-  m.backFaceCulling   = !doubleSided;
-  m.specularColor     = new BABYLON.Color3(0,0,0);
-  if (tex){
-    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    tex.anisotropicFilteringLevel = (engine.getCaps()?.maxAnisotropy || 4);
-  }
-  return m;
-}
-// === Přesná stropní fotografie uvnitř LED rámu =============================
-function buildCeilingPhoto(url, { bleed = 0.002, texSize = 2048, fit = "cover" } = {}){
-  // Rozměr otvoru z tvého buildLED: inw = 0.1; horní LED výška y1 = ROOM.H - 0.04
-  const INSET = 0.1;
-  const yTop  = ROOM.H - 0.04;
-  const y     = yTop - 0.001; // nepatrně pod LED, aby nebyl z-fighting
-
-  // Vnitřní šířka/hloubka (lehce "přesah" - bleed), ať není vidět spára
-  const w = (ROOM.W - 2*INSET) + bleed*2;
-  const d = (ROOM.D - 2*INSET) + bleed*2;
-
-  // 1) Plocha – leží vodorovně, uprostřed otvoru, viditelná z obou stran
-  const plane = BABYLON.MeshBuilder.CreatePlane("ceilingPhoto", {
-    width: w, height: d, sideOrientation: BABYLON.Mesh.DOUBLESIDE
-  }, scene);
-  plane.position.set(0, y, 0);
-  plane.rotation.x = Math.PI / 2;         // vodorovně
-  plane.isPickable = false;
-
-  // 2) Dynamická textura – slušný „cover/contain“ fit bez deformace
-  const dt  = new BABYLON.DynamicTexture("ceilingDT",
-    { width: texSize, height: texSize }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-  const ctx = dt.getContext();
-  ctx.fillStyle = "#000"; ctx.fillRect(0,0,texSize,texSize);
-
-  const img = new Image();
-  img.decoding = "async";
-  img.onload = () => {
-    const r = img.width / img.height;
-    const targetR = w / d;
-
-    let dw, dh, dx = 0, dy = 0;
-    if (fit === "cover"){
-      // vyplníme plochu a případně zhorníme/zboků ořízneme
-      if (r > targetR){ dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
-      else            { dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
-    } else {
-      // contain – bez ořezu, kolem doplníme černou
-      if (r > targetR){ dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
-      else            { dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
-    }
-
-    ctx.imageSmoothingEnabled  = true;
-    ctx.imageSmoothingQuality  = "high";
-    ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
-    dt.update();
-  };
-  img.src = url;
-
-  const mat = new BABYLON.StandardMaterial("ceilingMat", scene);
-  mat.disableLighting   = true;
-  mat.backFaceCulling   = false;             // viditelné i při vytočení kamery
-  mat.diffuseTexture    = dt;
-  mat.emissiveTexture   = dt;                // „svítí“ sama – žádné ztmavnutí
-  mat.specularColor     = new BABYLON.Color3(0,0,0);
-  dt.wrapU = dt.wrapV   = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  plane.material        = mat;
-
-  // Pro jistotu držíme plochu mimo Glow „included only“
-  try { glow?.removeIncludedOnlyMesh?.(plane); } catch (e) {}
-  return plane;
-}
-function buildMySkybox() {
-  // Velká krychle vykreslovaná zevnitř
-  const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
-  skybox.isPickable = false;
-  skybox.infiniteDistance = true;
-
-  // Materiál pro skybox
-  const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
-  skyMat.backFaceCulling = false;
-  skyMat.disableLighting = true;
-  skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
-  skyMat.specularColor = new BABYLON.Color3(0,0,0);
-
-  // v buildMySkybox(), po vytvoření skyMat:
-skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10); // jemně projasní - klidně 0.08–0.15
-skybox.applyFog = false;
-
-  // ⬇️ Explicitně zadáme 6 PNG souborů (žádné 404, žádné .jpg defaulty)
-const cubetex = BABYLON.CubeTexture.CreateFromImages([
-  "./assets/mySky_px.png",
-  "./assets/mySky_nx.png",
-  "./assets/mySky_py.png",
-  "./assets/mySky_ny.png",
-  "./assets/mySky_pz.png",
-  "./assets/mySky_nz.png"
-], scene);
-
-cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-cubetex.gammaSpace = true;           
-cubetex.lodGenerationOffset = 0;
-cubetex.lodGenerationScale  = 0;
-
-skyMat.reflectionTexture = cubetex;
-skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10);
-skybox.material = skyMat;
-
-  // (Volitelně) pootočení skyboxu, pokud chceš „otočit“ hvězdnou mapu
-  // skybox.rotation.y = Math.PI / 2;
-}
- function buildRoom() {
-  const floor = BABYLON.MeshBuilder.CreateGround("floor", { 
-    width: ROOM.W, 
-    height: ROOM.D 
-  }, scene);
-  floor.material = unlit("#151515");
-
-  // Horní LED: ve tvém buildLED() je y1 = ROOM.H - 0.04
-  const LED_TOP = ROOM.H - 0.04;
-
-  // Stěny končí těsně pod LED
-  const LIP = 0.005;
-  const WALL_H = LED_TOP - LIP;
-  const wallY  = WALL_H / 2;
-
-  // Malé překrytí do rohů (eliminuje mikro spáry)
-  const OVER = 0.04; // ~4 cm
-
-  // ZADNÍ stěna
-  const back = BABYLON.MeshBuilder.CreatePlane("back", {
-    width: ROOM.W + OVER,
-    height: WALL_H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  back.position.set(0, wallY, -ROOM.D/2);
-  back.material = unlit("#2b2b2b");
-
-  // PŘEDNÍ stěna
-  const front = BABYLON.MeshBuilder.CreatePlane("front", {
-    width: ROOM.W + OVER,
-    height: WALL_H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  front.position.set(0, wallY, ROOM.D/2);
-  front.rotation.y = Math.PI;
-  front.material = unlit("#2b2b2b");
-
-  // LEVÁ stěna
-  const left = BABYLON.MeshBuilder.CreatePlane("leftWall", {
-    width: ROOM.D + OVER,
-    height: WALL_H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  left.position.set(-ROOM.W/2, wallY, 0);
-  left.rotation.y = -Math.PI/2;
-  left.material = unlit("#242424");
-
-  // PRAVÁ stěna
-  const right = BABYLON.MeshBuilder.CreatePlane("rightWall", {
-    width: ROOM.D + OVER,
-    height: WALL_H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  right.position.set(ROOM.W/2, wallY, 0);
-  right.rotation.y = Math.PI/2;
-  right.material = unlit("#242424");
-
-  // ŽÁDNÝ strop – nahoře je otevřené „okno“ do oblohy
-}
-
-
-function buildLED() {
-  const n = new BABYLON.TransformNode("led", scene);
-  const t = 0.02, inw = 0.1;
-
-  const xL = -ROOM.W/2 + inw;
-  const xR =  ROOM.W/2 - inw;
-  const zF =  ROOM.D/2 - inw;
-  const zB = -ROOM.D/2 + inw;
-
-  const y0 = 0.04;
-  const y1 = ROOM.H - 0.04;
-
-  const mat = new BABYLON.StandardMaterial("ledMat", scene);
-  mat.emissiveColor = BABYLON.Color3.FromHexString("#ffbdf6");
-  mat.disableLighting = true;
-
-  const seg = (a, b) => {
-    const d = BABYLON.Vector3.Distance(a, b);
-    const m = BABYLON.MeshBuilder.CreateBox("ledSeg", {
-      width: t,
-      height: t,
-      depth: d
-    }, scene);
-    m.position = BABYLON.Vector3.Center(a, b);
-    m.lookAt(b);
-    m.rotation.x += Math.PI;
-    m.material = mat;
-    m.isPickable = false;
-    m.parent = n;
-    glow.addIncludedOnlyMesh(m);
-  };
-
-  // Horní i dolní LED obdélník
-  [
-    [xL,y0,zF, xR,y0,zF], [xR,y0,zF, xR,y0,zB], [xR,y0,zB, xL,y0,zB], [xL,y0,zB, xL,y0,zF],
-    [xL,y1,zF, xR,y1,zF], [xR,y1,zF, xR,y1,zB], [xR,y1,zB, xL,y1,zB], [xL,y1,zB, xL,y1,zF]
-  ].forEach(([ax,ay,az, bx,by,bz]) => {
-    seg(new BABYLON.Vector3(ax, ay, az), new BABYLON.Vector3(bx, by, bz));
-  });
-
-  // Vertikální LED segmenty
-  [
-    [xL,zF],
-    [xR,zF],
-    [xR,zB],
-    [xL,zB]
-  ].forEach(([x,z]) => {
-    seg(
-      new BABYLON.Vector3(x, y0, z),
-      new BABYLON.Vector3(x, y1, z)
+    camera = new BABYLON.ArcRotateCamera(
+      "cam", -Math.PI/2, Math.PI/2.25, 11.5,
+      new BABYLON.Vector3(0, ROOM.H*0.48, 0),
+      scene
     );
-  });
-}
+    camera.attachControl(canvas, true);
+    camera.minZ = 0.2;
+    camera.maxZ = 5000;
+
+    new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+
+    // Glow jemnější na mobilech
+    glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
+    glow.intensity = IS_MOBILE ? 0.45 : 0.65;
+
+    // ImageProcessing — bez post-processu
+    scene.imageProcessingConfiguration.toneMappingEnabled = false;
+    scene.imageProcessingConfiguration.exposure = 1.0;
+    scene.imageProcessingConfiguration.applyByPostProcess = false;
+    scene.imageProcessingConfiguration.contrast = 1.0;
+    scene.imageProcessingConfiguration.isEnabled = true;
+
+    buildRoom();
+    buildLED();
+    buildGalleryLogo();
+    buildMySkybox();
+    buildCeilingWithAperture({ inw: 0.1 });
+
+    setupPicking();
+    setupZoomUX();
+    return scene;
+  }
+
+  function buildCeilingWithAperture({ inw = 0.1 } = {}) {
+    const y1 = ROOM.H - 0.04;
+    const yCeil = y1 + 0.0005;
+
+    const W = ROOM.W, D = ROOM.D;
+    const openW = W - 2 * inw;
+    const openD = D - 2 * inw;
+
+    const mCeil = unlit("#111111");
+
+    const north = BABYLON.MeshBuilder.CreatePlane("ceil_north", {
+      width: W, height: (D - openD) / 2, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    north.position.set(0, yCeil, -(openD / 2 + (D - openD) / 4));
+    north.rotation.x = Math.PI / 2;
+    north.material = mCeil; north.isPickable = false;
+
+    const south = BABYLON.MeshBuilder.CreatePlane("ceil_south", {
+      width: W, height: (D - openD) / 2, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    south.position.set(0, yCeil, +(openD / 2 + (D - openD) / 4));
+    south.rotation.x = Math.PI / 2;
+    south.material = mCeil; south.isPickable = false;
+
+    const west = BABYLON.MeshBuilder.CreatePlane("ceil_west", {
+      width: (W - openW) / 2, height: openD, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    west.position.set(-(openW / 2 + (W - openW) / 4), yCeil, 0);
+    west.rotation.x = Math.PI / 2;
+    west.material = mCeil; west.isPickable = false;
+
+    const east = BABYLON.MeshBuilder.CreatePlane("ceil_east", {
+      width: (W - openW) / 2, height: openD, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    east.position.set(+(openW / 2 + (W - openW) / 4), yCeil, 0);
+    east.rotation.x = Math.PI / 2;
+    east.material = mCeil; east.isPickable = false;
+
+    const lipH = 0.02;
+    const mLip = unlit("#181818");
+    const mkLip = (name, w, h, px, pz, rotY = 0) => {
+      const p = BABYLON.MeshBuilder.CreatePlane(name, {
+        width: w, height: h, sideOrientation: BABYLON.Mesh.BACKSIDE
+      }, scene);
+      p.position.set(px, y1 - lipH / 2, pz);
+      p.rotation.y = rotY;
+      p.material = mLip;
+      p.isPickable = false;
+      return p;
+    };
+    mkLip("lip_north", openW, lipH, 0, -openD/2, 0);
+    mkLip("lip_south", openW, lipH, 0,  openD/2, Math.PI);
+    mkLip("lip_west",  openD, lipH, -openW/2, 0, -Math.PI/2);
+    mkLip("lip_east",  openD, lipH,  openW/2, 0,  Math.PI/2);
+  }
+
+  // --- Materiály ---
+  function unlit(hex){
+    const m = new BABYLON.StandardMaterial("m", scene);
+    m.diffuseColor    = BABYLON.Color3.FromHexString(hex);
+    m.disableLighting = true;
+    m.backFaceCulling = false;
+    m.specularColor   = new BABYLON.Color3(0,0,0);
+    return m;
+  }
+  function unlitTex(tex, { doubleSided=false } = {}){
+    const m = new BABYLON.StandardMaterial("mt", scene);
+    m.disableLighting   = true;
+    m.diffuseTexture    = tex;
+    m.emissiveTexture   = tex;
+    m.backFaceCulling   = !doubleSided;
+    m.specularColor     = new BABYLON.Color3(0,0,0);
+    if (tex){
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      tex.anisotropicFilteringLevel = (engine.getCaps()?.maxAnisotropy || 4);
+    }
+    return m;
+  }
+
+  function buildMySkybox() {
+    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
+    skybox.isPickable = false;
+    skybox.infiniteDistance = true;
+
+    const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+    skyMat.backFaceCulling = false;
+    skyMat.disableLighting = true;
+    skyMat.diffuseColor  = new BABYLON.Color3(0,0,0);
+    skyMat.specularColor = new BABYLON.Color3(0,0,0);
+    skyMat.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.10);
+    skybox.applyFog = false;
+
+    const cubetex = BABYLON.CubeTexture.CreateFromImages([
+      "./assets/mySky_px.png",
+      "./assets/mySky_nx.png",
+      "./assets/mySky_py.png",
+      "./assets/mySky_ny.png",
+      "./assets/mySky_pz.png",
+      "./assets/mySky_nz.png"
+    ], scene);
+
+    cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+    cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    cubetex.gammaSpace = true;
+    cubetex.lodGenerationOffset = 0;
+    cubetex.lodGenerationScale  = 0;
+
+    skyMat.reflectionTexture = cubetex;
+    skybox.material = skyMat;
+  }
+
+  function buildRoom() {
+    const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
+    floor.material = unlit("#151515");
+
+    const LED_TOP = ROOM.H - 0.04;
+
+    const LIP = 0.005;
+    const WALL_H = LED_TOP - LIP;
+    const wallY  = WALL_H / 2;
+
+    const OVER = 0.04;
+
+    const back = BABYLON.MeshBuilder.CreatePlane("back", {
+      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    back.position.set(0, wallY, -ROOM.D/2);
+    back.material = unlit("#2b2b2b");
+
+    const front = BABYLON.MeshBuilder.CreatePlane("front", {
+      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    front.position.set(0, wallY, ROOM.D/2);
+    front.rotation.y = Math.PI;
+    front.material = unlit("#2b2b2b");
+
+    const left = BABYLON.MeshBuilder.CreatePlane("leftWall", {
+      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    left.position.set(-ROOM.W/2, wallY, 0);
+    left.rotation.y = -Math.PI/2;
+    left.material = unlit("#242424");
+
+    const right = BABYLON.MeshBuilder.CreatePlane("rightWall", {
+      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    right.position.set(ROOM.W/2, wallY, 0);
+    right.rotation.y = Math.PI/2;
+    right.material = unlit("#242424");
+  }
+
+  function buildLED() {
+    const n = new BABYLON.TransformNode("led", scene);
+    const t = 0.02, inw = 0.1;
+
+    const xL = -ROOM.W/2 + inw;
+    const xR =  ROOM.W/2 - inw;
+    const zF =  ROOM.D/2 - inw;
+    const zB = -ROOM.D/2 + inw;
+
+    const y0 = 0.04;
+    const y1 = ROOM.H - 0.04;
+
+    const mat = new BABYLON.StandardMaterial("ledMat", scene);
+    mat.emissiveColor = BABYLON.Color3.FromHexString("#ffbdf6");
+    mat.disableLighting = true;
+
+    const seg = (a, b) => {
+      const d = BABYLON.Vector3.Distance(a, b);
+      const m = BABYLON.MeshBuilder.CreateBox("ledSeg", {
+        width: t, height: t, depth: d
+      }, scene);
+      m.position = BABYLON.Vector3.Center(a, b);
+      m.lookAt(b);
+      m.rotation.x += Math.PI;
+      m.material = mat;
+      m.isPickable = false;
+      m.parent = n;
+      glow.addIncludedOnlyMesh(m);
+    };
+
+    [
+      [xL,y0,zF, xR,y0,zF], [xR,y0,zF, xR,y0,zB], [xR,y0,zB, xL,y0,zB], [xL,y0,zB, xL,y0,zF],
+      [xL,y1,zF, xR,y1,zF], [xR,y1,zF, xR,y1,zB], [xR,y1,zB, xL,y1,zB], [xL,y1,zB, xL,y1,zF]
+    ].forEach(([ax,ay,az, bx,by,bz]) => {
+      seg(new BABYLON.Vector3(ax, ay, az), new BABYLON.Vector3(bx, by, bz));
+    });
+
+    [[xL,zF],[xR,zF],[xR,zB],[xL,zB]].forEach(([x,z]) => {
+      seg(new BABYLON.Vector3(x, y0, z), new BABYLON.Vector3(x, y1, z));
+    });
+  }
+
   /* =========================
      Picking & zoom UX
   ========================= */
@@ -649,13 +515,11 @@ function buildLED() {
       const now = Date.now();
       const dt  = now - lastTap; lastTap = now;
       if (dt > 280) return;
-
       const t = e.changedTouches && e.changedTouches[0];
       if (!t) return;
       const rect = canvasEl.getBoundingClientRect();
       const x = t.clientX - rect.left;
       const y = t.clientY - rect.top;
-
       zoomToPointer(x, y, {
         scale: camera.radius < 1.2 ? 1.0 : 0.55,
         forceMin: camera.radius < 0.6
@@ -663,256 +527,203 @@ function buildLED() {
     }, { passive:true });
   }
 
- /* =========================
-   Obrázky / videa / textury – unified
-========================= */
+  /* =========================
+     Obrázky / videa / textury
+  ========================= */
+  const FRAME_SIZE = { W: 2, H: 2 };
+  let FRAME_BOX_BORDER = 0.08;
+  let FRAME_COLOR = "#717171";
 
-// Globál: výsledné 9:16 (nebo jiné) rozměry rámu se čtou z FRAME_SIZE
-// (FRAME_SIZE nastavuješ v applyFixedLayout – u tebe natvrdo 9:16)
-const FRAME_SIZE = { W: 2, H: 2 };   // init; skutečnou výšku přepíše applyFixedLayout()
-let FRAME_BOX_BORDER = 0.08;
-let FRAME_COLOR = "#717171";
+  function makeDT(name, w, h, genMipmaps=true) {
+    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.hasAlpha = false;
+    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+    return dt;
+  }
 
-function makeDT(name, w, h, genMipmaps=true) {
-  const dt = new BABYLON.DynamicTexture(
-    name,
-    { width:w, height:h },
-    scene,
-    genMipmaps,
-    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-  );
-  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.hasAlpha = false;
-  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-  return dt;
-}
-
-/**
- * Vykreslí zdroj (Image/Canvas/Video frame) do canvasu s "cover" nebo "contain" fitem,
- * bez deformace, s centrací.
- * - targetW/H = rozměr cílové textury (typicky TEX_SIZE x TEX_SIZE)
- * - frameW/H  = Fyzický poměr plátna v rámu (FRAME_SIZE.W/H)
- */
-function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
-  const targetR = frameW / frameH;     // poměr fyzického plátna (např. 9:16)
-  const r       = bmp.width / bmp.height;
-
-  let dw, dh, dx=0, dy=0;
-  if (mode === "cover"){
-    if (r > targetR){                 // zdroj "širší" než cíl → plná výška, oříznout do šířky
-      dh = targetH;
-      dw = Math.round(dh * r);
-      dx = Math.round((targetW - dw) / 2);
-    } else {                          // zdroj "užší" než cíl → plná šířka, oříznout do výšky
-      dw = targetW;
-      dh = Math.round(dw / r);
-      dy = Math.round((targetH - dh) / 2);
-    }
-  } else { // "contain"
-    if (r > targetR){                 // zdroj "širší" → plná šířka, doladit výšku
-      dw = targetW;
-      dh = Math.round(dw / r);
-      dy = Math.round((targetH - dh) / 2);
+  function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
+    const targetR = frameW / frameH;
+    const r       = bmp.width / bmp.height;
+    let dw, dh, dx=0, dy=0;
+    if (mode === "cover"){
+      if (r > targetR){ dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
+      else            { dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
     } else {
-      dh = targetH;
-      dw = Math.round(dh * r);
-      dx = Math.round((targetW - dw) / 2);
+      if (r > targetR){ dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
+      else            { dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
     }
+    if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,targetW,targetH); }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
   }
 
-  if (bg){
-    ctx.fillStyle = bg;
-    ctx.fillRect(0,0,targetW,targetH);
-  }
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
-}
-
-function drawChecker(ctx, w, h) {
-  const tile = 32;
-  for (let y = 0; y < h; y += tile) {
-    for (let x = 0; x < w; x += tile) {
-      const even = ((x / tile) + (y / tile)) % 2 === 0;
-      ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
-      ctx.fillRect(x, y, tile, tile);
-    }
-  }
-}
-
-/**
- * Obrázek → DynamicTexture → unlit materiál na frame
- * - používá fit "cover" a poměr FRAME_SIZE (portrait 9:16 nebo dle tvého nastavení)
- */
-function setImageToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
-  targetItem.data.src = url;
-  const img = new Image();
-  if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
-  img.decoding = "async";
-  img.onload = () => {
-    const dt  = makeDT("imgDT_"+Math.random(), texSize, texSize, !IS_MOBILE);
-    const ctx = dt.getContext();
-    fitDrawToCanvas(ctx, img, texSize, texSize, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
-    dt.update();
-
-    const mat = unlitTex(dt, { doubleSided:false });
-    mat.zOffset = -1;
-    targetItem.frame.material = mat;
-  };
-  img.onerror = () => {
-    const dt = makeDT("imgErr_"+Math.random(), texSize, texSize, false);
-    const ctx = dt.getContext();
-    drawChecker(ctx, texSize, texSize);
-    dt.update();
-    targetItem.frame.material = unlitTex(dt,{doubleSided:false});
-  };
-  img.src = url;
-}
-
-/**
- * Video → VideoTexture → unlit materiál na frame
- * - autoplay funguje na mobilech, pokud je video muted a po gestu uživatele
- */
-function setVideoToFrame(url, targetItem, {
-  loop=true, muted=true, autoplay=true, texSampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-} = {}){
-  const vt = new BABYLON.VideoTexture(
-    "vidTex_"+Math.random(),
-    url,
-    scene,
-    true,         // generateMipmaps
-    false,        // invertY
-    texSampling,
-    { autoPlay: autoplay, loop: loop, muted: muted }
-  );
-  try {
-    vt.video.muted = !!muted;
-    vt.video.loop = !!loop;
-    vt.video.playsInline = true;
-  } catch(e){ /* ignore */ }
-
-  // Pozn.: VideoTexture se promítá přímo, bez ručního "cover" ořezu.
-  // Aspect fit řeší geometrie plátna (FRAME_SIZE) a UV rámu (plane).
-  const mat = unlitTex(vt, { doubleSided:false });
-  mat.zOffset = -1;
-  targetItem.frame.material = mat;
-  targetItem.videoTex = vt;
-}
-
-/**
- * Unified assign: rozhodne podle přípony, zda je to obrázek nebo video.
- * - preferuje d.src; zpětně kompatibilní s d.video / d.img
- */
-function assignDataAllWalls(data){
-  const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
-  const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif)$/i.test(u || "");
-
-  ["front","back","left","right"].forEach(side=>{
-    const items = data[side] || [];
-    const arr   = framesByWall[side] || [];
-    const n = Math.min(items.length, arr.length);
-
-    for (let i=0;i<n;i++){
-      const it = arr[i];
-      const d  = items[i] || {};
-
-      const src = d.src || d.video || d.img || "";
-      it.data.src   = src;
-      it.data.title = d.label || it.data.title || "(bez názvu)";
-      it.data.url   = d.href  || it.data.url || "";
-
-      // Cedulka
-      drawPlacard(
-        it.placard,
-        it.data,
-        it.rotY,
-        it.placard._width  || FRAME_SIZE.W,
-        it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10)
-      );
-
-      if (!src) continue;
-
-      if (isVideoUrl(src)) {
-        setVideoToFrame(src, it, {
-          loop: d.loop !== false,
-          muted: d.muted !== false, // autoplay na mobilech chce muted
-          autoplay: true
-        });
-      } else if (isImageUrl(src)) {
-        // GIF se vykreslí jako statický (první frame). Pro animaci použij MP4/WebM.
-        setImageToFrame(src, it, TEX_SIZE, "cover");
-      } else {
-        // fallback: zkus jako obrázek
-        setImageToFrame(src, it, TEX_SIZE, "cover");
+  function drawChecker(ctx, w, h) {
+    const tile = 32;
+    for (let y = 0; y < h; y += tile) {
+      for (let x = 0; x < w; x += tile) {
+        const even = ((x / tile) + (y / tile)) % 2 === 0;
+        ctx.fillStyle = even ? "#dcdcdc" : "#f4f4f4";
+        ctx.fillRect(x, y, tile, tile);
       }
     }
-  });
-}
-
-/* ====== Rám: multi-material se stínovanými plochami (ponecháno, jen přesunuto) ====== */
-function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
-  const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-  const ctx = dt.getContext();
-  ctx.clearRect(0,0,w,h);
-  if (radial){
-    const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
-    const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
-    g.addColorStop(0, from);
-    g.addColorStop(1, to);
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-  } else {
-    const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
-    g.addColorStop(0, from);
-    g.addColorStop(1, to);
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
   }
-  dt.update();
-  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-  return dt;
-}
-function lighten(col, f){ return new BABYLON.Color3(
-  Math.min(1, col.r + (1-col.r)*f),
-  Math.min(1, col.g + (1-col.g)*f),
-  Math.min(1, col.b + (1-col.b)*f)
-);}
-function darken(col, f){ return new BABYLON.Color3(
-  Math.max(0, col.r*(1-f)),
-  Math.max(0, col.g*(1-f)),
-  Math.max(0, col.b*(1-f))
-);}
-function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
-  const c = BABYLON.Color3.FromHexString(baseHex);
-  const topLight    = lighten(c, 0.20).toHexString();
-  const bottomDark  = darken(c,  0.25).toHexString();
-  const sideMidTop  = lighten(c, 0.08).toHexString();
-  const sideMidBot  = darken(c,  0.12).toHexString();
-  const frontTop    = lighten(c, 0.12).toHexString();
-  const frontBot    = darken(c,  0.18).toHexString();
-  const backCol     = darken(c,  0.10).toHexString();
 
-  const W=256,H=256;
-  const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
-  const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
-  const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-  const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
-  const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});
-  const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});
+  function setImageToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
+    targetItem.data.src = url;
+    const img = new Image();
+    if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      const dt  = makeDT("imgDT_"+Math.random(), texSize, texSize, !IS_MOBILE);
+      const ctx = dt.getContext();
+      fitDrawToCanvas(ctx, img, texSize, texSize, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
+      dt.update();
+      const mat = unlitTex(dt, { doubleSided:false });
+      mat.zOffset = -1;
+      targetItem.frame.material = mat;
+    };
+    img.onerror = () => {
+      const dt = makeDT("imgErr_"+Math.random(), texSize, texSize, false);
+      const ctx = dt.getContext();
+      drawChecker(ctx, texSize, texSize);
+      dt.update();
+      targetItem.frame.material = unlitTex(dt,{doubleSided:false});
+    };
+    img.src = url;
+  }
 
-  const mk = (name, dt)=>{
-    const m = new BABYLON.StandardMaterial(name, scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = dt; m.emissiveTexture = dt;
-    m.specularColor   = new BABYLON.Color3(0,0,0);
-    m.backFaceCulling = false;
-    m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    return m;
-  };
-  const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
-  const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
-  mats.forEach(m => mm.subMaterials.push(m));
-  return mm;
-}
+  function setVideoToFrame(url, targetItem, {
+    loop=true, muted=true, autoplay=true, texSampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  } = {}){
+    const vt = new BABYLON.VideoTexture(
+      "vidTex_"+Math.random(),
+      url,
+      scene,
+      true,
+      false,
+      texSampling,
+      { autoPlay: autoplay, loop: loop, muted: muted }
+    );
+    try {
+      vt.video.muted = !!muted;
+      vt.video.loop = !!loop;
+      vt.video.playsInline = true;
+    } catch(e){}
+
+    const mat = unlitTex(vt, { doubleSided:false });
+    mat.zOffset = -1;
+    targetItem.frame.material = mat;
+    targetItem.videoTex = vt;
+  }
+
+  function assignDataAllWalls(data){
+    const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
+    const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif)$/i.test(u || "");
+
+    ["front","back","left","right"].forEach(side=>{
+      const items = data[side] || [];
+      const arr   = framesByWall[side] || [];
+      const n = Math.min(items.length, arr.length);
+
+      for (let i=0;i<n;i++){
+        const it = arr[i];
+        const d  = items[i] || {};
+        const src = d.src || d.video || d.img || "";
+
+        it.data.src   = src;
+        it.data.title = d.label || it.data.title || "(bez názvu)";
+        it.data.url   = d.href  || it.data.url || "";
+
+        // Cedulka
+        drawPlacard(
+          it.placard,
+          it.data,
+          it.rotY,
+          it.placard._width  || FRAME_SIZE.W,
+          it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10)
+        );
+
+        if (!src) continue;
+
+        if (isVideoUrl(src)) {
+          setVideoToFrame(src, it, {
+            loop: d.loop !== false,
+            muted: d.muted !== false,
+            autoplay: true
+          });
+        } else if (isImageUrl(src)) {
+          setImageToFrame(src, it, TEX_SIZE, "cover");
+        } else {
+          setImageToFrame(src, it, TEX_SIZE, "cover");
+        }
+      }
+    });
+  }
+
+  function makeGradDT(name, w, h, {from="#7a7a7a", to="#555", vertical=true, radial=false}={}){
+    const dt = new BABYLON.DynamicTexture(name, {width:w, height:h}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    const ctx = dt.getContext();
+    ctx.clearRect(0,0,w,h);
+    if (radial){
+      const cx=w/2, cy=h/2, r=Math.sqrt(cx*cx+cy*cy);
+      const g = ctx.createRadialGradient(cx, cy, r*0.15, cx, cy, r);
+      g.addColorStop(0, from); g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    } else {
+      const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
+      g.addColorStop(0, from); g.addColorStop(1, to);
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    }
+    dt.update();
+    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+    return dt;
+  }
+  function lighten(col, f){ return new BABYLON.Color3(
+    Math.min(1, col.r + (1-col.r)*f),
+    Math.min(1, col.g + (1-col.g)*f),
+    Math.min(1, col.b + (1-col.b)*f)
+  );}
+  function darken(col, f){ return new BABYLON.Color3(
+    Math.max(0, col.r*(1-f)),
+    Math.max(0, col.g*(1-f)),
+    Math.max(0, col.b*(1-f))
+  );}
+  function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
+    const c = BABYLON.Color3.FromHexString(baseHex);
+    const topLight    = lighten(c, 0.20).toHexString();
+    const bottomDark  = darken(c,  0.25).toHexString();
+    const sideMidTop  = lighten(c, 0.08).toHexString();
+    const sideMidBot  = darken(c,  0.12).toHexString();
+    const frontTop    = lighten(c, 0.12).toHexString();
+    const frontBot    = darken(c,  0.18).toHexString();
+    const backCol     = darken(c,  0.10).toHexString();
+
+    const W=256,H=256;
+    const dtFront = makeGradDT("frm_front",  W,H, {from:frontTop, to:frontBot, vertical:true});
+    const dtBack  = makeGradDT("frm_back",   W,H, {from:backCol,  to:backCol,  vertical:true});
+    const dtRight = makeGradDT("frm_right",  W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+    const dtLeft  = makeGradDT("frm_left",   W,H, {from:sideMidTop,to:sideMidBot,vertical:true});
+    const dtTop   = makeGradDT("frm_top",    W,H, {from:topLight,  to:topLight,  vertical:true});
+    const dtBottom= makeGradDT("frm_bottom", W,H, {from:bottomDark,to:bottomDark,vertical:true});
+
+    const mk = (name, dt)=>{
+      const m = new BABYLON.StandardMaterial(name, scene);
+      m.disableLighting = true;
+      m.diffuseTexture  = dt; m.emissiveTexture = dt;
+      m.specularColor   = new BABYLON.Color3(0,0,0);
+      m.backFaceCulling = false;
+      m.diffuseTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      return m;
+    };
+    const mats = [ mk("m_front",dtFront), mk("m_back",dtBack), mk("m_right",dtRight), mk("m_left",dtLeft), mk("m_top",dtTop), mk("m_bottom",dtBottom) ];
+    const mm = new BABYLON.MultiMaterial("frameBoxMM", scene);
+    mats.forEach(m => mm.subMaterials.push(m));
+    return mm;
+  }
+
   // Cedulka (plaketa)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
@@ -961,7 +772,7 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
 
     dt.update();
     const mat = unlitTex(dt, { doubleSided:false });
-    mat.zOffset = -2; // anti z-fighting
+    mat.zOffset = -2;
     plac.material = mat;
   }
 
@@ -981,7 +792,6 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     box.rotation.y = rotY;
     box.isPickable = true;
 
-    // Submeshe + MultiMaterial
     box.subMeshes = [];
     const indices = box.getIndices();
     const verticesCount = box.getTotalVertices();
@@ -993,11 +803,8 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     }
     box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
 
-    // Přední obrazová plocha
     const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-      width: FRAME_SIZE.W,
-      height: FRAME_SIZE.H,
-      sideOrientation: BABYLON.Mesh.FRONTSIDE
+      width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.04));
     f.rotation.y = rotY + Math.PI;
@@ -1009,7 +816,6 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     fMat.zOffset = -1;
     f.material  = fMat;
 
-    // Cedulka
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
@@ -1019,10 +825,9 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
     plac.rotation.y = rotY + Math.PI;
     plac.isPickable = true;
 
-    // Kompenzace — ať se cedulka výsledně posune přesně o Δ (ne ~1.33×Δ)
-if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
-  plac.position.y += FRAME_DELTA_H * (1/3);
-}
+    if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
+      plac.position.y += FRAME_DELTA_H * (1/3);
+    }
 
     const data = { title: "(bez názvu)", url: "", src: "" };
     drawPlacard(plac, data, rotY, placW, placH);
@@ -1030,7 +835,7 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-      /* =========================
+  /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
   const GALLERY_LOGO_SVG = `
@@ -1095,247 +900,137 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
-      // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); };
   }
-
 
   //* =========================
-   Generátor rámů + data (pevné)
-========================= */
-const framesByWall = { back: [], front: [], left: [], right: [] };
+  //  Generátor rámů + data (pevné)
+  //========================= */
+  const framesByWall = { back: [], front: [], left: [], right: [] };
 
-const FIXED_LAYOUT = {
-  safeWall: 1.0, cornerSafe: 1.0,
-  frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
-  counts: { front: 4, back: 4, left: 7, right: 7 }
-};
-
-// ✅ ZACHOVÁNO: DATA se "img" (a volitelně "href")
-const DATA = {
-  front: [
-    { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
-    { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-    { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-    { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
-  ],
-  back: [
-    { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
-    { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-    { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-    { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
-  ],
-  left: [
-    { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
-    { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-    { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-    { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
-    { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-    { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-    { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
-  ],
-  right: [
-    { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-    { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-    { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-    { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-    { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-    { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-    { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
-  ]
-};
-
-function distributeCenters(min, max, count, frameW){
-  if (count <= 1) return [ (min+max)/2 ];
-  const span = max - min;
-  const totalFramesWidth = count * frameW;
-  let gap = (span - totalFramesWidth) / (count - 1);
-  const MIN_GAP = 0.05;
-  if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
-  const centers = [];
-  let x = min + frameW/2;
-  for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
-  if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
-    const step = (max - min) / (count - 1);
-    centers.length = 0;
-    for (let i=0;i<count;i++) centers.push(min + i*step);
-  }
-  return centers;
-}
-
-function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
-  const rotY =
-    wall==='front' ? Math.PI :
-    wall==='back'  ? 0 :
-    wall==='left'  ? Math.PI/2 :
-    wall==='right' ? -Math.PI/2 : 0;
-
-  const axisX  = (wall==='front'||wall==='back');
-  const length = axisX ? ROOM.W : ROOM.D;
-
-  const min = -length/2 + safeWall + cornerSafe;
-  const max =  length/2 - safeWall - cornerSafe;
-
-  // ⚠️ Potřebujeme mít VŽDY definované FRAME_SIZE.W (applyFixedLayout to dělá)
-  const frameW = (typeof FRAME_SIZE?.W === "number" && FRAME_SIZE.W > 0) ? FRAME_SIZE.W : (FIXED_LAYOUT.frame.width || 2.2);
-  const centers = distributeCenters(min, max, count, frameW);
-
-  // cleanup starých meshů
-  framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
-  framesByWall[wall] = [];
-
-  centers.forEach(val=>{
-    const pos = axisX
-      ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
-      : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
-    const it = addFrame(pos, rotY, wall);
-    framesByWall[wall].push(it);
-  });
-}
-
-/* =========================
-   MÉDIA → rám (jistý loader pro IMG/VIDEO)
-========================= */
-(function ensureMediaAssignment(){
-  // 1) malý cover-fit fallback, pokud by nebyl k dispozici "setImageToFrame"
-  function _fallbackImageToFrame(url, targetItem, texSize=TEX_SIZE){
-    const img = new Image();
-    const local = url.startsWith("./") || url.startsWith("/") || url.startsWith("../");
-    if (!local) img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.onload = () => {
-      const dt = new BABYLON.DynamicTexture("imgDT_"+Math.random(), { width:texSize, height:texSize }, scene, !IS_MOBILE, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      const ctx = dt.getContext();
-      // cover podle poměru rámu (FRAME_SIZE.W/H)
-      const frameW = FRAME_SIZE?.W || FIXED_LAYOUT.frame.width;
-      const frameH = FRAME_SIZE?.H || FIXED_LAYOUT.frame.height;
-      const targetR = frameW / frameH;
-      const r = img.width / img.height;
-      let dw, dh, dx=0, dy=0;
-      if (r > targetR){ dh = texSize; dw = Math.round(dh * r); dx = Math.round((texSize - dw)/2); }
-      else            { dw = texSize; dh = Math.round(dw / r); dy = Math.round((texSize - dh)/2); }
-      ctx.fillStyle = "#000"; ctx.fillRect(0,0,texSize,texSize);
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img,0,0,img.width,img.height, dx,dy,dw,dh);
-      dt.update();
-      const mat = unlitTex(dt,{doubleSided:false}); mat.zOffset = -1;
-      targetItem.frame.material = mat;
-      console.log("[IMG OK]", url, img.width + "x" + img.height);
-    };
-    img.onerror = () => {
-      const dt = new BABYLON.DynamicTexture("imgERR_"+Math.random(), { width:texSize, height:texSize }, scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      const ctx = dt.getContext();
-      // checker fallback
-      const tile=32; for (let y=0;y<texSize;y+=tile){ for (let x=0;x<texSize;x+=tile){
-        ctx.fillStyle = (((x/tile)+(y/tile))%2===0) ? "#dcdcdc" : "#f4f4f4"; ctx.fillRect(x,y,tile,tile);
-      }} dt.update();
-      targetItem.frame.material = unlitTex(dt,{doubleSided:false});
-      console.warn("[IMG ERR]", url);
-    };
-    img.src = url;
-  }
-
-  // 2) Malý helper na video, pokud bys neměl definovaný "setVideoToFrame"
-  function _fallbackVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
-    const vt = new BABYLON.VideoTexture("vidTex_"+Math.random(), url, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, { autoPlay: autoplay, loop: loop, muted: muted });
-    try{ vt.video.muted = !!muted; vt.video.loop = !!loop; vt.video.playsInline = true; }catch(e){}
-    const mat = unlitTex(vt, { doubleSided:false }); mat.zOffset = -1;
-    targetItem.frame.material = mat;
-    targetItem.videoTex = vt;
-    console.log("[VIDEO SET]", url);
-  }
-
-  // 3) finální přiřazení médií: d.src | d.video | d.img
-  window.assignDataAllWalls = function(data){
-    const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u||"");
-    const isImageUrl = (u) => /\.(png|jpg|jpeg|webp|gif)$/i.test(u||"");
-
-    ["front","back","left","right"].forEach(side=>{
-      const items = data[side] || [];
-      const arr   = framesByWall[side] || [];
-      const n = Math.min(items.length, arr.length);
-
-      for (let i=0;i<n;i++){
-        const it = arr[i];
-        const d  = items[i] || {};
-        const src = d.src || d.video || d.img || "";   // ✅ podporujeme "img" (tvé DATA), ale i "src"/"video"
-
-        it.data.src   = src;
-        it.data.title = d.label || it.data.title || "(bez názvu)";
-        it.data.url   = d.href  || it.data.url || "";
-
-        // Plaketa
-        drawPlacard(
-          it.placard,
-          it.data,
-          it.rotY,
-          it.placard._width  || (FRAME_SIZE?.W || FIXED_LAYOUT.frame.width),
-          it.placard._height || Math.max(0.22, (FRAME_SIZE?.H || FIXED_LAYOUT.frame.height) * 0.10)
-        );
-
-        if (!src){ console.warn("[assign] prázdný src", side, i); continue; }
-        console.log("[assign]", side, i, "src=", src);
-
-        // ⚙️ preferuj tvoje existující helpery, jinak fallback
-        if (isVideoUrl(src)) {
-          if (typeof setVideoToFrame === "function") setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
-          else _fallbackVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
-        } else if (isImageUrl(src)) {
-          if (typeof setImageToFrame === "function") setImageToFrame(src, it, TEX_SIZE, "cover");
-          else _fallbackImageToFrame(src, it, TEX_SIZE);
-        } else {
-          // neznámá přípona — zkus jako obrázek
-          if (typeof setImageToFrame === "function") setImageToFrame(src, it, TEX_SIZE, "cover");
-          else _fallbackImageToFrame(src, it, TEX_SIZE);
-        }
-      }
-    });
-
-    console.log("assignDataAllWalls done");
+  const FIXED_LAYOUT = {
+    safeWall: 1.0, cornerSafe: 1.0,
+    frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
+    counts: { front: 4, back: 4, left: 7, right: 7 }
   };
-})();
-  // Globály pro posun cedulek (dej je klidně nad funkci, jednou pro celé JS)
-let FRAME_BASE_H  = 2.2;  // původní výška z FIXED_LAYOUT (kvůli výpočtu Δ)
-let FRAME_DELTA_H = 0;    // o kolik jsme rám prodloužili
 
-async function applyFixedLayout() {
-  const YCENTER = ROOM.H * 0.55;
+  const DATA = {
+    front: [
+      { img: "./assets/one.jpg",   label: "Produkt A", href: "https://everpress.com/the-future-phaser-collection2" },
+      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+    ],
+    back: [
+      { img: "./assets/one.jpg",   label: "Back A", href: "https://example.com/a" },
+      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+    ],
+    left: [
+      { img: "./assets/one.jpg",   label: "Levá 1", href: "https://example.com/left-1" },
+      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
+      { img: "./assets/one.jpg",   label: "Levá 4", href: "https://example.com/left-4" },
+      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
+      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+    ],
+    right: [
+      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
+      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
+      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+    ]
+  };
 
-  const safeWall   = FIXED_LAYOUT.safeWall;
-  const cornerSafe = FIXED_LAYOUT.cornerSafe;
+  function distributeCenters(min, max, count, frameW){
+    if (count <= 1) return [ (min+max)/2 ];
+    const span = max - min;
+    const totalFramesWidth = count * frameW;
+    let gap = (span - totalFramesWidth) / (count - 1);
+    const MIN_GAP = 0.05;
+    if (gap < MIN_GAP) gap = Math.max(gap, MIN_GAP);
+    const centers = [];
+    let x = min + frameW/2;
+    for (let i = 0; i < count; i++) { centers.push(x); x += frameW + gap; }
+    if (centers[centers.length-1] > max - frameW/2 + 1e-6) {
+      const step = (max - min) / (count - 1);
+      centers.length = 0;
+      for (let i=0;i<count;i++) centers.push(min + i*step);
+    }
+    return centers;
+  }
 
-  const baseW = FIXED_LAYOUT.frame.width;   // 2.2
-  const baseH = FIXED_LAYOUT.frame.height;  // 2.2 (původně čtverec)
-  FRAME_BASE_H = baseH;
+  function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
+    const rotY =
+      wall==='front' ? Math.PI :
+      wall==='back'  ? 0 :
+      wall==='left'  ? Math.PI/2 :
+      wall==='right' ? -Math.PI/2 : 0;
 
-  // NATVRDO portrait 9:16 — držíme šířku, dopočítáme výšku
-  const newW = baseW;
-  const newH = baseW * (16/9);
+    const axisX  = (wall==='front'||wall==='back');
+    const length = axisX ? ROOM.W : ROOM.D;
 
-  FRAME_SIZE.W     = newW;
-  FRAME_SIZE.H     = newH;
-  FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
-  FRAME_COLOR      = FIXED_LAYOUT.frame.color;
+    const min = -length/2 + safeWall + cornerSafe;
+    const max =  length/2 - safeWall - cornerSafe;
 
-  // Δ = rozdíl nové výšky proti původní
-  FRAME_DELTA_H = newH - baseH;
+    const frameW = (typeof FRAME_SIZE?.W === "number" && FRAME_SIZE.W > 0) ? FRAME_SIZE.W : (FIXED_LAYOUT.frame.width || 2.2);
+    const centers = distributeCenters(min, max, count, frameW);
 
-  // Ukotvení nahoře: střed posuneme dolů o Δ/2 (horní hrana zůstane)
-  const centerY = YCENTER - FRAME_DELTA_H/2;
+    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+    framesByWall[wall] = [];
 
-  createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
-  createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
-  createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
-  createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
+    centers.forEach(val=>{
+      const pos = axisX
+        ? new BABYLON.Vector3(val, centerY, (wall==='front' ? ROOM.D/2 - 0.03 : -ROOM.D/2 + 0.03))
+        : new BABYLON.Vector3((wall==='right' ? ROOM.W/2 - 0.03 : -ROOM.W/2 + 0.03), centerY, val);
+      const it = addFrame(pos, rotY, wall);
+      framesByWall[wall].push(it);
+    });
+  }
 
-  assignDataAllWalls(DATA);
+  let FRAME_BASE_H  = 2.2;
+  let FRAME_DELTA_H = 0;
 
-  console.log("applyFixedLayout 9:16", {W:FRAME_SIZE.W, H:FRAME_SIZE.H, delta:FRAME_DELTA_H});
-}
+  async function applyFixedLayout() {
+    const YCENTER = ROOM.H * 0.55;
+
+    const safeWall   = FIXED_LAYOUT.safeWall;
+    const cornerSafe = FIXED_LAYOUT.cornerSafe;
+
+    const baseW = FIXED_LAYOUT.frame.width;   // 2.2
+    const baseH = FIXED_LAYOUT.frame.height;  // 2.2
+    FRAME_BASE_H = baseH;
+
+    // NATVRDO portrait 9:16 — držíme šířku, výšku dopočítáme
+    const newW = baseW;
+    const newH = baseW * (16/9);
+
+    FRAME_SIZE.W     = newW;
+    FRAME_SIZE.H     = newH;
+    FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
+    FRAME_COLOR      = FIXED_LAYOUT.frame.color;
+
+    FRAME_DELTA_H = newH - baseH;
+
+    // Ukotvení nahoře: střed dolů o Δ/2
+    const centerY = YCENTER - FRAME_DELTA_H/2;
+
+    createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
+
+    assignDataAllWalls(DATA);
+    console.log("applyFixedLayout 9:16", {W:FRAME_SIZE.W, H:FRAME_SIZE.H, delta:FRAME_DELTA_H});
+  }
 
   /* =========================
      SoundCloud player (tenký bar)
@@ -1364,16 +1059,18 @@ async function applyFixedLayout() {
       const url = "https://w.soundcloud.com/player/?"
         + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
         + "&auto_play=false&hide_related=false&show_comments=false"
-        + "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
+        + "&show_user=true&show_reposts=false&show_teaser=false&visual=false";
 
       iframe = document.createElement('iframe');
       iframe.id = "scIframe";
       iframe.title = "SoundCloud Player";
-      iframe.allow = "autoplay";
+      // důležité – rozumná permission sada
+      iframe.setAttribute("allow", "autoplay; encrypted-media; clipboard-write");
       iframe.setAttribute("scrolling","no");
       iframe.setAttribute("frameborder","no");
-      iframe.style.width = "0";
-      iframe.style.height= "0";
+      // 1×1 px (není display:none), aby fungoval READY
+      iframe.style.width  = "1px";
+      iframe.style.height = "1px";
       iframe.style.border = "0";
       iframe.src = url;
 
@@ -1437,6 +1134,9 @@ async function applyFixedLayout() {
           const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
           scUpdateTime(cur, scDuration);
           scUpdateProgress(rel);
+        });
+        scWidget.bind(window.SC.Widget.Events.ERROR, (err)=>{
+          console.error("SC widget error:", err);
         });
 
         resolve(scWidget);
