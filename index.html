@@ -206,6 +206,13 @@
     step: 0.05, minLevel: 0.33, maxLevel: 1.00, accMs: 0, frames: 0, lastEval: performance.now()
   };
 
+  // === KTX2 decoder cesta (nutné pro spolehlivé načtení KTX2) ===
+  if (BABYLON.KhronosTextureContainer2) {
+    BABYLON.KhronosTextureContainer2.URLConfig = {
+      url: "https://cdn.babylonjs.com/ktx2Decoder/"
+    };
+  }
+
   function unlit(hex){
     const m = new BABYLON.StandardMaterial("m", scene);
     m.diffuseColor = BABYLON.Color3.FromHexString(hex);
@@ -349,23 +356,32 @@
     }
   }
 
-  /* ===== KTX2 pouze pro rámy ===== */
+  /* ===== KTX2 POUZE PRO RÁMY ===== */
   function setKTX2ToFrame(url, targetItem){
-    // Jen ktx2; ostatní ignoruj (zůstane placeholder)
     try{
-      const tex = new BABYLON.Texture(url, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-        () => {}, // onLoad
+      const safeUrl = encodeURI(url); // podporuje názvy s mezerami apod.
+
+      // Přímý KTX2 loader s SRGB (barvy správně)
+      const tex = new BABYLON.KTX2Texture(
+        safeUrl,
+        scene,
+        { useSRGBBuffer: true },
+        false, // generateMipMaps (ktx2 už typicky nese mipy)
+        false, // invertY
+        BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+        () => {
+          tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+          tex.anisotropicFilteringLevel = MAX_ANISO;
+
+          const mat = unlitTex(tex);
+          mat.zOffset = -1;
+          targetItem.frame.material = mat;
+        },
         (msg, ex) => {
-          console.warn("KTX2 load failed:", url, msg || ex);
-          // při chybě ponech placeholder (vytvořen v addFrame)
+          console.warn("KTX2 load failed:", safeUrl, msg || ex);
+          // necháme placeholder
         }
       );
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.anisotropicFilteringLevel = MAX_ANISO;
-
-      const mat = unlitTex(tex);
-      mat.zOffset = -1;
-      targetItem.frame.material = mat;
     }catch(e){
       console.warn("KTX2 error:", url, e);
     }
@@ -496,12 +512,12 @@
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.04)); f.rotation.y = rotY + Math.PI; f.isPickable = true;
 
-    // placeholder (šachovnice) – nahradí se ktx2 texturou
+    // Placeholder textura (šachovnice) – nahradí se po načtení KTX2
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
     const fMat = unlitTex(dt); fMat.zOffset = -1; f.material = fMat;
 
-    // Cedulka (standardní pozice z předchozí verze)
+    // Cedulka
     const placW = FRAME_SIZE.W;
     const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
@@ -599,34 +615,34 @@
 
   const DATA = {
     front: [
-      { img: "./assets/Acid T.ktx2",   label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/two.jpg",   label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Produkt D", href: "https://example.com/d" }
+      { img: "./assets/Acid T.ktx2", label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
+      { img: "./assets/two.jpg",     label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg",   label: "Produkt C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",     label: "Produkt D", href: "https://example.com/d" }
     ],
     back: [
-      { img: "./assets/Acid T.ktx2",   label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/two.jpg",   label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",   label: "Back D", href: "https://example.com/d" }
+      { img: "./assets/Acid T.ktx2", label: "Back A", href: "https://example.com/a" },
+      { img: "./assets/two.jpg",     label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/three.jpg",   label: "Back C", href: "https://example.com/c" },
+      { img: "./assets/one.jpg",     label: "Back D", href: "https://example.com/d" }
     ],
     left: [
-      { img: "./assets/Acid T.ktx2",   label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/two.jpg",   label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/three.jpg", label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/Acid T.ktx2",   label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/two.jpg",   label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/three.jpg", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/one.jpg",   label: "Levá 7", href: "https://example.com/left-7" }
+      { img: "./assets/Acid T.ktx2", label: "Levá 1", href: "https://example.com/left-1" },
+      { img: "./assets/two.jpg",     label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/three.jpg",   label: "Levá 3", href: "https://example.com/left-3" },
+      { img: "./assets/Acid T.ktx2", label: "Levá 4", href: "https://example.com/left-4" },
+      { img: "./assets/two.jpg",     label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/three.jpg",   label: "Levá 6", href: "https://example.com/left-6" },
+      { img: "./assets/one.jpg",     label: "Levá 7", href: "https://example.com/left-7" }
     ],
     right: [
-      { img: "./assets/two.jpg",   label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/three.jpg", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/one.jpg",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/two.jpg",   label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/three.jpg", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/one.jpg",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/two.jpg",   label: "Pravá 7", href: "https://example.com/right-7" }
+      { img: "./assets/two.jpg",     label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/three.jpg",   label: "Pravá 2", href: "https://example.com/right-2" },
+      { img: "./assets/one.jpg",     label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/two.jpg",     label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/three.jpg",   label: "Pravá 5", href: "https://example.com/right-5" },
+      { img: "./assets/one.jpg",     label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/two.jpg",     label: "Pravá 7", href: "https://example.com/right-7" }
     ]
   };
 
@@ -700,7 +716,7 @@
           setKTX2ToFrame(src, it);
         } else {
           console.warn("Pouze KTX2 je povolen pro rámové obrazy. Přeskakuji:", src);
-          // ponecháme placeholder
+          // placeholder zůstává
         }
       }
     });
@@ -751,13 +767,13 @@
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
 
-    // Bezpečnější parametry kamery
-    camera.minZ = 0.05;           // blíže k rovinám bez clippingu
+    // Bezpečné parametry kamery
+    camera.minZ = 0.05;
     camera.maxZ = 5000;
     camera.lowerRadiusLimit = MIN_RADIUS;
     camera.upperRadiusLimit = 40;
-    camera.lowerBetaLimit = 0.05;            // neotáčet přes podlahu
-    camera.upperBetaLimit = Math.PI - 0.05;  // neotáčet přes strop
+    camera.lowerBetaLimit = 0.05;
+    camera.upperBetaLimit = Math.PI - 0.05;
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
@@ -813,7 +829,7 @@
   }
 
   /* ========= Soft camera bounds – keep camera inside the room ========= */
-  const CAM_MARGIN = 0.55; // jemné doladění 0.45–0.7
+  const CAM_MARGIN = 0.55;
   const CAM_BOUNDS = {
     minX: -ROOM.W/2 + CAM_MARGIN,
     maxX:  ROOM.W/2 - CAM_MARGIN,
@@ -1032,13 +1048,13 @@
   engine.runRenderLoop(()=>{
     if (!scene) return;
 
-    // --- Soft camera bounds – kamera zůstává UVNITŘ ---
+    // Kamera uvnitř místnosti
     constrainTarget();
     constrainCameraRadius();
 
     scene.render();
 
-    // auto-scale pro mobily
+    // Auto-scale pro mobily
     if (AutoScale.enabled){
       const now = performance.now();
       AutoScale.accMs += engine.getDeltaTime();
