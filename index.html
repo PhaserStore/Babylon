@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
-<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700&display=swap" rel="stylesheet" />
+
   <style>
     :root{
       --txt:#fff; --txt-dim:#ccc;
@@ -913,191 +913,6 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
   mats.forEach(m => mm.subMaterials.push(m));
   return mm;
 }
-   
-// ====== MARQUEE (běžící text po stěnách) ====================================
-
-const MARQUEE = {
-  meshes: [],    // plane meshe po stěnách
-  textures: [],  // DynamicTexture pro každou stěnu
-  speed: 0.015,  // rychlost posunu doleva (uOffset za sekundu)
-  color: "#ff2838", // sytě červená
-  bandHeight: 0.35, // výška pásu v metrech (jemně doladíš)
-  marginX: 0.12,    // odsazení od rohů stěn (aby nelezlo do rohů)
-  zEps: 0.02,       // jak „blízko“ ke stěně
-  fontPx: 120,      // velikost fontu v px na textuře (pro Doto 700)
-  msg: "WELCOME TO THE PHASER STORE — FUTURE VISUALS · SOUND · MOTION — ",
-  // střídání s názvem tracku
-  alternateWithTrack: true,
-  alternateEveryMs: 8000,  // po kolika ms přepnout welcome <-> track
-  _altTimer: 0,
-  _mode: 0  // 0 = welcome, 1 = track
-};
-
-// Počkej na font „Doto“, ať je kresba ostrá
-async function loadDotoFontOnce(){
-  try{
-    await document.fonts?.load?.('700 16px "Doto"');
-  }catch(e){}
-}
-
-function makeMarqueeDT(message, texW=2048, texH=256){
-  const dt  = new BABYLON.DynamicTexture("marqueeDT_"+Math.random(), {width:texW, height:texH}, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-  const ctx = dt.getContext();
-
-  // pozadí – černé, ale necháme text „svítit“ přes emissive
-  ctx.clearRect(0,0,texW,texH);
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,texW,texH);
-
-  // text – Doto 700, horizontální opakování
-  const fsize = MARQUEE.fontPx; // např. 120 px
-  ctx.font = `700 ${fsize}px "Doto", system-ui`;
-  ctx.fillStyle = MARQUEE.color;
-  ctx.textBaseline = "middle";
-
-  // Spočti šířku zprávy a kolikrát jí „vysypeme“ do šířky
-  const gap = Math.round(fsize * 0.75); // mezera mezi opakováními
-  const msgW = Math.ceil(ctx.measureText(message).width);
-  const tileW = msgW + gap;
-
-  const y = Math.round(texH/2) + Math.round(fsize*0.08); // jemná optická korekce baseline
-  // Nakresli 2–3x přes celou šířku, ať máme spojitelný pattern (WRAP)
-  // Začneme záporně, aby byl „seamless“ wrap při posunu uOffsetem
-  let x = -tileW;
-  while (x < texW + tileW){
-    ctx.fillText(message, x, y);
-    x += tileW;
-  }
-
-  dt.update();
-  // opakování po U (Wrap), aby uOffset kontinuálně „otáčel“
-  dt.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
-  return dt;
-}
-
-function makeMarqueeMat(dt){
-  const m = new BABYLON.StandardMaterial("marqueeMat_"+Math.random(), scene);
-  m.disableLighting   = true;
-  m.backFaceCulling   = false;
-  m.diffuseTexture    = dt;         // difuzní pro barevnost
-  m.emissiveTexture   = dt;         // „svítí“ – čistý look bez světel
-  m.specularColor     = new BABYLON.Color3(0,0,0);
-  return m;
-}
-
-async function buildMarqueeBands(){
-  await loadDotoFontOnce();
-
-  // Y pozice pásu: těsně nad topem rámů (horní hrana rámů) + malý odstup
-  // Kotva na horní LED (stálá výška bez ohledu na 9:16)
-const LED_TOP_Y = ROOM.H - 0.04;
-
-// Výška pásu a jeho svislé umístění (trochu pod LED)
-const h = MARQUEE.bandHeight;       // viz MARQUEE níže
-const y = LED_TOP_Y - 0.70;        
-
-  // 4 stěny: šířky dle stěn (X/Z) a rotace do interiéru
-  const items = [
-    { name:"front", w: ROOM.W - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(0, y,  ROOM.D/2 - MARQUEE.zEps), rotY: Math.PI },
-    { name:"back",  w: ROOM.W - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(0, y, -ROOM.D/2 + MARQUEE.zEps), rotY: 0 },
-    { name:"left",  w: ROOM.D - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3(-ROOM.W/2 + MARQUEE.zEps, y, 0),  rotY: -Math.PI/2 },
-    { name:"right", w: ROOM.D - 2*MARQUEE.marginX, h, pos: new BABYLON.Vector3( ROOM.W/2 - MARQUEE.zEps, y, 0),  rotY:  Math.PI/2 }
-  ];
-
-  // připrav texturu pro aktuální zprávu
-  const baseMsg = MARQUEE.msg;
-  const dt = makeMarqueeDT(baseMsg, 2048, 256);
-
-  MARQUEE.meshes.length = 0;
-  MARQUEE.textures.length = 0;
-
-  for (const it of items){
-    const p = BABYLON.MeshBuilder.CreatePlane("marquee_"+it.name, {
-      width: it.w, height: it.h, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    p.position.copyFrom(it.pos);
-    p.rotation.y = it.rotY;
-    p.isPickable = false;
-
-    const mat = makeMarqueeMat(dt);
-    p.material = mat;
-
-    // Každá stěna dostane vlastní instanci textury, ať můžeme posouvat nezávisle
-    const cloneDT = dt.clone(); // klon (sdílí image, má vlastní transform/offset)
-    mat.diffuseTexture  = cloneDT;
-    mat.emissiveTexture = cloneDT;
-
-    // Jemný „svit“ – necháme glow, ale ať to nepřebije
-    try { glow?.addIncludedOnlyMesh?.(p); } catch(e){}
-    MARQUEE.meshes.push(p);
-    MARQUEE.textures.push(cloneDT);
-  }
-}
-
-// Změna textu v běhu – překreslí DynamicTexture všech stěn
-async function setMarqueeText(newMsg){
-  await loadDotoFontOnce();
-  const baseMsg = (newMsg || "").trim();
-  if (!baseMsg) return;
-
-  // vygeneruj novou základní DT (seamless) a přepiš všem
-  const dtNewBase = makeMarqueeDT(baseMsg, 2048, 256);
-  MARQUEE.textures.forEach((oldDT, i)=>{
-    // z bezpečnostních důvodů nový klon pro každou stěnu
-    const clone = dtNewBase.clone();
-    const mat = MARQUEE.meshes[i]?.material;
-    if (mat) {
-      mat.diffuseTexture  = clone;
-      mat.emissiveTexture = clone;
-    }
-    MARQUEE.textures[i] = clone;
-  });
-}
-
-// (Volitelné) přepnout text podle aktuálního tracku z SC
-function setMarqueeFromTrack(trackTitle){
-  const t = (trackTitle || "").trim();
-  if (!t) return;
-  const msg = `NOW PLAYING: ${t} — `;
-  setMarqueeText(msg);
-}
-
-// Spusť animaci – v render loopu posouváme uOffset
-function tickMarquee(deltaSec){
-  if (!MARQUEE.textures?.length) return;
-  const du = MARQUEE.speed * deltaSec;
-  for (const tex of MARQUEE.textures){
-    // uOffset jde doleva
-    tex.uOffset = (tex.uOffset - du) % 1;
-  }
-}
-
-// (Volitelné) střídání welcome <-> „now playing“
-function alternateMarqueeUpdate(deltaMs){
-  if (!MARQUEE.alternateWithTrack) return;
-  MARQUEE._altTimer += deltaMs;
-  if (MARQUEE._altTimer < MARQUEE.alternateEveryMs) return;
-  MARQUEE._altTimer = 0;
-
-  if (MARQUEE._mode === 0){
-    // přepni na track
-    try{
-      if (window.scReady && window.scWidget){
-        window.scWidget.getCurrentSound((s)=>{
-          const title = s?.title || "";
-          if (title) { setMarqueeFromTrack(title); MARQUEE._mode = 1; }
-        });
-      }
-    }catch(e){}
-  } else {
-    // zpět na welcome
-    setMarqueeText(MARQUEE.msg);
-    MARQUEE._mode = 0;
-  }
-}
-
   // Cedulka (plaketa)
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
@@ -1271,8 +1086,7 @@ if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
 
       const logoW = ROOM.W * LOGO_SCALE;
       const logoH = LOGO_HEIGHT_M;
-      const LED_TOP_Y = ROOM.H - 0.04;
-const yPos = LED_TOP_Y - 0.15;   // logo cca 15 cm pod LED (doladíš -0.10 až -0.25)
+      const yPos = ROOM.H*0.55 + FRAME_SIZE.H*0.95 + 0.80;
 
       function placeLogo(z, rotY, idx){
         const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
@@ -1290,7 +1104,7 @@ const yPos = LED_TOP_Y - 0.15;   // logo cca 15 cm pod LED (doladíš -0.10 až 
   }
 
 
-  /* =========================
+  //* =========================
    Generátor rámů + data (pevné)
 ========================= */
 const framesByWall = { back: [], front: [], left: [], right: [] };
@@ -1596,51 +1410,101 @@ async function applyFixedLayout() {
   }
 
   function initScWidgetOnce(){
-  return new Promise((resolve)=>{
-    const iframe = document.getElementById('scIframe');
-    if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
-    if (scWidget) return resolve(scWidget);
+    return new Promise((resolve)=>{
+      const iframe = document.getElementById('scIframe');
+      if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
+      if (scWidget) return resolve(scWidget);
 
-    scWidget = window.SC.Widget(iframe);
+      scWidget = window.SC.Widget(iframe);
 
-    scWidget.bind(window.SC.Widget.Events.READY, () =>{
-      scReady = true;
+      scWidget.bind(window.SC.Widget.Events.READY, ()=>{
+        scReady = true;
 
-      const barVol = document.getElementById('barVol');
-      const vol = Math.max(0, Math.min(100, +(barVol?.value || 80)));
-      scWidget.setVolume(vol);
+        const barVol = document.getElementById('barVol');
+        const vol = Math.max(0, Math.min(100, +(barVol?.value || 80)));
+        scWidget.setVolume(vol);
 
-      scWidget.getCurrentSound((s) => {
-        scUpdateTitle(s);
-        scUpdateThumb(s);
-        // Přepne marquee na NOW PLAYING hned po načtení widgetu (pokud je alternace zapnutá)
-        if (MARQUEE?.alternateWithTrack) setMarqueeFromTrack(s?.title || "");
-      });
+        scWidget.getCurrentSound((s) => { scUpdateTitle(s); scUpdateThumb(s); });
+        scWidget.getDuration((d) => { scDuration = d || 0; scUpdateTime(0, scDuration); });
 
-      scWidget.getDuration((d) => { scDuration = d || 0; scUpdateTime(0, scDuration); });
-
-      scWidget.bind(window.SC.Widget.Events.PLAY, () => {
-        scWidget.getCurrentSound((s) => {
-          scUpdateTitle(s);
-          scUpdateThumb(s);
-          // Přepne marquee při přehrání/změně skladby
-          if (MARQUEE?.alternateWithTrack) setMarqueeFromTrack(s?.title || "");
+        scWidget.bind(window.SC.Widget.Events.PLAY, () => {
+          scWidget.getCurrentSound((s) => { scUpdateTitle(s); scUpdateThumb(s); });
         });
-      });
+        scWidget.bind(window.SC.Widget.Events.PAUSE, () => {});
+        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
+          scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
+          const cur = e.currentPosition || 0;
+          const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
+          scUpdateTime(cur, scDuration);
+          scUpdateProgress(rel);
+        });
 
-      scWidget.bind(window.SC.Widget.Events.PAUSE, () => {});
-      scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
-        scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
-        const cur = e.currentPosition || 0;
-        const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
-        scUpdateTime(cur, scDuration);
-        scUpdateProgress(rel);
+        resolve(scWidget);
       });
-
-      resolve(scWidget);
     });
-  });
-}
+  }
+
+  async function ensureScReadyAndPlay(){
+    if (scLoading) return;
+    scLoading = true;
+    try{
+      await loadScApiOnce();
+      await mountScIframeOnce();
+      const w = await initScWidgetOnce();
+      if (w) w.play();
+    }catch(e){
+      console.warn("SC lazy-load failed:", e);
+    }finally{
+      scLoading = false;
+    }
+  }
+
+  function bindBarControls(){
+    const pPrev = document.getElementById("barPrev");
+    const pPlay = document.getElementById("barPlay");
+    const pPause= document.getElementById("barPause");
+    const pNext = document.getElementById("barNext");
+    const vol   = document.getElementById("barVol");
+    const mute  = document.getElementById("barMute");
+    const seek  = document.getElementById("scSeek");
+
+    if (pPlay)  pPlay.addEventListener('click', () => ensureScReadyAndPlay());
+    if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
+    if (pPrev)  pPrev.addEventListener('click', () => scReady ? (scWidget && scWidget.prev()) : ensureScReadyAndPlay());
+    if (pNext)  pNext.addEventListener('click', () => scReady ? (scWidget && scWidget.next()) : ensureScReadyAndPlay());
+
+    if (vol) vol.addEventListener('input', e =>{
+      const v = Math.min(100, Math.max(0, +e.target.value || 75));
+      if (scReady && scWidget) scWidget.setVolume(v);
+    });
+    if (mute) mute.addEventListener('click', ()=>{
+      if (!scReady || !scWidget) return;
+      scWidget.getVolume(v=>{
+        const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
+        scWidget.setVolume(newV);
+      });
+    });
+
+    if (seek){
+      const doSeek = (px) => {
+        if (!scReady || !scWidget || !scDuration) return;
+        const rect = seek.getBoundingClientRect();
+        const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
+        scWidget.seekTo(rel * scDuration);
+      };
+      seek.addEventListener("click", e => doSeek(e.clientX));
+      seek.addEventListener("keydown", e=>{
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+          e.preventDefault();
+          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
+          const step = 0.02;
+          const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
+          if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
+        }
+      });
+    }
+  }
+
   /* =========================
      Reset kamery
   ========================= */
@@ -1683,8 +1547,6 @@ async function applyFixedLayout() {
     await document.fonts?.load?.('400 16px Poppins');
     await document.fonts?.load?.('600 16px Poppins');
     await applyFixedLayout();
-        await buildMarqueeBands();
-await setMarqueeText(MARQUEE.msg);
     bindBarControls();
     resetCamera();
   })();
@@ -1692,15 +1554,7 @@ await setMarqueeText(MARQUEE.msg);
   // Render loop + mobilní auto-quality
   engine.runRenderLoop(()=>{
     if (!scene) return;
-        
- const dtMs = engine.getDeltaTime();      // ms od posledního frame
-  const dtSec = dtMs * 0.001;
-
     scene.render();
-    // ⬇⬇⬇ POSUN MARQUEE + střídání welcome/now playing
-  tickMarquee(dtSec);
-  alternateMarqueeUpdate(dtMs);
-  // ⬆⬆⬆
 
     if (AutoScale.enabled){
       const now = performance.now();
