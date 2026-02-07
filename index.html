@@ -391,6 +391,10 @@
     cubetex.gammaSpace = true;
     cubetex.lodGenerationOffset = 0;
     cubetex.lodGenerationScale  = 0;
+    
+// ↓↓↓ Tohle sníží jas skyboxu (0..1), např. 0.6 = o ~40 % tmavší
+cubetex.level = 0.6; 
+
 
     skyMat.reflectionTexture = cubetex;
     skybox.material = skyMat;
