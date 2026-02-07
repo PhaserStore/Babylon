@@ -81,48 +81,8 @@
     }
   </style>
 
-  <!-- Babylon.js + loaders (KTX2) -->
+  <!-- Babylon.js (bez KTX2 loaderu) -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
-  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-
-  <!-- KTX2 transcoder explicitní konfigurace (WASM/JS) -->
-  <script>
-  (function() {
-    const decoderURL = "https://cdn.babylonjs.com/ktx2Decoder/";
-    // Preferovaný moderní dekodér
-    if (BABYLON.KTX2Decoder && BABYLON.KTX2Decoder.URLConfig) {
-      BABYLON.KTX2Decoder.URLConfig = {
-        jsDecoderModule: decoderURL + "ktx2Decoder.js",
-        wasmUASTCToASTC: decoderURL + "uastc_astc.wasm",
-        wasmUASTCToBC7:  decoderURL + "uastc_bc7.wasm",
-        wasmUASTCToRG:   decoderURL + "uastc_rg.wasm",
-        wasmUASTCToRGB:  decoderURL + "uastc_rgb.wasm",
-        wasmMSCTranscoder: decoderURL + "msc_basis_transcoder.wasm",
-        jsMSCTranscoder:   decoderURL + "msc_basis_transcoder.js",
-        wasmZSTD:          decoderURL + "zstddec.wasm"
-      };
-    }
-    // Fallback pro starší API
-    if (BABYLON.KhronosTextureContainer2 && BABYLON.KhronosTextureContainer2.URLConfig) {
-      BABYLON.KhronosTextureContainer2.URLConfig = {
-        jsDecoderModule: decoderURL + "ktx2Decoder.js",
-        wasmUASTCToASTC: decoderURL + "uastc_astc.wasm",
-        wasmUASTCToBC7:  decoderURL + "uastc_bc7.wasm",
-        wasmUASTCToRG:   decoderURL + "uastc_rg.wasm",
-        wasmUASTCToRGB:  decoderURL + "uastc_rgb.wasm",
-        wasmMSCTranscoder: decoderURL + "msc_basis_transcoder.wasm",
-        jsMSCTranscoder:   decoderURL + "msc_basis_transcoder.js",
-        wasmZSTD:          decoderURL + "zstddec.wasm"
-      };
-    }
-    // Lehká diagnostika: za chvíli vypíše, jestli je transcoder připraven
-    setTimeout(() => {
-      const ready = (BABYLON.KTX2Decoder && BABYLON.KTX2Decoder.IsTranscoderReady && BABYLON.KTX2Decoder.IsTranscoderReady())
-                 || (BABYLON.KhronosTextureContainer2 && BABYLON.KhronosTextureContainer2.IsTranscoderReady && BABYLON.KhronosTextureContainer2.IsTranscoderReady());
-      console.log("[KTX2] Transcoder ready?", !!ready);
-    }, 900);
-  })();
-  </script>
 </head>
 
 <body>
@@ -313,7 +273,7 @@
     const front = BABYLON.MeshBuilder.CreatePlane("front", {
       width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
-    front.position.set(0, wallY, ROOM.D/2);
+    front.position set(0, wallY, ROOM.D/2);
     front.rotation.y = Math.PI;
     front.material = unlit("#2b2b2b");
 
@@ -388,40 +348,50 @@
     }
   }
 
-  /* ===== KTX2 POUZE PRO RÁMY ===== */
-  function setKTX2ToFrame(url, targetItem){
-    try{
-      const safeUrl = encodeURI(url); // podpora názvů s mezerami apod.
-
-      const tex = new BABYLON.KTX2Texture(
-        safeUrl,
-        scene,
-        { useSRGBBuffer: true },
-        false, // generateMipMaps (ktx2 obvykle nese mipy)
-        false, // invertY
-        BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-        () => {
-          tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-          tex.anisotropicFilteringLevel = MAX_ANISO;
-
-          const mat = unlitTex(tex);
-          mat.zOffset = -1;
-          targetItem.frame.material = mat;
-          console.log("[KTX2] OK:", safeUrl);
-        },
-        (message, exception) => {
-          console.error("[KTX2] LOAD FAILED:", safeUrl, message || exception);
-          // Placeholder (šachovnice) ponecháme – nic nepřepisuj
-        }
-      );
-
-      tex.onErrorObservable?.add(err => {
-        console.error("[KTX2] onErrorObservable:", safeUrl, err);
-      });
-
-    }catch(e){
-      console.error("[KTX2] Exception:", url, e);
+  /* === Fit/cover kreslení === */
+  function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
+    const targetR = frameW / frameH, r = bmp.width / bmp.height;
+    let dw, dh, dx=0, dy=0;
+    if (mode === "cover"){
+      if (r > targetR){ dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
+      else            { dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
+    } else {
+      if (r > targetR){ dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
+      else            { dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
     }
+    if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,targetW,targetH); }
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
+  }
+
+  /* ===== WebP POUZE PRO RÁMY ===== */
+  const isWebP = (u)=> /\.webp$/i.test(u || "");
+
+  function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
+    if (!isWebP(url)) {
+      console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
+      return;
+    }
+    const img = new Image();
+    // pokud bys někdy tahal z jiné domény:
+    if (!/^(\.|\/)/.test(url)) img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      const dt  = makeDT("imgDT_"+Math.random(), texSize, texSize, !IS_MOBILE);
+      const ctx = dt.getContext();
+      fitDrawToCanvas(ctx, img, texSize, texSize, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
+      dt.update();
+
+      const mat = unlitTex(dt);
+      mat.zOffset = -1;
+      targetItem.frame.material = mat;
+      console.log("[WebP] OK:", url);
+    };
+    img.onerror = (e) => {
+      console.error("[WebP] Chyba načítání:", url, e);
+      // necháme placeholder (šachovnici)
+    };
+    img.src = url;
   }
 
   function setVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
@@ -549,7 +519,7 @@
     }, scene);
     f.position = pos.add(normalOffset(rotY, 0.04)); f.rotation.y = rotY + Math.PI; f.isPickable = true;
 
-    // Placeholder textura (šachovnice) – nahradí se po načtení KTX2
+    // Placeholder textura (šachovnice) – nahradí se po načtení WebP
     const dt = makeDT("ph_img", TEX_SIZE, TEX_SIZE, true);
     const ctx = dt.getContext(); drawChecker(ctx, TEX_SIZE, TEX_SIZE); dt.update();
     const fMat = unlitTex(dt); fMat.zOffset = -1; f.material = fMat;
@@ -634,7 +604,7 @@
         g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
 
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-        s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+        s.position set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       };
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
@@ -650,36 +620,37 @@
     counts: { front: 4, back: 4, left: 7, right: 7 }
   };
 
+  // POZOR: přizpůsob názvy svým assetům .webp
   const DATA = {
     front: [
-      { img: "./assets/AcidT_432x768_UASTC_RGB.ktx2", label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/two.jpg",     label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg",   label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",     label: "Produkt D", href: "https://example.com/d" }
+      { img: "./assets/AcidT_432x768.webp", label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
+      { img: "./assets/two.webp",   label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/three.webp", label: "Produkt C", href: "https://example.com/c" },
+      { img: "./assets/one.webp",   label: "Produkt D", href: "https://example.com/d" }
     ],
     back: [
-      { img: "./assets/AcidT_432x768_UASTC_RGB.ktx2", label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/two.jpg",     label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/three.jpg",   label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/one.jpg",     label: "Back D", href: "https://example.com/d" }
+      { img: "./assets/AcidT_432x768.webp", label: "Back A", href: "https://example.com/a" },
+      { img: "./assets/two.webp",   label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/three.webp", label: "Back C", href: "https://example.com/c" },
+      { img: "./assets/one.webp",   label: "Back D", href: "https://example.com/d" }
     ],
     left: [
-      { img: "./assets/AcidT_432x768_UASTC_RGB.ktx2", label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/two.jpg",     label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/three.jpg",   label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/AcidT_432x768_UASTC_RGB.ktx2", label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/two.jpg",     label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/three.jpg",   label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/one.jpg",     label: "Levá 7", href: "https://example.com/left-7" }
+      { img: "./assets/AcidT_432x768.webp", label: "Levá 1", href: "https://example.com/left-1" },
+      { img: "./assets/two.webp",   label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/three.webp", label: "Levá 3", href: "https://example.com/left-3" },
+      { img: "./assets/AcidT_432x768.webp", label: "Levá 4", href: "https://example.com/left-4" },
+      { img: "./assets/two.webp",   label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/three.webp", label: "Levá 6", href: "https://example.com/left-6" },
+      { img: "./assets/one.webp",   label: "Levá 7", href: "https://example.com/left-7" }
     ],
     right: [
-      { img: "./assets/two.jpg",     label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/three.jpg",   label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/one.jpg",     label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/two.jpg",     label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/three.jpg",   label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/one.jpg",     label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/two.jpg",     label: "Pravá 7", href: "https://example.com/right-7" }
+      { img: "./assets/two.webp",   label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/three.webp", label: "Pravá 2", href: "https://example.com/right-2" },
+      { img: "./assets/one.webp",   label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/two.webp",   label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/three.webp", label: "Pravá 5", href: "https://example.com/right-5" },
+      { img: "./assets/one.webp",   label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/two.webp",   label: "Pravá 7", href: "https://example.com/right-7" }
     ]
   };
 
@@ -722,7 +693,6 @@
 
   function assignDataAllWalls(data){
     const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
-    const isKTX2Url  = (u) => /\.ktx2$/i.test(u || "");
 
     ["front","back","left","right"].forEach(side=>{
       const items = data[side] || [];
@@ -746,13 +716,12 @@
         );
 
         if (!src) continue;
-
         if (isVideoUrl(src)) {
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
-        } else if (isKTX2Url(src)) {
-          setKTX2ToFrame(src, it);
+        } else if (isWebP(src)) {
+          setWebPToFrame(src, it, TEX_SIZE, "cover");
         } else {
-          console.warn("Pouze KTX2 je povolen pro rámové obrazy. Přeskakuji:", src);
+          console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
           // placeholder zůstává
         }
       }
@@ -1043,33 +1012,6 @@
         }
       });
     }
-  }
-
-  /* ========= Reset/Fullscreen ========= */
-  function resetCamera(){
-    if (!camera) return;
-    camera.target.set(0, ROOM.H*0.48, 0);
-    camera.radius = 11.5;
-    camera.alpha  = -Math.PI/2;
-    camera.beta   =  Math.PI/2.25;
-  }
-  function isFullscreen(){
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-  }
-  function requestFs(el){
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (req) req.call(el);
-  }
-  function exitFs(){
-    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    if (ex) ex.call(document);
-  }
-  function toggleFullscreen(){ if (isFullscreen()) exitFs(); else requestFs(document.documentElement); }
-  function syncFsButton(){
-    const btn = document.getElementById('fullscreenIcon'); if (!btn) return;
-    const on = isFullscreen();
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno';
   }
 
   /* ========= Boot ========= */
