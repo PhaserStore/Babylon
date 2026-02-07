@@ -6,8 +6,8 @@
   <title>Virtual Gallery — Clean View</title>
 
   <!-- Poppins (jen 400/600) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
@@ -64,8 +64,6 @@
       right:calc(12px + var(--safe-right)); bottom:calc(12px + var(--bar-h) + var(--safe-bottom));
     }
     .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
-
-    /* Fullscreen vlevo od resetu */
     #fullscreenIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
 
     /* Desktop bar shrink */
@@ -83,7 +81,7 @@
     }
   </style>
 
-  <!-- Babylon.js (GUI odstraněno – nebylo použito) -->
+  <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 
@@ -96,12 +94,23 @@
     id="fullscreenIcon"
     class="hudIcon"
     src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-    alt="Celá obrazovka" title="Přepnout celé okno" role="button" tabindex="0" aria-label="Celá obrazovka" aria-pressed="false" />
+    alt="Celá obrazovka"
+    title="Přepnout celé okno"
+    role="button"
+    tabindex="0"
+    aria-label="Celá obrazovka"
+    aria-pressed="false"
+  />
   <img
     id="resetCamIcon"
     class="hudIcon"
     src="./assets/focus.svg"
-    alt="Reset kamery" title="Reset kamery" role="button" tabindex="0" aria-label="Reset kamery" />
+    alt="Reset kamery"
+    title="Reset kamery"
+    role="button"
+    tabindex="0"
+    aria-label="Reset kamery"
+  />
 
   <!-- Desktop: SoundCloud bar -->
   <div id="scBar" aria-label="SoundCloud Bar">
@@ -138,7 +147,7 @@
     </div>
   </div>
 
-  <!-- Host pro SC iframe: umístěn mimo viewport (desktop) -->
+  <!-- Host pro SC iframe: mimo viewport (desktop) -->
   <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
   <script>
@@ -750,7 +759,14 @@
 
     camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.25, 11.5, new BABYLON.Vector3(0, ROOM.H*0.48, 0), scene);
     camera.attachControl(canvas, true);
-    camera.minZ = 0.2; camera.maxZ = 5000;
+
+    // Bezpečnější parametry kamery
+    camera.minZ = 0.05;           // blíže k rovinám bez clippingu
+    camera.maxZ = 5000;
+    camera.lowerRadiusLimit = MIN_RADIUS;
+    camera.upperRadiusLimit = 40;
+    camera.lowerBetaLimit = 0.05;            // neotáčet "podlaha" / přes vršek
+    camera.upperBetaLimit = Math.PI - 0.05;  // neotáčet přes strop
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
@@ -803,6 +819,60 @@
     createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
 
     assignDataAllWalls(DATA);
+  }
+
+  /* ========= Soft camera bounds – keep camera inside the room ========= */
+  // vnitřní kvádr (o trochu menší než místnost), aby kamera nezajížděla za stěny/rámy
+  const CAM_MARGIN = 0.55; // můžeš jemně doladit (0.45–0.7)
+  const CAM_BOUNDS = {
+    minX: -ROOM.W/2 + CAM_MARGIN,
+    maxX:  ROOM.W/2 - CAM_MARGIN,
+    minZ: -ROOM.D/2 + CAM_MARGIN,
+    maxZ:  ROOM.D/2 - CAM_MARGIN,
+    minY:  0.6,
+    maxY:  ROOM.H - 0.6
+  };
+
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  // jednotkový směr z targetu k pozici kamery z (alpha,beta)
+  function getOrbitDir(alpha, beta){
+    // Babylon (ArcRotate): sférické souřadnice – viz implementace positionFromAlphaBeta
+    const sinBeta = Math.sin(beta);
+    return new BABYLON.Vector3(
+      Math.cos(alpha) * sinBeta,
+      Math.cos(beta),
+      Math.sin(alpha) * sinBeta
+    );
+  }
+
+  function constrainTarget(){
+    const t = camera.target;
+    t.x = clamp(t.x, CAM_BOUNDS.minX, CAM_BOUNDS.maxX);
+    t.y = clamp(t.y, CAM_BOUNDS.minY, CAM_BOUNDS.maxY);
+    t.z = clamp(t.z, CAM_BOUNDS.minZ, CAM_BOUNDS.maxZ);
+    camera.target = t; // explicit set (ArcRotate drží referenci, ale pro jistotu)
+  }
+
+  function constrainCameraRadius(){
+    // vypočti max. dovolený radius tak, aby pozice (t + dir * r) zůstala uvnitř bounds
+    const t = camera.target;
+    const dir = getOrbitDir(camera.alpha, camera.beta); // unit vector
+    let rMax = camera.upperRadiusLimit || 1e9;
+
+    // pro každou osu stanov limit
+    if (dir.x > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxX - t.x) / dir.x);
+    else if (dir.x < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minX - t.x) / dir.x);
+
+    if (dir.y > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxY - t.y) / dir.y);
+    else if (dir.y < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minY - t.y) / dir.y);
+
+    if (dir.z > 1e-6)   rMax = Math.min(rMax, (CAM_BOUNDS.maxZ - t.z) / dir.z);
+    else if (dir.z < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minZ - t.z) / dir.z);
+
+    // zkrať radius pokud je potřeba (a zároveň respektuj MIN)
+    const rClamped = clamp(camera.radius, MIN_RADIUS, rMax);
+    camera.radius = rClamped;
   }
 
   /* ========= SoundCloud (desktop only) ========= */
@@ -984,8 +1054,14 @@
 
   engine.runRenderLoop(()=>{
     if (!scene) return;
+
+    // --- Soft camera bounds – kamera zůstává UVNITŘ ---
+    constrainTarget();       // 1) udrž cíl v interiéru
+    constrainCameraRadius(); // 2) zkrať radius, aby pozice zůstala uvnitř
+
     scene.render();
 
+    // auto-scale pro mobily
     if (AutoScale.enabled){
       const now = performance.now();
       AutoScale.accMs += engine.getDeltaTime();
