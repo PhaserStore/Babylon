@@ -1067,11 +1067,14 @@
           scWidget.getCurrentSound((s) => { scUpdateTitle(s); scUpdateThumb(s); });
         });
         scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
-          scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
-          const cur = e.currentPosition || 0;
-          const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
-          scUpdateTime(cur, scDuration); scUpdateSkvělý posun, Zdeňku!  
-Ta hláška **`Uncaught SyntaxError: Unexpected token '...' (at babylon.js:462:39)`** nevzniká v tvém kódu, ale přímo při parsování **Babylon.js**. Znamená to, že prohlížeč (nebo režim, ve kterém ho pouštíš—typicky **IE mode** ve starším Edge) naráží na moderní syntaxi (spread `...`) v aktuálním bundlu z CDN.
+  scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
+  const cur = e?.currentPosition || 0;
+  const rel = (typeof e?.relativePosition === "number")
+    ? e.relativePosition
+    : (scDuration ? cur / scDuration : 0);
+  scUpdateTime(cur, scDuration);
+  scUpdateProgress(rel);
+});
 
 ### Rychlá oprava chyby
 1) **Přepni na “legacy” bundle** Babylonu (ES5 kompatibilní build):
