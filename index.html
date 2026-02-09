@@ -655,8 +655,8 @@ const f = BABYLON.MeshBuilder.CreatePlane("frame", {
   width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
 }, scene);
 f.position = pos.add(normalOffset(rotY, 0.04));
-- f.rotation.y = rotY + Math.PI;
-+ f.rotation.y = rotY;
+f.rotation.y = rotY + Math.PI;
+f.rotation.y = rotY;
 f.isPickable = true;
 
 
@@ -679,8 +679,8 @@ f.isPickable = true;
     }, scene);
     
 plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
-- plac.rotation.y = rotY + Math.PI;
-+ plac.rotation.y = rotY;
+plac.rotation.y = rotY + Math.PI;
+plac.rotation.y = rotY;
 plac.isPickable = true;
 
 
