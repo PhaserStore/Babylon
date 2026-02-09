@@ -650,10 +650,15 @@ function setVideoToFrame(
     for (let f=0; f<6; f++){ new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box); idx += perFace; }
     box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
 
-    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-      width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    f.position = pos.add(normalOffset(rotY, 0.04)); f.rotation.y = rotY + Math.PI; f.isPickable = true;
+    
+const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+  width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+}, scene);
+f.position = pos.add(normalOffset(rotY, 0.04));
+- f.rotation.y = rotY + Math.PI;
++ f.rotation.y = rotY;
+f.isPickable = true;
+
 
     // Placeholder textura (správný poměr rámu) – nahradí se po načtení WebP
     {
