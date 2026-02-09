@@ -188,6 +188,51 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
+    // === Helpery pro rozměry textur podle poměru rámu ===
+function isPowerOfTwo(n){ return n > 0 && (n & (n - 1)) === 0; }
+
+/**
+ * Volitelně můžeš vynutit přesnou velikost textur 432×768 (9:16) atd.
+ * Nech jako null pro automatiku podle DPR a limitů GPU.
+ * Příklad zapnutí: const FRAME_TEX_FORCE = { w: 432, h: 768 };
+ */
+const FRAME_TEX_FORCE = null;
+
+/**
+ * Zvolí rozměr textury tak, aby odpovídala poměru rámu (bez deformace).
+ * - Preferuje větší výšku (do cap), šířku dopočítá z aspect.
+ * - NPOT => vypne mipmapy (pro kompatibilitu).
+ */
+function pickFrameTextureSize(frameW, frameH){
+  if (FRAME_TEX_FORCE && FRAME_TEX_FORCE.w > 0 && FRAME_TEX_FORCE.h > 0){
+    const w = Math.round(FRAME_TEX_FORCE.w);
+    const h = Math.round(FRAME_TEX_FORCE.h);
+    return { w, h, genMipmaps: !IS_MOBILE && isPowerOfTwo(w) && isPowerOfTwo(h) };
+  }
+
+  const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;  // např. 1024 / 4096
+  const base = TEX_SIZE;                                     // dle DPR
+  const aspect = Math.max(1e-6, frameW / frameH);            // u portrait ~ 9/16
+
+  // Preferuj max. výšku, šířku dopočti
+  let h = Math.min(base, cap);
+  let w = Math.round(h * aspect);
+
+  // Pokud šířka přes cap, škáluj dolů
+  if (w > cap){
+    const s = cap / w;
+    w = cap;
+    h = Math.round(h * s);
+  }
+
+  // Minimální rozměr – kvůli ostrosti
+  w = Math.max(256, w);
+  h = Math.max(256, h);
+
+  const genMipmaps = !IS_MOBILE && isPowerOfTwo(w) && isPowerOfTwo(h);
+  return { w, h, genMipmaps };
+}
+
   /* ========= Scene setup ========= */
   let scene, camera, glow;
   const ROOM = { W:16, D:30, H:13 };
