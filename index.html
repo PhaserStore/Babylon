@@ -438,59 +438,102 @@
     ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
   }
 
-  /* ===== WebP POUZE PRO RÁMY ===== */
-  const isWebP = (u)=> /\.webp$/i.test(u || "");
+ /* ====== Obrazy (WebP) + Videa: odolný loader ====== */
+const isWebP  = (u) => /\.webp$/i.test(u || "");
+const isVideo = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
 
-  function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
-    if (!isWebP(url)) {
-      console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
-      return;
-    }
-    const safeUrl = encodeURI(url); // ošetření mezer/diakritiky v názvu
+/* Vnitřní kreslicí rutina pro obrázek (ImageBitmap / HTMLImageElement) */
+function drawToFrameBitmap(bmp, targetItem, fitMode) {
+  const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
 
-    const img = new Image();
-    if (!/^(\.|\/)/.test(safeUrl)) img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.onload = () => {
-      // textura přesně v poměru rámu (např. 9:16)
-      const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
+  const dt  = makeDT("imgDT_" + Math.random(), w, h, genMipmaps);
+  const ctx = dt.getContext();
 
-      const dt  = makeDT("imgDT_"+Math.random(), w, h, genMipmaps);
-      const ctx = dt.getContext();
+  // Bez deformace (cover/contain), černé pozadí jako dřív
+  fitDrawToCanvas(ctx, bmp, w, h, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
+  dt.update();
 
-      // kreslení bez deformace (cover/contain podle fitMode)
-      fitDrawToCanvas(ctx, img, w, h, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
-      dt.update();
+  const mat = unlitTex(dt);
+  mat.zOffset = -1;
+  targetItem.frame.material = mat;
+}
 
-      const mat = unlitTex(dt);
-      mat.zOffset = -1;
-      targetItem.frame.material = mat;
-      console.log("[WebP] OK:", safeUrl, `(tex ${w}×${h}, mip=${genMipmaps})`);
-    };
-    img.onerror = (e) => {
-      console.error("[WebP] Chyba načítání:", safeUrl, e);
-      // necháme placeholder (šachovnici)
-    };
-    img.src = safeUrl;
+/* --- WebP do rámu (fetch + createImageBitmap, fallback na Image) --- */
+async function setWebPToFrame(url, targetItem, texSize = TEX_SIZE, fitMode = "cover") {
+  if (!isWebP(url)) {
+    console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
+    return;
+  }
+  const safeUrl = encodeURI(url);
+
+  // 1) Preferovaná cesta: fetch -> createImageBitmap (odolnější proti CORS)
+  try {
+    const resp = await fetch(safeUrl, { mode: "cors", credentials: "omit", cache: "force-cache" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const bmp = await createImageBitmap(blob, { imageOrientation: "none", premultiplyAlpha: "default" });
+    drawToFrameBitmap(bmp, targetItem, fitMode);
+    console.log("[WebP] OK (bitmap):", safeUrl);
+    return;
+  } catch (e) {
+    console.warn("[WebP] fetch/bitmap selhal — fallback na Image():", safeUrl, e);
   }
 
- function setVideoToFrame(url, targetItem, { loop = true, muted = true, autoplay = true } = {}) {
+  // 2) Fallback: klasické Image() (povolíme CORS pro jistotu)
+  await new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      drawToFrameBitmap(img, targetItem, fitMode);
+      console.log("[WebP] OK (Image):", safeUrl);
+      resolve();
+    };
+    img.onerror = (err) => {
+      console.error("[WebP] Chyba načítání:", safeUrl, err);
+      resolve(); // ponecháme placeholder (šachovnice)
+    };
+    img.src = safeUrl;
+  });
+}
+
+/* --- Video do rámu (bez mipmap, BILINEAR, inline/autoplay/muted) --- */
+function setVideoToFrame(
+  url,
+  targetItem,
+  { loop = true, muted = true, autoplay = true } = {}
+) {
   const vt = new BABYLON.VideoTexture(
     "vidTex_" + Math.random(),
     url,
     scene,
-    true,
-    false,
-    BABYLON.Texture.BILINEAR_SAMPLINGMODE, // <<< video = BILINEAR (bez mipmap)
+    true,   // generateMipMaps? (vnitřně se s BILINEAR stejně nepoužijí)
+    false,  // invertY=false (správná orientace)
+    BABYLON.Texture.BILINEAR_SAMPLINGMODE, // video = BILINEAR
     { autoPlay: autoplay, loop: loop, muted: muted }
   );
+
+  // sRGB – konzistentní jas/kolorimetrie s obrazovými rámci
   vt.gammaSpace = true;
 
+  // Bezpečně nastavíme HTMLVideoElement
   try {
     vt.video.muted = !!muted;
     vt.video.loop = !!loop;
     vt.video.playsInline = true;
-  } catch (e) {}
+    // Autoplay často vyžaduje muted=true; pokud není, prohlížeč může blokovat.
+    if (autoplay && vt.video.paused) {
+      const p = vt.video.play?.();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          // Pokud prohlížeč blokne autoplay, nevadí – uživatel spustí interakcí
+          console.warn("[Video] Autoplay blokován prohlížečem:", url);
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[Video] Nelze upravit vlastnosti elementu video:", e);
+  }
 
   const mat = unlitTex(vt);
   mat.zOffset = -1;
