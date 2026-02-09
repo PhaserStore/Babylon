@@ -199,7 +199,7 @@
    * Nech jako null pro automatiku podle DPR a limitů GPU.
    * Příklad zapnutí: const FRAME_TEX_FORCE = { w: 432, h: 768 };
    */
-  const FRAME_TEX_FORCE = null;
+  const FRAME_TEX_FORCE = { w: 432, h: 768 }; // přesně 9:16
 
   /**
    * Zvolí rozměr textury tak, aby odpovídala poměru rámu (bez deformace).
@@ -459,7 +459,7 @@ function drawToFrameBitmap(bmp, targetItem, fitMode) {
 }
 
 /* --- WebP do rámu (fetch + createImageBitmap, fallback na Image) --- */
-async function setWebPToFrame(url, targetItem, texSize = TEX_SIZE, fitMode = "cover") {
+async function setWebPToFrame(url, targetItem, fitMode = "cover") { ... }
   if (!isWebP(url)) {
     console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
     return;
@@ -664,7 +664,7 @@ function setVideoToFrame(
     sideOrientation: BABYLON.Mesh.FRONTSIDE
   }, scene);
   f.position = pos.add(normalOffset(rotY, 0.04));
-  f.rotation.y = rotY;         // << jen rotY, bez +Math.PI
+  f.rotation.y = rotY + Math.PI;
   f.isPickable = true;
 
   // Placeholder textura (správný poměr rámu) – nahradí se po načtení WebP
@@ -690,7 +690,7 @@ function setVideoToFrame(
   plac.position = pos
     .add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0))
     .add(normalOffset(rotY, 0.03));
-  plac.rotation.y = rotY;      // << jen rotY
+  plac.rotation.y = rotY + Math.PI;
   plac.isPickable = true;
 
   if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
@@ -885,7 +885,7 @@ function setVideoToFrame(
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
           const fit = (d.fit === "contain") ? "contain" : "cover";
-          setWebPToFrame(src, it, TEX_SIZE, fit);
+          setWebPToFrame(src, it, fit);
         } else {
           console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
           // placeholder zůstává
@@ -1030,10 +1030,7 @@ function setVideoToFrame(
 
     // ImageProcessing – bez post-processu
     scene.imageProcessingConfiguration.toneMappingEnabled = false;
-    scene.imageProcessingConfiguration.exposure = 1.0;
-    scene.imageProcessingConfiguration.applyByPostProcess = false;
-    scene.imageProcessingConfiguration.contrast = 1.0;
-    scene.imageProcessingConfiguration.isEnabled = false;
+    
 
     buildRoom();
     buildLED();
