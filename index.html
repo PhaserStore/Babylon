@@ -285,13 +285,30 @@
   return m;
 
   }
-  function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO;
-    return dt;
-  }
+  function makeDT(name, w, h, genMipmaps = true) {
+  // Zvol sampling podle mipmap – NPOT => bez mipmap => BILINEAR
+  const sampling = genMipmaps
+    ? BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+    : BABYLON.Texture.BILINEAR_SAMPLINGMODE;
+
+  const dt = new BABYLON.DynamicTexture(
+    name,
+    { width: w, height: h },
+    scene,
+    genMipmaps,
+    sampling
+  );
+
+  // Ať se sampling skutečně uplatní i po update()
+  dt.updateSamplingMode(sampling);
+
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.hasAlpha = false;
+  dt.anisotropicFilteringLevel = MAX_ANISO;
+  dt.gammaSpace = true; // sRGB – věrné barvy
+
+  return dt;
+}
 
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
