@@ -2,6 +2,7 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Virtual Gallery — Clean View</title>
 
@@ -31,8 +32,6 @@
       position:fixed; inset:0; display:block; touch-action:none; width:100vw; height:100vh;
       will-change: transform; transform: translateZ(0);
     }
-
-    /* === SoundCloud full-width bottom bar (desktop only) === */
     #scBar{
       position:fixed; left:0; right:0; bottom:0;
       height:var(--bar-h); background:#1a1a1a;
@@ -57,40 +56,33 @@
     #scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
     #barVol{ width:84px; }
 
-    /* Ikony vpravo dole nad barem */
     .hudIcon{
       position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
       filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); opacity:.96; transition: transform .12s ease, opacity .12s ease;
       right:calc(12px + var(--safe-right)); bottom:calc(12px + var(--bar-h) + var(--safe-bottom));
     }
     .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
-    /* fullscreen ikonu posuneme o šířku tlačítka + mezeru */
     #fullscreenIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
 
-    /* Desktop bar shrink */
     @media (max-width: 560px){
       #scBar{ gap:12px; padding:0 10px; }
       .sc-right{ min-width:200px; gap:10px; }
       #barVol{ width:70px; }
       .time{ display:none; }
     }
-
-    /* MOBILE: schovat fullscreen ikonu i celý SC bar + host */
     @media (pointer:coarse), (max-width: 900px){
       #fullscreenIcon{ display:none !important; }
       #scBar, #scIframeHost{ display:none !important; }
     }
   </style>
 
-  <!-- Babylon.js -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Babylon.js (UMD, pinned v5 pro max. kompatibilitu) -->
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs@5.60.4/babylon.js"></script>
 </head>
 
 <body>
-  <!-- Canvas -->
   <canvas id="renderCanvas"></canvas>
 
-  <!-- Fullscreen (vlevo), Reset (vpravo) -->
   <img
     id="fullscreenIcon"
     class="hudIcon"
@@ -113,7 +105,6 @@
     aria-label="Reset kamery"
   />
 
-  <!-- Desktop: SoundCloud bar -->
   <div id="scBar" aria-label="SoundCloud Bar">
     <div class="sc-left">
       <button id="barPrev" title="Previous" aria-label="Previous">
@@ -148,7 +139,6 @@
     </div>
   </div>
 
-  <!-- Host pro SC iframe: mimo viewport (desktop) -->
   <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
   <script>
@@ -162,7 +152,7 @@
   // no-op hint, aby nepadal buildGalleryLogo()
   function hint(){ /* no-op */ }
 
-  const fmtTime = (ms)=> {
+  const fmtTime = (ms)=>{
     const sec = Math.max(0, Math.floor((ms||0)/1000));
     const m = Math.floor(sec/60), s = sec%60;
     return `${m}:${s.toString().padStart(2,'0')}`;
@@ -191,21 +181,12 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
-  // === Helpery pro rozměry textur podle poměru rámu (JEDNA definice) ===
+  // === Helpery pro rozměry textur podle poměru rámu ===
   function isPowerOfTwo(n){ return n > 0 && (n & (n - 1)) === 0; }
 
-  /**
-   * Volitelně můžeš vynutit přesnou velikost textur 432×768 (9:16) atd.
-   * Nech jako null pro automatiku podle DPR a limitů GPU.
-   * Příklad zapnutí: const FRAME_TEX_FORCE = { w: 432, h: 768 };
-   */
-  const FRAME_TEX_FORCE = { w: 432, h: 768 }; // přesně 9:16
+  // PIXEL-PERFECT: přesná textura 432×768 (9:16)
+  const FRAME_TEX_FORCE = { w: 432, h: 768 };
 
-  /**
-   * Zvolí rozměr textury tak, aby odpovídala poměru rámu (bez deformace).
-   * - Preferuje větší výšku (do cap), šířku dopočítá z aspect.
-   * - Pokud NPOT, vypne mipmapy (pro kompatibilitu na některých GPU).
-   */
   function pickFrameTextureSize(frameW, frameH){
     if (FRAME_TEX_FORCE && FRAME_TEX_FORCE.w > 0 && FRAME_TEX_FORCE.h > 0){
       const w = Math.round(FRAME_TEX_FORCE.w);
@@ -214,20 +195,16 @@
     }
     const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
     const base = TEX_SIZE;
-    const aspect = Math.max(1e-6, frameW / frameH); // u portrait ~ 9/16
+    const aspect = Math.max(1e-6, frameW / frameH); // portrait ~ 9/16
 
-    // Preferuj max. výšku, šířku dopočti
     let h = Math.min(base, cap);
     let w = Math.round(h * aspect);
 
-    // Pokud šířka přes cap, škáluj dolů
     if (w > cap){
       const s = cap / w;
       w = cap;
       h = Math.round(h * s);
     }
-
-    // Minimální rozměr – kvůli ostrosti
     w = Math.max(256, w);
     h = Math.max(256, h);
 
@@ -261,53 +238,47 @@
     m.specularColor = new BABYLON.Color3(0,0,0);
     return m;
   }
+
   function unlitTex(tex, { doubleSided=false } = {}){
-  const m = new BABYLON.StandardMaterial("mt", scene);
-  m.disableLighting = true;
-  m.backFaceCulling = !doubleSided;
-  m.specularColor = new BABYLON.Color3(0,0,0);
+    const m = new BABYLON.StandardMaterial("mt", scene);
+    m.disableLighting = true;
+    m.backFaceCulling = !doubleSided;
+    m.specularColor = new BABYLON.Color3(0,0,0);
 
-  // Klíčové: renderuj jen přes emissive, ať se nic „nepřibarvuje“
-  m.diffuseTexture = null;
-  m.emissiveTexture = tex;
-  m.emissiveColor = new BABYLON.Color3(1,1,1);
-  // Některé shadery to berou v potaz:
-  m.useEmissiveAsIllumination = true;
+    // Barvy 1:1 — renderujeme přes emissive
+    m.diffuseTexture = null;
+    m.emissiveTexture = tex;
+    m.emissiveColor = new BABYLON.Color3(1,1,1);
+    m.useEmissiveAsIllumination = true;
 
-  if (tex){
-    // zachovat rozumný sampling (můžeš nechat TRILINEAR)
-    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    tex.anisotropicFilteringLevel = MAX_ANISO;
-    // DŮLEŽITÉ: textury drž ve správném gamma prostoru
-    tex.gammaSpace = true; // zobrazuj jako sRGB (bez „pseudo ztmavení“)
+    if (tex){
+      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      tex.anisotropicFilteringLevel = MAX_ANISO;
+      tex.gammaSpace = true; // sRGB
+    }
+    return m;
   }
-  return m;
-  }
+
   function makeDT(name, w, h, genMipmaps = true) {
-  // Zvol sampling podle mipmap – NPOT => bez mipmap => BILINEAR
-  const sampling = genMipmaps
-    ? BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    : BABYLON.Texture.BILINEAR_SAMPLINGMODE;
+    const sampling = genMipmaps
+      ? BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+      : BABYLON.Texture.BILINEAR_SAMPLINGMODE;
 
-  const dt = new BABYLON.DynamicTexture(
-    name,
-    { width: w, height: h },
-    scene,
-    genMipmaps,
-    sampling
-  );
-
-  // Ať se sampling skutečně uplatní i po update()
-  dt.updateSamplingMode(sampling);
-
-  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.hasAlpha = false;
-  dt.anisotropicFilteringLevel = MAX_ANISO;
-  dt.gammaSpace = true; // sRGB – věrné barvy
-
-  return dt;
-}
+    const dt = new BABYLON.DynamicTexture(
+      name,
+      { width: w, height: h },
+      scene,
+      genMipmaps,
+      sampling
+    );
+    dt.updateSamplingMode(sampling);
+    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.hasAlpha = false;
+    dt.anisotropicFilteringLevel = MAX_ANISO;
+    dt.gammaSpace = true;
+    return dt;
+  }
 
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
@@ -323,7 +294,7 @@
     ], scene);
     cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    cubetex.level = 0.8; // lehce tmavší
+    cubetex.level = 0.8;
     skyMat.reflectionTexture = cubetex;
     skybox.material = skyMat;
   }
@@ -438,108 +409,65 @@
     ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
   }
 
- /* ====== Obrazy (WebP) + Videa: odolný loader ====== */
-const isWebP  = (u) => /\.webp$/i.test(u || "");
-const isVideo = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
+  /* ====== Obrazy (WebP) + Videa ====== */
+  const isWebP  = (u) => /\.webp$/i.test(u || "");
+  const isVideo = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
 
-/* Vnitřní kreslicí rutina pro obrázek (ImageBitmap / HTMLImageElement) */
-function drawToFrameBitmap(bmp, targetItem, fitMode) {
-  const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
+  function drawToFrameBitmap(bmp, targetItem, fitMode) {
+    const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
+    const dt  = makeDT("imgDT_" + Math.random(), w, h, genMipmaps);
+    const ctx = dt.getContext();
+    fitDrawToCanvas(ctx, bmp, w, h, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
+    dt.update();
 
-  const dt  = makeDT("imgDT_" + Math.random(), w, h, genMipmaps);
-  const ctx = dt.getContext();
-
-  // Bez deformace (cover/contain), černé pozadí jako dřív
-  fitDrawToCanvas(ctx, bmp, w, h, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
-  dt.update();
-
-  const mat = unlitTex(dt);
-  mat.zOffset = -1;
-  targetItem.frame.material = mat;
-}
-
-/* --- WebP do rámu (fetch + createImageBitmap, fallback na Image) --- */
-async function setWebPToFrame(url, targetItem, fitMode = "cover") { ... }
-  if (!isWebP(url)) {
-    console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
-    return;
-  }
-  const safeUrl = encodeURI(url);
-
-  // 1) Preferovaná cesta: fetch -> createImageBitmap (odolnější proti CORS)
-  try {
-    const resp = await fetch(safeUrl, { mode: "cors", credentials: "omit", cache: "force-cache" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const blob = await resp.blob();
-    const bmp = await createImageBitmap(blob, { imageOrientation: "none", premultiplyAlpha: "default" });
-    drawToFrameBitmap(bmp, targetItem, fitMode);
-    console.log("[WebP] OK (bitmap):", safeUrl);
-    return;
-  } catch (e) {
-    console.warn("[WebP] fetch/bitmap selhal — fallback na Image():", safeUrl, e);
+    const mat = unlitTex(dt);
+    mat.zOffset = -1;
+    targetItem.frame.material = mat;
   }
 
-  // 2) Fallback: klasické Image() (povolíme CORS pro jistotu)
-  await new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.onload = () => {
-      drawToFrameBitmap(img, targetItem, fitMode);
-      console.log("[WebP] OK (Image):", safeUrl);
-      resolve();
-    };
-    img.onerror = (err) => {
-      console.error("[WebP] Chyba načítání:", safeUrl, err);
-      resolve(); // ponecháme placeholder (šachovnice)
-    };
-    img.src = safeUrl;
-  });
-}
-
-/* --- Video do rámu (bez mipmap, BILINEAR, inline/autoplay/muted) --- */
-function setVideoToFrame(
-  url,
-  targetItem,
-  { loop = true, muted = true, autoplay = true } = {}
-) {
-  const vt = new BABYLON.VideoTexture(
-    "vidTex_" + Math.random(),
-    url,
-    scene,
-    true,   // generateMipMaps? (vnitřně se s BILINEAR stejně nepoužijí)
-    false,  // invertY=false (správná orientace)
-    BABYLON.Texture.BILINEAR_SAMPLINGMODE, // video = BILINEAR
-    { autoPlay: autoplay, loop: loop, muted: muted }
-  );
-
-  // sRGB – konzistentní jas/kolorimetrie s obrazovými rámci
-  vt.gammaSpace = true;
-
-  // Bezpečně nastavíme HTMLVideoElement
-  try {
-    vt.video.muted = !!muted;
-    vt.video.loop = !!loop;
-    vt.video.playsInline = true;
-    // Autoplay často vyžaduje muted=true; pokud není, prohlížeč může blokovat.
-    if (autoplay && vt.video.paused) {
-      const p = vt.video.play?.();
-      if (p && typeof p.catch === "function") {
-        p.catch(() => {
-          // Pokud prohlížeč blokne autoplay, nevadí – uživatel spustí interakcí
-          console.warn("[Video] Autoplay blokován prohlížečem:", url);
-        });
-      }
+  async function setWebPToFrame(url, targetItem, fitMode = "cover") {
+    if (!isWebP(url)) {
+      console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
+      return;
     }
-  } catch (e) {
-    console.warn("[Video] Nelze upravit vlastnosti elementu video:", e);
+    const safeUrl = encodeURI(url);
+
+    try {
+      const resp = await fetch(safeUrl, { mode: "cors", credentials: "omit", cache: "force-cache" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const bmp = await createImageBitmap(blob, { imageOrientation: "none", premultiplyAlpha: "default" });
+      drawToFrameBitmap(bmp, targetItem, fitMode);
+      console.log("[WebP] OK (bitmap):", safeUrl);
+      return;
+    } catch (e) {
+      console.warn("[WebP] fetch/bitmap selhal — fallback na Image():", safeUrl, e);
+    }
+
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.decoding = "async";
+      img.onload = () => { drawToFrameBitmap(img, targetItem, fitMode); console.log("[WebP] OK (Image):", safeUrl); resolve(); };
+      img.onerror = (err) => { console.error("[WebP] Chyba načítání:", safeUrl, err); resolve(); };
+      img.src = safeUrl;
+    });
   }
 
-  const mat = unlitTex(vt);
-  mat.zOffset = -1;
-  targetItem.frame.material = mat;
-  targetItem.videoTex = vt;
-}
+  function setVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
+    const vt = new BABYLON.VideoTexture(
+      "vidTex_"+Math.random(), url, scene,
+      true,   // generateMipmaps
+      false,  // invertY
+      BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+      { autoPlay: autoplay, loop: loop, muted: muted }
+    );
+    vt.gammaSpace = true;
+    try { vt.video.muted = !!muted; vt.video.loop = !!loop; vt.video.playsInline = true; } catch(e){}
+    const mat = unlitTex(vt); mat.zOffset = -1;
+    targetItem.frame.material = mat;
+    targetItem.videoTex = vt;
+  }
 
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
@@ -636,95 +564,63 @@ function setVideoToFrame(
     return new BABYLON.Vector3(nx, 0, nz);
   }
 
-  function addFrame(pos, rotY = 0, wall = 'front') {
-  const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-    width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-    height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-    depth: 0.06
-  }, scene);
-  box.position = pos.add(normalOffset(rotY, 0.0));
-  box.rotation.y = rotY;
-  box.isPickable = true;
+  function addFrame(pos, rotY=0, wall='front'){
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+      depth: 0.06
+    }, scene);
+    box.position = pos.add(normalOffset(rotY, 0.0)); box.rotation.y = rotY; box.isPickable = true;
 
-  // Submeshe pro MultiMaterial rámečku
-  box.subMeshes = [];
-  const indices = box.getIndices();
-  const verticesCount = box.getTotalVertices();
-  let idx = 0; const perFace = indices.length / 6;
-  for (let f = 0; f < 6; f++) {
-    new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
-    idx += perFace;
-  }
-  box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+    box.subMeshes = [];
+    const indices = box.getIndices(); const verticesCount = box.getTotalVertices();
+    let idx = 0; const perFace = indices.length / 6;
+    for (let f=0; f<6; f++){ new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box); idx += perFace; }
+    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
 
-  // === PLOCHA S OBRAZEM (musí koukat dovnitř místnosti) ===
-  const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-    width: FRAME_SIZE.W,
-    height: FRAME_SIZE.H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  f.position = pos.add(normalOffset(rotY, 0.04));
-  f.rotation.y = rotY + Math.PI;
-  f.isPickable = true;
+    // Plocha obrazu – FRONTSIDE, otočená do místnosti
+    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+      width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    f.position = pos.add(normalOffset(rotY, 0.04));
+    f.rotation.y = rotY + Math.PI; // směrem dovnitř
+    f.isPickable = true;
 
-  // Placeholder textura (správný poměr rámu) – nahradí se po načtení WebP
-  {
-    const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
-    const dt = makeDT("ph_img", w, h, genMipmaps);
-    const ctx = dt.getContext();
-    drawChecker(ctx, w, h);
-    dt.update();
-    const fMat = unlitTex(dt, { doubleSided: true }); // bezpečný oboustranný rendering
-    fMat.zOffset = -1;
-    f.material = fMat;
-  }
+    // Placeholder 9:16
+    {
+      const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
+      const dt = makeDT("ph_img", w, h, genMipmaps);
+      const ctx = dt.getContext(); drawChecker(ctx, w, h); dt.update();
+      const fMat = unlitTex(dt); fMat.zOffset = -1; f.material = fMat;
+    }
 
-  // === CEDULKA (také dovnitř) ===
-  const placW = FRAME_SIZE.W;
-  const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-    width: placW,
-    height: placH,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  plac.position = pos
-    .add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0))
-    .add(normalOffset(rotY, 0.03));
-  plac.rotation.y = rotY + Math.PI;
-  plac.isPickable = true;
+    // Cedulka
+    const placW = FRAME_SIZE.W;
+    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
+    plac.rotation.y = rotY + Math.PI;
+    plac.isPickable = true;
 
-  if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
-    plac.position.y += FRAME_DELTA_H * (1 / 3);
+    if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
+      plac.position.y += FRAME_DELTA_H * (1/3);
+    }
+
+    const data = { title: "(bez názvu)", url: "", src: "" };
+    drawPlacard(plac, data, rotY, placW, placH);
+
+    return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
 
-  const data = { title: "(bez názvu)", url: "", src: "" };
-  drawPlacard(plac, data, rotY, placW, placH);
-
-  return { frame: f, box, placard: plac, data, wall, rotY, pos };
-}
   /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
+     LOGO – inline SVG (ostrý + glow)
   ========================= */
   const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
-  <g>
-    <path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-    <path class="cls-1" d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-    <path class="cls-1" d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-    <path class="cls-1" d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-  </g>
-  <g>
-    <path class="cls-1" d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-  </g>
+  <g><path class="cls-1" d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/></g>
 </svg>`;
   const LOGO_ASPECT = 941.43 / 202.86;
   const LOGO_SCALE = 0.30;
@@ -767,14 +663,11 @@ function setVideoToFrame(
         const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
         s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
       }
-      // zadní + přední stěna
       placeLogo(-ROOM.D/2 + FRONT_BACK_OFFSET, Math.PI, 0);
       placeLogo( ROOM.D/2 - FRONT_BACK_OFFSET, 0,       1);
-      hint("Logo (inline SVG) zobrazeno ✔  (glow aktivní)");
+      hint("Logo (inline SVG) zobrazeno ✔");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
   }
-
 
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
@@ -784,37 +677,37 @@ function setVideoToFrame(
     counts: { front: 4, back: 4, left: 7, right: 7 }
   };
 
-  /* UPRAV CESTY NA SVÉ .webp SOUBORY */
+  // UPRAV CESTY NA SVÉ .webp SOUBORY
   const DATA = {
     front: [
       { img: "./assets/Acid_T.webp", label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
-      { img: "./assets/Acid_T.webp",   label: "Produkt B", href: "https://example.com/b" },
+      { img: "./assets/Acid_T.webp", label: "Produkt B", href: "https://example.com/b" },
       { img: "./assets/Acid_T.webp", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/Acid_T.webp",   label: "Produkt D", href: "https://example.com/d" }
+      { img: "./assets/Acid_T.webp", label: "Produkt D", href: "https://example.com/d" }
     ],
     back: [
       { img: "./assets/Acid_T.webp", label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/Acid_T.webp",   label: "Back B", href: "https://example.com/b" },
+      { img: "./assets/Acid_T.webp", label: "Back B", href: "https://example.com/b" },
       { img: "./assets/Acid_T.webp", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/Acid_T.webp",   label: "Back D", href: "https://example.com/d" }
+      { img: "./assets/Acid_T.webp", label: "Back D", href: "https://example.com/d" }
     ],
     left: [
       { img: "./assets/Acid_T.webp", label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 2", href: "https://example.com/left-2" },
+      { img: "./assets/Acid_T.webp", label: "Levá 2", href: "https://example.com/left-2" },
       { img: "./assets/Acid_T.webp", label: "Levá 3", href: "https://example.com/left-3" },
       { img: "./assets/Acid_T.webp", label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 5", href: "https://example.com/left-5" },
+      { img: "./assets/Acid_T.webp", label: "Levá 5", href: "https://example.com/left-5" },
       { img: "./assets/Acid_T.webp", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 7", href: "https://example.com/left-7" }
+      { img: "./assets/Acid_T.webp", label: "Levá 7", href: "https://example.com/left-7" }
     ],
     right: [
-      { img: "./assets/Acid_T.webp",   label: "Pravá 1", href: "https://example.com/right-1" },
+      { img: "./assets/Acid_T.webp", label: "Pravá 1", href: "https://example.com/right-1" },
       { img: "./assets/Acid_T.webp", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 4", href: "https://example.com/right-4" },
+      { img: "./assets/Acid_T.webp", label: "Pravá 3", href: "https://example.com/right-3" },
+      { img: "./assets/Acid_T.webp", label: "Pravá 4", href: "https://example.com/right-4" },
       { img: "./assets/Acid_T.webp", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 7", href: "https://example.com/right-7" }
+      { img: "./assets/Acid_T.webp", label: "Pravá 6", href: "https://example.com/right-6" },
+      { img: "./assets/Acid_T.webp", label: "Pravá 7", href: "https://example.com/right-7" }
     ]
   };
 
@@ -885,10 +778,9 @@ function setVideoToFrame(
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
           const fit = (d.fit === "contain") ? "contain" : "cover";
-          setWebPToFrame(src, it, fit);
+          setWebPToFrame(src, it, fit); // << bez TEX_SIZE
         } else {
           console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
-          // placeholder zůstává
         }
       }
     });
@@ -931,7 +823,7 @@ function setVideoToFrame(
     }, { passive:true });
   }
 
-  /* ========= Camera reset (opraveno + animace) ========= */
+  /* ========= Camera reset ========= */
   const RESET_POSE = {
     target: new BABYLON.Vector3(0, ROOM.H*0.48, 0),
     radius: 11.5,
@@ -941,7 +833,6 @@ function setVideoToFrame(
 
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
     if (!camera) return;
-
     const fps = 60, frames = Math.max(1, Math.round(durationMs / (1000/fps)));
     const easing = new BABYLON.CubicEase(); easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
 
@@ -952,14 +843,12 @@ function setVideoToFrame(
       return a;
     };
 
-    // alpha, beta, radius
     const anims = [
       makeAnim("alpha",  camera.alpha,  alpha),
       makeAnim("beta",   camera.beta,   beta),
       makeAnim("radius", camera.radius, radius),
     ];
 
-    // target (Vector3) – animujeme po složkách
     const makeVAnim = (axis, from, to) => {
       const a = new BABYLON.Animation("anim_t"+axis, "target."+axis, fps, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
       a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
@@ -984,21 +873,13 @@ function setVideoToFrame(
       camera.alpha  = RESET_POSE.alpha;
       camera.beta   = RESET_POSE.beta;
       camera.radius = RESET_POSE.radius;
-      camera.setTarget(RESET_POSE.target.clone()); // DŮLEŽITÉ: nový vektor do targetu
+      camera.setTarget(RESET_POSE.target.clone());
     }
   }
 
-  function isFullscreen(){
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-  }
-  function requestFs(el){
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (req) req.call(el);
-  }
-  function exitFs(){
-    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    if (ex) ex.call(document);
-  }
+  function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement); }
+  function requestFs(el){ const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen; if (req) req.call(el); }
+  function exitFs(){ const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen; if (ex) ex.call(document); }
   function toggleFullscreen(){ if (isFullscreen()) exitFs(); else requestFs(document.documentElement); }
   function syncFsButton(){
     const btn = document.getElementById('fullscreenIcon'); if (!btn) return;
@@ -1015,7 +896,6 @@ function setVideoToFrame(
     camera = new BABYLON.ArcRotateCamera("cam", RESET_POSE.alpha, RESET_POSE.beta, RESET_POSE.radius, RESET_POSE.target.clone(), scene);
     camera.attachControl(canvas, true);
 
-    // Bezpečné parametry kamery
     camera.minZ = 0.05;
     camera.maxZ = 5000;
     camera.lowerRadiusLimit = MIN_RADIUS;
@@ -1028,9 +908,8 @@ function setVideoToFrame(
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
     glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
-    // ImageProcessing – bez post-processu
-    scene.imageProcessingConfiguration.toneMappingEnabled = false;
-    
+    // ImageProcessing vypnuto => barvy 1:1
+    scene.imageProcessingConfiguration.isEnabled = false;
 
     buildRoom();
     buildLED();
@@ -1073,7 +952,7 @@ function setVideoToFrame(
     assignDataAllWalls(DATA);
   }
 
-  /* ========= Soft camera bounds – keep camera inside the room ========= */
+  /* ========= Soft camera bounds ========= */
   const CAM_MARGIN = 0.55;
   const CAM_BOUNDS = {
     minX: -ROOM.W/2 + CAM_MARGIN,
@@ -1098,7 +977,7 @@ function setVideoToFrame(
     t.x = clamp(t.x, CAM_BOUNDS.minX, CAM_BOUNDS.maxX);
     t.y = clamp(t.y, CAM_BOUNDS.minY, CAM_BOUNDS.maxY);
     t.z = clamp(t.z, CAM_BOUNDS.minZ, CAM_BOUNDS.maxZ);
-    camera.setTarget(t); // jistota
+    camera.setTarget(t);
   }
   function constrainCameraRadius(){
     const t = camera.target;
@@ -1191,140 +1070,13 @@ function setVideoToFrame(
           scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
           const cur = e.currentPosition || 0;
           const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
-          scUpdateTime(cur, scDuration); scUpdateProgress(rel);
-        });
-        scWidget.bind(window.SC.Widget.Events.ERROR, (err)=> console.error("SC widget error:", err));
-        resolve(scWidget);
-      });
-    });
-  }
-  async function ensureScReadyAndPlay(){
-    if (!SC_ENABLED || scLoading) return;
-    scLoading = true;
-    try{
-      await loadScApiOnce();
-      await mountScIframeOnce();
-      const w = await initScWidgetOnce();
-      if (w) w.play();
-    }catch(e){
-      console.warn("SC lazy-load failed:", e);
-    }finally{ scLoading = false; }
-  }
-  function bindBarControls(){
-    const pPrev = document.getElementById("barPrev");
-    const pPlay = document.getElementById("barPlay");
-    const pPause= document.getElementById("barPause");
-    const pNext = document.getElementById("barNext");
-    const vol   = document.getElementById("barVol");
-    const mute  = document.getElementById("barMute");
-    const seek  = document.getElementById("scSeek");
-    if (pPlay)  pPlay.addEventListener('click', () => ensureScReadyAndPlay());
-    if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (pPrev)  pPrev.addEventListener('click', () => scReady ? (scWidget && scWidget.prev()) : ensureScReadyAndPlay());
-    if (pNext)  pNext.addEventListener('click', () => scReady ? (scWidget && scWidget.next()) : ensureScReadyAndPlay());
-    if (vol) vol.addEventListener('input', e =>{
-      const v = Math.min(100, Math.max(0, +e.target.value || 75));
-      if (scReady && scWidget) scWidget.setVolume(v);
-    });
-    if (mute) mute.addEventListener('click', ()=>{
-      if (!scReady || !scWidget) return;
-      scWidget.getVolume(v=>{
-        const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
-        scWidget.setVolume(newV);
-      });
-    });
-    if (seek){
-      const doSeek = (px) => {
-        if (!scReady || !scWidget || !scDuration) return;
-        const rect = seek.getBoundingClientRect();
-        const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
-        scWidget.seekTo(rel * scDuration);
-      };
-      seek.addEventListener("click", e => doSeek(e.clientX));
-      seek.addEventListener("keydown", e=>{
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
-          e.preventDefault();
-          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
-          const step = 0.02;
-          const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
-          if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
-        }
-      });
-    }
-  }
+          scUpdateTime(cur, scDuration); scUpdateSkvělý posun, Zdeňku!  
+Ta hláška **`Uncaught SyntaxError: Unexpected token '...' (at babylon.js:462:39)`** nevzniká v tvém kódu, ale přímo při parsování **Babylon.js**. Znamená to, že prohlížeč (nebo režim, ve kterém ho pouštíš—typicky **IE mode** ve starším Edge) naráží na moderní syntaxi (spread `...`) v aktuálním bundlu z CDN.
 
-  /* ========= Boot ========= */
-  createScene();
-  (async function boot(){
-    await document.fonts?.load?.('400 16px Poppins');
-    await document.fonts?.load?.('600 16px Poppins');
-    applyFixedLayout();
-    bindBarControls();
-    resetCamera({animate:false}); // nastav výchozí pozici (bez animace při startu)
-  })();
-
-  engine.runRenderLoop(()=>{
-    if (!scene) return;
-
-    // Kamera uvnitř místnosti
-    constrainTarget();
-    constrainCameraRadius();
-
-    scene.render();
-
-    // Auto-scale pro mobily
-    if (AutoScale.enabled){
-      const now = performance.now();
-      AutoScale.accMs += engine.getDeltaTime();
-      AutoScale.frames++;
-      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-        const avgMs = AutoScale.accMs / AutoScale.frames;
-        let changed = false;
-        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
-          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
-          changed = true;
-        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
-          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
-          changed = true;
-        }
-        if (changed){
-          applyHardwareScale(currentScaleLevel);
-          if (glow){
-            const base = IS_MOBILE ? 36 : 96;
-            glow.blurKernelSize = Math.round( base * (0.9 + 0.2*(1 - (currentScaleLevel-0.33)/(1-0.33))) );
-          }
-        }
-        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
-      }
-    }
-  });
-
-  function handleResize(){ applyHardwareScale(); engine.resize(true); }
-  window.addEventListener("resize", handleResize, { passive:true });
-  window.addEventListener("orientationchange", handleResize);
-  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
-
-  /* ========= UI: reset + fullscreen ========= */
-  const resetCamIcon = document.getElementById('resetCamIcon');
-  if (resetCamIcon){
-    // Zabraň „tahání“ obrázku
-    resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
-    // Klik
-    resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
-    // Klávesy na ikoně
-    resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
-  }
-  // Globální zkratka R
-  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
-
-  const fullscreenIcon = document.getElementById('fullscreenIcon');
-  if (fullscreenIcon){
-    fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
-    fullscreenIcon.addEventListener('click', toggleFullscreen);
-    fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
-    document.addEventListener('fullscreenchange', syncFsButton);
-    document.addEventListener('webkitfullscreenchange', syncFsButton);
-  }
-  </script>
-</body>
-</html>
+### Rychlá oprava chyby
+1) **Přepni na “legacy” bundle** Babylonu (ES5 kompatibilní build):
+```html
+<!-- místo -->
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<!-- dej -->
+<script src="https://cdn.babylonjs.com/legacy/babylon.js"></script>
