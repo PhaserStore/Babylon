@@ -262,18 +262,28 @@
     return m;
   }
   function unlitTex(tex, { doubleSided=false } = {}){
-    const m = new BABYLON.StandardMaterial("mt", scene);
-    m.disableLighting = true;
-    m.diffuseTexture = tex;
-    m.emissiveTexture = tex;
-    m.backFaceCulling = !doubleSided;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    if (tex){
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      tex.anisotropicFilteringLevel = MAX_ANISO;
-    }
-    return m;
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting = true;
+  m.backFaceCulling = !doubleSided;
+  m.specularColor = new BABYLON.Color3(0,0,0);
+
+  // Klíčové: renderuj jen přes emissive, ať se nic „nepřibarvuje“
+  m.diffuseTexture = null;
+  m.emissiveTexture = tex;
+  m.emissiveColor = new BABYLON.Color3(1,1,1);
+  // Některé shadery to berou v potaz:
+  m.useEmissiveAsIllumination = true;
+
+  if (tex){
+    // zachovat rozumný sampling (můžeš nechat TRILINEAR)
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = MAX_ANISO;
+    // DŮLEŽITÉ: textury drž ve správném gamma prostoru
+    tex.gammaSpace = true; // zobrazuj jako sRGB (bez „pseudo ztmavení“)
+  }
+  return m;
+}
   }
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
