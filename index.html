@@ -636,64 +636,72 @@ function setVideoToFrame(
     return new BABYLON.Vector3(nx, 0, nz);
   }
 
-  function addFrame(pos, rotY=0, wall='front'){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-      depth: 0.06
-    }, scene);
-    box.position = pos.add(normalOffset(rotY, 0.0)); box.rotation.y = rotY; box.isPickable = true;
+  function addFrame(pos, rotY = 0, wall = 'front') {
+  const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+    width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+    height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+    depth: 0.06
+  }, scene);
+  box.position = pos.add(normalOffset(rotY, 0.0));
+  box.rotation.y = rotY;
+  box.isPickable = true;
 
-    box.subMeshes = [];
-    const indices = box.getIndices(); const verticesCount = box.getTotalVertices();
-    let idx = 0; const perFace = indices.length / 6;
-    for (let f=0; f<6; f++){ new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box); idx += perFace; }
-    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+  // Submeshe pro MultiMaterial rámečku
+  box.subMeshes = [];
+  const indices = box.getIndices();
+  const verticesCount = box.getTotalVertices();
+  let idx = 0; const perFace = indices.length / 6;
+  for (let f = 0; f < 6; f++) {
+    new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
+    idx += perFace;
+  }
+  box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
 
-    
-const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-  width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-}, scene);
-f.position = pos.add(normalOffset(rotY, 0.04));
-f.rotation.y = rotY + Math.PI;
-f.rotation.y = rotY;
-f.isPickable = true;
+  // === PLOCHA S OBRAZEM (musí koukat dovnitř místnosti) ===
+  const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+    width: FRAME_SIZE.W,
+    height: FRAME_SIZE.H,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  f.position = pos.add(normalOffset(rotY, 0.04));
+  f.rotation.y = rotY;         // << jen rotY, bez +Math.PI
+  f.isPickable = true;
 
-
-    // Placeholder textura (správný poměr rámu) – nahradí se po načtení WebP
-    {
-      const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
-      const dt = makeDT("ph_img", w, h, genMipmaps);
-      const ctx = dt.getContext();
-      drawChecker(ctx, w, h);
-      dt.update();
-      const fMat = unlitTex(dt); fMat.zOffset = -1;
-      f.material = fMat;
-    }
-
-    // Cedulka
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    
-plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
-plac.rotation.y = rotY + Math.PI;
-plac.rotation.y = rotY;
-plac.isPickable = true;
-
-
-    if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
-      plac.position.y += FRAME_DELTA_H * (1/3);
-    }
-
-    const data = { title: "(bez názvu)", url: "", src: "" };
-    drawPlacard(plac, data, rotY, placW, placH);
-
-    return { frame:f, box, placard:plac, data, wall, rotY, pos };
+  // Placeholder textura (správný poměr rámu) – nahradí se po načtení WebP
+  {
+    const { w, h, genMipmaps } = pickFrameTextureSize(FRAME_SIZE.W, FRAME_SIZE.H);
+    const dt = makeDT("ph_img", w, h, genMipmaps);
+    const ctx = dt.getContext();
+    drawChecker(ctx, w, h);
+    dt.update();
+    const fMat = unlitTex(dt, { doubleSided: true }); // bezpečný oboustranný rendering
+    fMat.zOffset = -1;
+    f.material = fMat;
   }
 
+  // === CEDULKA (také dovnitř) ===
+  const placW = FRAME_SIZE.W;
+  const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
+  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+    width: placW,
+    height: placH,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  plac.position = pos
+    .add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0))
+    .add(normalOffset(rotY, 0.03));
+  plac.rotation.y = rotY;      // << jen rotY
+  plac.isPickable = true;
+
+  if (typeof FRAME_DELTA_H === "number" && FRAME_DELTA_H !== 0) {
+    plac.position.y += FRAME_DELTA_H * (1 / 3);
+  }
+
+  const data = { title: "(bez názvu)", url: "", src: "" };
+  drawPlacard(plac, data, rotY, placW, placH);
+
+  return { frame: f, box, placard: plac, data, wall, rotY, pos };
+}
   /* =========================
      LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
   ========================= */
