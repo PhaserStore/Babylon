@@ -149,7 +149,6 @@
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
   const SC_ENABLED = !IS_MOBILE; // mobil: SoundCloud zcela vypnutý
 
-  // no-op hint, aby nepadal buildGalleryLogo()
   function hint(){ /* no-op */ }
 
   const fmtTime = (ms)=>{
@@ -181,7 +180,6 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
-  // === Helpery pro rozměry textur podle poměru rámu ===
   function isPowerOfTwo(n){ return n > 0 && (n & (n - 1)) === 0; }
 
   // PIXEL-PERFECT: přesná textura 432×768 (9:16)
@@ -195,7 +193,7 @@
     }
     const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
     const base = TEX_SIZE;
-    const aspect = Math.max(1e-6, frameW / frameH); // portrait ~ 9/16
+    const aspect = Math.max(1e-6, frameW / frameH);
 
     let h = Math.min(base, cap);
     let w = Math.round(h * aspect);
@@ -245,7 +243,6 @@
     m.backFaceCulling = !doubleSided;
     m.specularColor = new BABYLON.Color3(0,0,0);
 
-    // Barvy 1:1 — renderujeme přes emissive
     m.diffuseTexture = null;
     m.emissiveTexture = tex;
     m.emissiveColor = new BABYLON.Color3(1,1,1);
@@ -778,7 +775,7 @@
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
           const fit = (d.fit === "contain") ? "contain" : "cover";
-          setWebPToFrame(src, it, fit); // << bez TEX_SIZE
+          setWebPToFrame(src, it, fit);
         } else {
           console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
         }
@@ -1067,19 +1064,124 @@
           scWidget.getCurrentSound((s) => { scUpdateTitle(s); scUpdateThumb(s); });
         });
         scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
-  scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
-  const cur = e?.currentPosition || 0;
-  const rel = (typeof e?.relativePosition === "number")
-    ? e.relativePosition
-    : (scDuration ? cur / scDuration : 0);
-  scUpdateTime(cur, scDuration);
-  scUpdateProgress(rel);
-});
+          scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
+          const cur = e?.currentPosition || 0;
+          const rel = (typeof e?.relativePosition === "number")
+            ? e.relativePosition
+            : (scDuration ? cur / scDuration : 0);
+          scUpdateTime(cur, scDuration);
+          scUpdateProgress(rel);
+        });
+        scWidget.bind(window.SC.Widget.Events.FINISH, () => {
+          scUpdateProgress(1);
+        });
+        resolve(scWidget);
+      });
+    });
+  }
 
-### Rychlá oprava chyby
-1) **Přepni na “legacy” bundle** Babylonu (ES5 kompatibilní build):
-```html
-<!-- místo -->
-<script src="https://cdn.babylonjs.com/babylon.js"></script>
-<!-- dej -->
-<script src="https://cdn.babylonjs.com/legacy/babylon.js"></script>
+  /* ========= Bootstrapping, render loop & UI ========= */
+  (async function main(){
+    createScene();
+    applyFixedLayout();
+
+    // Render loop
+    engine.runRenderLoop(()=>{
+      if (scene) scene.render();
+      // měkké ořezy kamery
+      if (camera) {
+        constrainTarget();
+        constrainCameraRadius();
+      }
+    });
+    window.addEventListener("resize", () => engine.resize());
+
+    // Fullscreen & reset buttons
+    const fsBtn = document.getElementById("fullscreenIcon");
+    const resetBtn = document.getElementById("resetCamIcon");
+    fsBtn?.addEventListener("click", toggleFullscreen);
+    fsBtn?.addEventListener("keydown", (e)=>{ if (e.key === "Enter" || e.key === " ") toggleFullscreen(); });
+    resetBtn?.addEventListener("click", ()=> resetCamera({animate:true}));
+    resetBtn?.addEventListener("keydown", (e)=>{ if (e.key === "Enter" || e.key === " ") resetCamera({animate:true}); });
+    document.addEventListener("fullscreenchange", syncFsButton);
+    document.addEventListener("webkitfullscreenchange", syncFsButton);
+
+    // Keyboard shortcut
+    document.addEventListener("keydown", (e)=>{
+      if (e.key === "r" || e.key === "R") resetCamera({animate:true});
+      if (e.key === "f" || e.key === "F") toggleFullscreen();
+    });
+
+    // SoundCloud init (desktop only)
+    try{
+      await loadScApiOnce();
+      await mountScIframeOnce();
+      await initScWidgetOnce();
+    }catch(err){
+      console.warn("SoundCloud init selhal:", err);
+    }
+
+    // SC bar handlers
+    const prevBtn = document.getElementById("barPrev");
+    const playBtn = document.getElementById("barPlay");
+    const pauseBtn = document.getElementById("barPause");
+    const nextBtn = document.getElementById("barNext");
+    const muteBtn = document.getElementById("barMute");
+    const volInp = document.getElementById("barVol");
+    const seek = document.getElementById("scSeek");
+
+    function withSC(fn){
+      if (!SC_ENABLED || !scWidget || !scReady) return;
+      fn(scWidget);
+    }
+
+    prevBtn?.addEventListener("click", ()=> withSC(w => w.prev()));
+    nextBtn?.addEventListener("click", ()=> withSC(w => w.next()));
+    playBtn?.addEventListener("click", ()=> withSC(w => w.play()));
+    pauseBtn?.addEventListener("click", ()=> withSC(w => w.pause()));
+
+    let muted = false;
+    muteBtn?.addEventListener("click", ()=>{
+      withSC(w=>{
+        muted = !muted;
+        w.setVolume(muted ? 0 : Math.max(0, Math.min(100, +(volInp?.value || 80))));
+      });
+    });
+
+    volInp?.addEventListener("input", ()=>{
+      withSC(w=>{
+        if (!muted) w.setVolume(Math.max(0, Math.min(100, +(volInp.value || 0))));
+      });
+    });
+
+    function seekFromClientX(clientX){
+      if (!seek) return;
+      const r = seek.getBoundingClientRect();
+      const rel = Math.max(0, Math.min(1, (clientX - r.left) / Math.max(1, r.width)));
+      scUpdateProgress(rel);
+      withSC(w=>{
+        if (!scDuration) return;
+        const posMs = Math.round(rel * scDuration);
+        w.seekTo(posMs);
+      });
+    }
+    seek?.addEventListener("click", (e)=> seekFromClientX(e.clientX));
+    seek?.addEventListener("keydown", (e)=>{
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const fill = document.getElementById("scSeekFill");
+      const r = Math.max(0, Math.min(1, parseFloat((fill?.style.width || "0").replace("%",""))/100));
+      const delta = (e.key === "ArrowRight") ? 0.02 : -0.02;
+      const rel = Math.max(0, Math.min(1, r + delta));
+      scUpdateProgress(rel);
+      withSC(w=>{
+        if (!scDuration) return;
+        const posMs = Math.round(rel * scDuration);
+        w.seekTo(posMs);
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
+``
