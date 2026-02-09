@@ -283,7 +283,6 @@
     tex.gammaSpace = true; // zobrazuj jako sRGB (bez „pseudo ztmavení“)
   }
   return m;
-
   }
   function makeDT(name, w, h, genMipmaps = true) {
   // Zvol sampling podle mipmap – NPOT => bez mipmap => BILINEAR
@@ -475,16 +474,29 @@
     img.src = safeUrl;
   }
 
-  function setVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}){
-    const vt = new BABYLON.VideoTexture(
-      "vidTex_"+Math.random(), url, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-      { autoPlay: autoplay, loop: loop, muted: muted }
-    );
-    try { vt.video.muted = !!muted; vt.video.loop = !!loop; vt.video.playsInline = true; } catch(e){}
-    const mat = unlitTex(vt); mat.zOffset = -1;
-    targetItem.frame.material = mat;
-    targetItem.videoTex = vt;
-  }
+ function setVideoToFrame(url, targetItem, { loop = true, muted = true, autoplay = true } = {}) {
+  const vt = new BABYLON.VideoTexture(
+    "vidTex_" + Math.random(),
+    url,
+    scene,
+    true,
+    false,
+    BABYLON.Texture.BILINEAR_SAMPLINGMODE, // <<< video = BILINEAR (bez mipmap)
+    { autoPlay: autoplay, loop: loop, muted: muted }
+  );
+  vt.gammaSpace = true;
+
+  try {
+    vt.video.muted = !!muted;
+    vt.video.loop = !!loop;
+    vt.video.playsInline = true;
+  } catch (e) {}
+
+  const mat = unlitTex(vt);
+  mat.zOffset = -1;
+  targetItem.frame.material = mat;
+  targetItem.videoTex = vt;
+}
 
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
@@ -961,7 +973,7 @@
     scene.imageProcessingConfiguration.exposure = 1.0;
     scene.imageProcessingConfiguration.applyByPostProcess = false;
     scene.imageProcessingConfiguration.contrast = 1.0;
-    scene.imageProcessingConfiguration.isEnabled = true;
+    scene.imageProcessingConfiguration.isEnabled = false;
 
     buildRoom();
     buildLED();
