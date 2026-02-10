@@ -800,44 +800,55 @@ function hint(msg){ console.log(msg); }
   }
 
   function assignDataAllWalls(data){
-    const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
-    const isWebPUrl  = (u) => /\.webp$/i.test(u || "");
+  const isVideoUrl = (u) => /\.(mp4|webm|ogg)$/i.test(u || "");
+  const isWebPUrl  = (u) => /\.webp$/i.test(u || "");
 
-    ["front","back","left","right"].forEach(side=>{
-      const items = data[side] || [];
-      const arr   = framesByWall[side] || [];
-      const n = Math.min(items.length, arr.length);
-      for (let i=0;i<n;i++){
-        const it = arr[i]; const d = items[i] || {};
-        const src = d.src || d.video || d.img || "";
+  ["front","back","left","right"].forEach(side=>{
+    const items = data[side] || [];
+    const arr   = framesByWall[side] || [];
+    const n = Math.min(items.length, arr.length);
 
-        it.data.src   = src;
-        it.data.title = d.label || it.data.title || "(bez názvu)";
-        it.data.url   = d.href  || it.data.url || "";
+    for (let i=0; i<n; i++){
+      const it = arr[i];
+      const d  = items[i] || {};
+      const src = d.src || d.video || d.img || "";
 
-        // Cedulka
-        drawPlacard(
-          it.placard,
-          it.data,
-          it.rotY,
-          it.placard._width  || FRAME_SIZE.W,
-          it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10)
-        );
+      it.data.src   = src;
+      it.data.title = d.label || it.data.title || "(bez názvu)";
+      it.data.url   = d.href  || it.data.url || "";
 
-        if (!src) continue;
-        if (isVideoUrl(src)) {
-          setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
-        } else if (isWebPUrl(src)) {
-    setWebPToFrame(src, it, TEX_SIZE, "contain");
-}
+      // Cedulka pod rámem
+      drawPlacard(
+        it.placard,
+        it.data,
+        it.rotY,
+        it.placard._width  || FRAME_SIZE.W,
+        it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10)
+      );
 
-        } else {
-          console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
-          // placeholder zůstává
-        }
+      if (!src) continue;
+
+      if (isVideoUrl(src)) {
+        // VIDEO: letterbox/pillarbox
+        setVideoToFrame(src, it, {
+          loop:  d.loop   !== false,
+          muted: d.muted  !== false,
+          autoplay: true
+        });
       }
-    });
-  }
+      else if (isWebPUrl(src)) {
+        // OBRÁZEK: zobrazit celý bez ořezu (contain)
+        // Volitelně: per‑item můžeš dopsat do DATA: fit:"cover" | "contain"
+        const fit = d.fit || "contain";
+        setWebPToFrame(src, it, TEX_SIZE, fit);
+      }
+      else {
+        console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
+        // placeholder zůstává
+      }
+    }
+  });
+}
 
   /* ========= Picking & zoom ========= */
   function setupPicking(){
