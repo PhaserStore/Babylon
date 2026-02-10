@@ -349,21 +349,54 @@
     }
   }
 
-  /* === Fit/cover kreslení === */
   function fitDrawToCanvas(ctx, bmp, targetW, targetH, frameW, frameH, mode="cover", bg="#000") {
-    const targetR = frameW / frameH, r = bmp.width / bmp.height;
-    let dw, dh, dx=0, dy=0;
-    if (mode === "cover"){
-      if (r > targetR){ dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
-      else            { dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
-    } else {
-      if (r > targetR){ dw = targetW; dh = Math.round(dw / r); dy = Math.round((targetH - dh) / 2); }
-      else            { dh = targetH; dw = Math.round(dh * r); dx = Math.round((targetW - dw) / 2); }
-    }
-    if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,targetW,targetH); }
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp, 0,0,bmp.width,bmp.height, dx,dy,dw,dh);
+  const frameAspect = frameW / frameH;
+  const imgAspect   = bmp.width / bmp.height;
+
+  // ⭐ Pokud má obrázek téměř stejný poměr jako rám — NECHCEME mezery
+  const nearlySame = Math.abs(imgAspect - frameAspect) < 0.02;  // tolerance 2 %
+
+  let dw, dh, dx = 0, dy = 0;
+
+  if (mode === "contain" && nearlySame) {
+    // ⭐ PERFECT FIT for 9:16 images
+    dw = targetW;
+    dh = targetH;
+    dx = 0;
+    dy = 0;
   }
+  else if (mode === "cover"){
+    if (imgAspect > frameAspect){
+      dh = targetH;
+      dw = Math.round(dh * imgAspect);
+      dx = Math.round((targetW - dw) / 2);
+    } else {
+      dw = targetW;
+      dh = Math.round(dw / imgAspect);
+      dy = Math.round((targetH - dh) / 2);
+    }
+  }
+  else { // contain (standard)
+    if (imgAspect > frameAspect){
+      dw = targetW;
+      dh = Math.round(dw / imgAspect);
+      dy = Math.round((targetH - dh) / 2);
+    } else {
+      dh = targetH;
+      dw = Math.round(dh * imgAspect);
+      dx = Math.round((targetW - dw) / 2);
+    }
+  }
+
+  if (bg){
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, targetW, targetH);
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, 0, 0, bmp.width, bmp.height, dx, dy, dw, dh);
+}
 
   /* ===== WebP POUZE PRO RÁMY ===== */
 
