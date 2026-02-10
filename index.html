@@ -828,7 +828,9 @@ function hint(msg){ console.log(msg); }
         if (isVideoUrl(src)) {
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
-          setWebPToFrame(src, it, TEX_SIZE, "cover");
+    setWebPToFrame(src, it, TEX_SIZE, "contain");
+}
+
         } else {
           console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", src);
           // placeholder zůstává
