@@ -671,7 +671,10 @@ function addFrame(pos, rotY=0, wall='front'){
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
-
+    
+// Malá utilita – můžeš klidně nechat jen console.log
+function hint(msg){ console.log(msg); }
+    
   function buildGalleryLogo(){
     const img = new Image();
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
@@ -714,8 +717,7 @@ function addFrame(pos, rotY=0, wall='front'){
     };
     img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
   }
-    // Malá utilita – můžeš klidně nechat jen console.log
-function hint(msg){ console.log(msg); }
+    
 
 
   /* ========= Frames & layout ========= */
