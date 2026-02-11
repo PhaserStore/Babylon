@@ -1309,14 +1309,124 @@ function hint(msg){ console.log(msg); }
   // Globální zkratka R
   window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
 
-  const fullscreenIcon = document.getElementById('fullscreenIcon');
-  if (fullscreenIcon){
-    fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
-    fullscreenIcon.addEventListener('click', toggleFullscreen);
-    fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
-    document.addEventListener('fullscreenchange', syncFsButton);
-    document.addEventListener('webkitfullscreenchange', syncFsButton);
+  /* ========= Mobile Fullscreen + Auto‑Landscape using existing #fullscreenIcon ========= */
+
+// 1) Silou povolíme #fullscreenIcon i na mobilech (přepíšeme media query, co ho schovává)
+(function __forceShowFsIcon(){
+  const style = document.createElement('style');
+  style.id = '__fs_force_show_style';
+  style.textContent = `
+    /* Přepiš případné @media, které schovávají #fullscreenIcon na mobilech */
+    #fullscreenIcon{ display:block !important; visibility:visible !important; opacity:1 !important; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// 2) Pomocné funkce
+function __isIOS(){ return /iP(ad|hone|od)/.test(navigator.userAgent); }
+async function __enterFullscreenRoot(){
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (req) await req.call(el);
+}
+function __exitFullscreenRoot(){
+  const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+  if (ex) ex.call(document);
+}
+function __isFs(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+}
+async function __tryLockLandscape(){
+  try{
+    if (screen.orientation && screen.orientation.lock){
+      await screen.orientation.lock('landscape');
+      console.log('[FS] Landscape lock OK');
+    }
+  }catch(e){ console.warn('[FS] Landscape lock failed:', e); }
+}
+function __overlay(show){
+  const el = document.getElementById('__iosRotateOverlay');
+  if (el) el.style.display = show ? 'flex' : 'none';
+}
+function __syncFsButtonState(){
+  const btn = document.getElementById('fullscreenIcon');
+  if (!btn) return;
+  const on = __isFs();
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno';
+}
+
+// 3) Vytvoříme jemný iOS overlay (1× při startu)
+(function __mountIosOverlayOnce(){
+  if (document.getElementById('__iosRotateOverlay')) return;
+  const o = document.createElement('div');
+  o.id = '__iosRotateOverlay';
+  o.style.cssText = `
+    position:fixed; inset:0; display:none; z-index:999999;
+    background:rgba(0,0,0,.55); color:#fff;
+    font:600 18px/1.35 Poppins,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    backdrop-filter: blur(6px);
+    align-items:center; justify-content:center; text-align:center; padding:22px;
+  `;
+  o.textContent = 'Please rotate your device to landscape for a full-width view.';
+  document.body.appendChild(o);
+})();
+
+// 4) Hlavní toggle logika (vždy používá #fullscreenIcon)
+async function __mobileFullscreenToggle(){
+  if (!__isFs()){
+    await __enterFullscreenRoot();
+    if (!__isIOS()){
+      // Android → zkusíme landscape lock
+      await __tryLockLandscape();
+    } else {
+      // iOS → ukážeme overlay, dokud nebude landscape
+      __overlay(true);
+    }
+  } else {
+    __overlay(false);
+    __exitFullscreenRoot();
   }
+}
+
+// 5) Události pro sync a iOS orientaci
+document.addEventListener('fullscreenchange', __syncFsButtonState);
+document.addEventListener('webkitfullscreenchange', __syncFsButtonState);
+
+window.addEventListener('orientationchange', () => {
+  if (!__isIOS()) return;
+  const angle = (screen.orientation && typeof screen.orientation.angle === 'number')
+    ? screen.orientation.angle
+    : window.orientation; // starší iOS
+  const isLandscape = Math.abs(angle) === 90;
+  if (__isFs()){
+    __overlay(!isLandscape);
+  } else {
+    __overlay(false);
+  }
+});
+
+// 6) Napojíme se na existující #fullscreenIcon (klik + klávesy)
+(function __bindDesktopIconForMobileToo(){
+  const btn = document.getElementById('fullscreenIcon');
+  if (!btn) return;
+  // Ujistíme se, že je vidět a má role/aria
+  btn.style.display = 'block';
+  btn.setAttribute('role', 'button');
+  btn.setAttribute('tabindex', '0');
+  btn.setAttribute('aria-label', 'Fullscreen');
+
+  // Akce pro všechny platformy (desktop i mobil)
+  btn.addEventListener('click', __mobileFullscreenToggle);
+  btn.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      __mobileFullscreenToggle();
+    }
+  });
+
+  __syncFsButtonState();
+})();
   </script>
 </body>
 </html>
