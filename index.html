@@ -1034,23 +1034,25 @@ function hint(msg){ console.log(msg); }
     setupZoomUX();
     return scene;
   }
-// ========= Shooting star (falling star) – DESKTOP, NAD PŘEDNÍ STĚNOU, jen při pohledu nahoru =========
+// ========= Shooting star (falling star) – NAD PŘEDNÍ STĚNOU =========
 function enableShootingStars({
-  minIntervalMs = 12000,
-  maxIntervalMs = 24000,
-  firstSpawnRange = [800, 1800], // první spawn rychle
-  speed = 16,                    // ~ metrů/s v měřítku scény (16×30 m)
-  altitudeOffset = 1.6,          // kolik metrů nad stropem (ROOM.H)
-  xMargin = 1.0,                  // nezačínat/nekončit úplně v rozích
-  zJitter = 0.6,                  // malý rozptyl v Z
-  trailDiameter = 0.32,           // šířka ocasu
-  trailSegments = 140,            // délka ocasu (počet segmentů)
-  starSize = 0.26,                // průměr „hlavičky“ hvězdy
-  colorHex = "#e8f3ff",           // barva žáru
-  requireUpwardView = true,       // spouštět jen když kamera kouká nahoru
-  upwardDot = 0.28                // práh „jak moc“ nahoru (0..1)
+  minIntervalMs = 9000,
+  maxIntervalMs = 18000,
+  firstSpawnRange = [500, 1200],  // první hvězda rychle
+  speed = 13,                     // m/s v měřítku scény (16×30 m)
+  altitudeOffset = 1.8,           // kolik metrů nad stropem (ROOM.H)
+  xMargin = 1.2,                   // nezačínat/nekončit úplně v rozích
+  zJitter = 0.4,                   // malý rozptyl v Z
+  trailDiameter = 0.40,            // šířka ocasu
+  trailSegments = 140,             // délka ocasu (počet segmentů)
+  starSize = 0.33,                 // průměr „hlavičky“ hvězdy
+  colorHex = "#e8f3ff",            // barva žáru
+  requireUpwardView = false,       // ❗ vypnuto, ať hvězdy vidíš hned
+  upwardDot = 0.28                 // (ponecháno pro případný návrat)
 } = {}) {
   if (!scene || !camera) return;
+
+  console.log("[ShootingStar] init", { minIntervalMs, maxIntervalMs, firstSpawnRange });
 
   // Materiály (svítí přes GlowLayer)
   const starMat = new BABYLON.StandardMaterial("shootStarMat", scene);
@@ -1067,23 +1069,20 @@ function enableShootingStars({
   const FRONT_Z = ROOM.D/2 - 0.3; // těsně "před" přední stěnou (z vnitřní strany)
 
   function isLookingUp(){
-    // Vektor směru kamery (už ho ve scéně používáš)
-    const dir = (function getOrbitDir(alpha, beta){
-      const sinBeta = Math.sin(beta);
-      return new BABYLON.Vector3(
-        Math.cos(alpha) * sinBeta,
-        Math.cos(beta),
-        Math.sin(alpha) * sinBeta
-      );
-    })(camera.alpha, camera.beta);
-    // Y složka směru (nahoru) – čím víc, tím víc „look up“
+    // Vektor směru kamery (stejná logika, co už používáš)
+    const sinBeta = Math.sin(camera.beta);
+    const dir = new BABYLON.Vector3(
+      Math.cos(camera.alpha) * sinBeta,
+      Math.cos(camera.beta),
+      Math.sin(camera.alpha) * sinBeta
+    );
     return dir.y > upwardDot;
   }
 
   function spawnOne(){
-    // Pokud chceme hvězdy jen při pohledu nahoru, a zrovna nekoukáme, odlož to
     if (requireUpwardView && !isLookingUp()){
-      scheduleNext(true); // zkus brzy znovu
+      // Koukáme málo nahoru – zkus to brzy znovu
+      setTimeout(spawnOne, 800);
       return;
     }
 
@@ -1158,6 +1157,7 @@ function enableShootingStars({
   function scheduleNext(first=false){
     const ms = first ? randBetween(firstSpawnRange[0], firstSpawnRange[1])
                      : randBetween(minIntervalMs, maxIntervalMs);
+    console.log("[ShootingStar] schedule next in", Math.round(ms), "ms");
     setTimeout(()=>{
       spawnOne();
       scheduleNext(false);
@@ -1166,25 +1166,6 @@ function enableShootingStars({
 
   // První hvězda rychle, pak v intervalu
   scheduleNext(true);
-  if (!IS_MOBILE){
-  enableShootingStars({
-    minIntervalMs: 9000,
-    maxIntervalMs: 18000,
-    firstSpawnRange: [500, 1200],
-
-    speed: 13,
-    altitudeOffset: 1.8,    // výška nad stropem
-    xMargin: 1.2,
-    zJitter: 0.4,
-
-    trailDiameter: 0.4,
-    trailSegments: 140,
-    starSize: 0.33,
-    colorHex: "#e8f3ff",
-
-    requireUpwardView: false // ⭐ Vypnuto, aby hvězdy konečně šly vidět
-  });
-}
 }
 // ⭐ Spustit padající hvězdy jen na desktopu
 if (!IS_MOBILE){
