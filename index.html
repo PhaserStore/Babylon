@@ -1034,22 +1034,25 @@ function hint(msg){ console.log(msg); }
     setupZoomUX();
     return scene;
   }
-// ========= Shooting star (falling star) – OPRAVENÁ FUNKCE =========
+// ========= Shooting star (falling star) – DESKTOP, NAD PŘEDNÍ STĚNOU, jen při pohledu nahoru =========
 function enableShootingStars({
   minIntervalMs = 12000,
-  maxIntervalMs = 28000,
-  speed = 18,               // scéna je v metrech: 16×30, tady stačí ~15–22 m/s
-  altitudeOffset = 2.0,     // kolik nad stropem (ROOM.H)
-  pathMarginX = 6,          // jak daleko od stěn (X) začít/končit
-  pathJitterZ = 10,         // odchylka v Z, aby to nebyla rovná linka
-  trailDiameter = 0.35,     // šířka ocasu (v metrech)
-  trailSegments = 120,      // délka ocasu v segmentech
-  starSize = 0.22,          // průměr „hlavičky“ (koule)
-  colorHex = "#e8f3ff"      // barva žáru (studená bílá s nádechem modré)
+  maxIntervalMs = 24000,
+  firstSpawnRange = [800, 1800], // první spawn rychle
+  speed = 16,                    // ~ metrů/s v měřítku scény (16×30 m)
+  altitudeOffset = 1.6,          // kolik metrů nad stropem (ROOM.H)
+  xMargin = 1.0,                  // nezačínat/nekončit úplně v rozích
+  zJitter = 0.6,                  // malý rozptyl v Z
+  trailDiameter = 0.32,           // šířka ocasu
+  trailSegments = 140,            // délka ocasu (počet segmentů)
+  starSize = 0.26,                // průměr „hlavičky“ hvězdy
+  colorHex = "#e8f3ff",           // barva žáru
+  requireUpwardView = true,       // spouštět jen když kamera kouká nahoru
+  upwardDot = 0.28                // práh „jak moc“ nahoru (0..1)
 } = {}) {
-  if (!scene) return;
+  if (!scene || !camera) return;
 
-  // Materiály (svítí přes GlowLayer – hvězdu i trail přidáme do includedOnly)
+  // Materiály (svítí přes GlowLayer)
   const starMat = new BABYLON.StandardMaterial("shootStarMat", scene);
   starMat.disableLighting = true;
   starMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
@@ -1061,19 +1064,44 @@ function enableShootingStars({
   trailMat.alpha = 0.9;
 
   const randBetween = (a,b)=> a + Math.random()*(b-a);
+  const FRONT_Z = ROOM.D/2 - 0.3; // těsně "před" přední stěnou (z vnitřní strany)
+
+  function isLookingUp(){
+    // Vektor směru kamery (už ho ve scéně používáš)
+    const dir = (function getOrbitDir(alpha, beta){
+      const sinBeta = Math.sin(beta);
+      return new BABYLON.Vector3(
+        Math.cos(alpha) * sinBeta,
+        Math.cos(beta),
+        Math.sin(alpha) * sinBeta
+      );
+    })(camera.alpha, camera.beta);
+    // Y složka směru (nahoru) – čím víc, tím víc „look up“
+    return dir.y > upwardDot;
+  }
 
   function spawnOne(){
-    // ✦ Trajektorie: přes otvor ve stropě, těsně nad stropem
-    const y = ROOM.H + Math.max(0.5, altitudeOffset);
+    // Pokud chceme hvězdy jen při pohledu nahoru, a zrovna nekoukáme, odlož to
+    if (requireUpwardView && !isLookingUp()){
+      scheduleNext(true); // zkus brzy znovu
+      return;
+    }
 
-    // Start a end tak, aby to přeletělo nad galerií „šikmo“
-    const dirSign = Math.random() < 0.5 ? 1 : -1; // L→R nebo R→L
-    const startX  = dirSign * (ROOM.W/2 - pathMarginX);
-    const endX    = -startX;
+    // ✦ Trajektorie: vždy nad PŘEDNÍ STĚNOU (Z ~ FRONT_Z), lehce nad stropem
+    const y = ROOM.H + Math.max(0.4, altitudeOffset);
 
-    const centerZ = randBetween(-ROOM.D*0.15, ROOM.D*0.15); // někde nad středem
-    const startZ  = centerZ + randBetween(-pathJitterZ, pathJitterZ);
-    const endZ    = centerZ + randBetween(-pathJitterZ, pathJitterZ);
+    // Start a end přes celou šířku místnosti, s malým okrajem
+    const leftX  = -ROOM.W/2 + xMargin;
+    const rightX =  ROOM.W/2 - xMargin;
+
+    // náhodný směr L→R nebo R→L
+    const LtoR = Math.random() < 0.5;
+    const startX = LtoR ? leftX : rightX;
+    const endX   = LtoR ? rightX : leftX;
+
+    // malá odchylka v Z, ale držíme se u FRONT_Z
+    const startZ = FRONT_Z + randBetween(-zJitter, zJitter);
+    const endZ   = FRONT_Z + randBetween(-zJitter, zJitter);
 
     const start = new BABYLON.Vector3(startX, y, startZ);
     const end   = new BABYLON.Vector3(endX,   y, endZ);
@@ -1094,15 +1122,16 @@ function enableShootingStars({
     // Pohyb
     const dir = end.subtract(start).normalize();
     const vel = dir.scale(speed); // m/s
-    const maxFlightTime = start.distanceTo(end) / speed; // s
-    const FADE_T = Math.min(0.4, maxFlightTime * 0.45);
+    const maxFlightTime = start.distanceTo(end) / speed;
+    const FADE_T = Math.min(0.45, maxFlightTime * 0.5);
 
     let t = 0;
-    const observer = scene.onBeforeRenderObservable.add(()=>{
+    const beforeObs = scene.onBeforeRenderObservable.add(()=>{
       const dt = scene.getEngine().getDeltaTime() / 1000;
       t += dt;
       star.position.addInPlace(vel.scale(dt));
 
+      // jemný fade-out ke konci
       const timeLeft = maxFlightTime - t;
       if (timeLeft <= FADE_T){
         const k = Math.max(0, timeLeft / FADE_T);
@@ -1111,7 +1140,7 @@ function enableShootingStars({
       }
 
       if (t >= maxFlightTime){
-        scene.onBeforeRenderObservable.remove(observer);
+        scene.onBeforeRenderObservable.remove(beforeObs);
         try {
           if (glow){
             glow.removeIncludedOnlyMesh(star);
@@ -1123,19 +1152,19 @@ function enableShootingStars({
       }
     });
 
-    // Debug do konzole, ať víš, že se spawn stalo
-    console.log("[ShootingStar] spawned", { y, startX, endX, startZ, endZ, speed });
+    console.log("[ShootingStar] spawn over FRONT wall", { y, startX, endX, z: FRONT_Z, speed });
   }
 
   function scheduleNext(first=false){
-    const ms = first ? randBetween(1000, 3000) : randBetween(minIntervalMs, maxIntervalMs);
+    const ms = first ? randBetween(firstSpawnRange[0], firstSpawnRange[1])
+                     : randBetween(minIntervalMs, maxIntervalMs);
     setTimeout(()=>{
       spawnOne();
       scheduleNext(false);
     }, ms);
   }
 
-  // První hvězda rychleji, pak náhodně
+  // První hvězda rychle, pak v intervalu
   scheduleNext(true);
 }
 // ⭐ Spustit padající hvězdy jen na desktopu
