@@ -1034,7 +1034,116 @@ function hint(msg){ console.log(msg); }
     setupZoomUX();
     return scene;
   }
+// ========= Shooting star (falling star) – FUNKCE =========
+function enableShootingStars({
+  minIntervalMs = 15000,
+  maxIntervalMs = 45000,
+  speed = 220,
+  altitude = 280,
+  trailLength = 35,
+  starSize = 0.14,
+  colorHex = "#cfe8ff"
+} = {}) {
+  if (!scene) return;
 
+  // Materiály
+  const starMat = new BABYLON.StandardMaterial("shootStarMat", scene);
+  starMat.disableLighting = true;
+  starMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
+  starMat.alpha = 1.0;
+
+  const trailMat = new BABYLON.StandardMaterial("shootTrailMat", scene);
+  trailMat.disableLighting = true;
+  trailMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
+  trailMat.alpha = 0.9;
+
+  const randBetween = (a,b)=> a + Math.random()*(b-a);
+  const MARGIN = 500;
+
+  function spawnOne(){
+    // směr L↔R a mírná odchylka v Z
+    const dirSign = Math.random() < 0.5 ? 1 : -1;
+    const startX = dirSign * (ROOM.W/2 + MARGIN);
+    const endX   = -startX;
+
+    const startZ = randBetween(-ROOM.D/2 - MARGIN, ROOM.D/2 + MARGIN);
+    const endZ   = startZ + randBetween(-250, 250);
+
+    const y = Math.max(ROOM.H + 0.5, altitude);
+    const start = new BABYLON.Vector3(startX, y, startZ);
+    const end   = new BABYLON.Vector3(endX,   y, endZ);
+
+    const star = BABYLON.MeshBuilder.CreateSphere("shootStar", {diameter: starSize, segments: 8}, scene);
+    star.position.copyFrom(start);
+    star.material = starMat;
+    star.isPickable = false;
+    if (glow) glow.addIncludedOnlyMesh(star);
+
+    // Trail (ocásek)
+    const trail = new BABYLON.TrailMesh("shootTrail", star, scene, trailLength, 60, true);
+    trail.material = trailMat;
+    trail.isPickable = false;
+    if (glow) glow.addIncludedOnlyMesh(trail);
+
+    const dir = end.subtract(start).normalize();
+    const vel = dir.scale(speed);
+
+    const maxFlightTime = start.distanceTo(end) / speed;
+    const FADE_T = Math.min(0.35, maxFlightTime * 0.4);
+    let t = 0;
+
+    const observer = scene.onBeforeRenderObservable.add(()=>{
+      const dt = scene.getEngine().getDeltaTime() / 1000;
+      t += dt;
+
+      star.position.addInPlace(vel.scale(dt));
+
+      // fade-out závěr
+      const timeLeft = maxFlightTime - t;
+      if (timeLeft <= FADE_T){
+        const k = Math.max(0, timeLeft / FADE_T);
+        star.material.alpha  = k;
+        trail.material.alpha = 0.2 + 0.7*k;
+      }
+
+      if (t >= maxFlightTime){
+        scene.onBeforeRenderObservable.remove(observer);
+        try{
+          if (glow){
+            glow.removeIncludedOnlyMesh(star);
+            glow.removeIncludedOnlyMesh(trail);
+          }
+          trail.dispose();
+          star.dispose();
+        }catch(e){}
+      }
+    });
+  }
+
+  function scheduleNext(){
+    const ms = randBetween(minIntervalMs, maxIntervalMs);
+    setTimeout(()=>{
+      spawnOne();
+      scheduleNext();
+    }, ms);
+  }
+
+  scheduleNext();
+}
+
+// ⭐ Spustit padající hvězdy jen na desktopu
+if (!IS_MOBILE){
+  enableShootingStars({
+    minIntervalMs: 14000,
+    maxIntervalMs: 38000,
+    speed: 240,
+    altitude: 300,
+    trailLength: 45,
+    starSize: 0.16,
+    colorHex: "#e8f3ff"
+  });
+}
+    
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
     const YCENTER = ROOM.H * 0.55;
