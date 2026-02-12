@@ -1034,25 +1034,26 @@ function hint(msg){ console.log(msg); }
     setupZoomUX();
     return scene;
   }
-// ========= Shooting star (falling star) – NAD PŘEDNÍ STĚNOU =========
-function enableShootingStars({
-  minIntervalMs = 9000,
-  maxIntervalMs = 18000,
-  firstSpawnRange = [500, 1200],  // první hvězda rychle
-  speed = 13,                     // m/s v měřítku scény (16×30 m)
-  altitudeOffset = 1.8,           // kolik metrů nad stropem (ROOM.H)
-  xMargin = 1.2,                   // nezačínat/nekončit úplně v rozích
-  zJitter = 0.4,                   // malý rozptyl v Z
-  trailDiameter = 0.40,            // šířka ocasu
-  trailSegments = 140,             // délka ocasu (počet segmentů)
-  starSize = 0.33,                 // průměr „hlavičky“ hvězdy
-  colorHex = "#e8f3ff",            // barva žáru
-  requireUpwardView = false,       // ❗ vypnuto, ať hvězdy vidíš hned
-  upwardDot = 0.28                 // (ponecháno pro případný návrat)
-} = {}) {
-  if (!scene || !camera) return;
+// ⭐ Spustit padající hvězdy jen na desktopu (jedno volání)
+if (!IS_MOBILE){
+  enableShootingStars({
+    minIntervalMs: 9000,
+    maxIntervalMs: 18000,
+    firstSpawnRange: [500, 1200],
 
-  console.log("[ShootingStar] init", { minIntervalMs, maxIntervalMs, firstSpawnRange });
+    speed: 13,
+    altitudeOffset: 1.8,    // výška nad stropem
+    xMargin: 1.2,
+    zJitter: 0.4,
+
+    trailDiameter: 0.40,
+    trailSegments: 140,
+    starSize: 0.33,
+    colorHex: "#e8f3ff",
+
+    requireUpwardView: false // ❗ dočasně vypnuto, ať hvězdy uvidíš hned
+  });
+}
 
   // Materiály (svítí přes GlowLayer)
   const starMat = new BABYLON.StandardMaterial("shootStarMat", scene);
@@ -1167,24 +1168,7 @@ function enableShootingStars({
   // První hvězda rychle, pak v intervalu
   scheduleNext(true);
 }
-// ⭐ Spustit padající hvězdy jen na desktopu
-if (!IS_MOBILE){
-  enableShootingStars({
-    minIntervalMs: 11000,
-    maxIntervalMs: 21000,
-    firstSpawnRange: [700, 1500], // první hvězda rychle
-    speed: 16,
-    altitudeOffset: 1.6,
-    xMargin: 1.0,
-    zJitter: 0.7,
-    trailDiameter: 0.34,
-    trailSegments: 150,
-    starSize: 0.28,
-    colorHex: "#e8f3ff",
-    requireUpwardView: true, // jen při pohledu do nebe
-    upwardDot: 0.28
-  });
-}
+
     
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
