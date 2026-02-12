@@ -1170,13 +1170,19 @@ function enableShootingStars({
 // ⭐ Spustit padající hvězdy jen na desktopu
 if (!IS_MOBILE){
   enableShootingStars({
-    minIntervalMs: 14000,
-    maxIntervalMs: 38000,
-    speed: 240,
-    altitude: 300,
-    trailLength: 45,
-    starSize: 0.16,
-    colorHex: "#e8f3ff"
+    minIntervalMs: 11000,
+    maxIntervalMs: 21000,
+    firstSpawnRange: [700, 1500], // první hvězda rychle
+    speed: 16,
+    altitudeOffset: 1.6,
+    xMargin: 1.0,
+    zJitter: 0.7,
+    trailDiameter: 0.34,
+    trailSegments: 150,
+    starSize: 0.28,
+    colorHex: "#e8f3ff",
+    requireUpwardView: true, // jen při pohledu do nebe
+    upwardDot: 0.28
   });
 }
     
