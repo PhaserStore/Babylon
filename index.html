@@ -1394,27 +1394,28 @@ function updateStars(dtMs) {
   }
 }
 
- /* ========= Boot ========= */
+ <!-- ========= Boot ========= -->
+<script>
 createScene();
 
 (async function boot(){
-  // Fonty (kvůli vykreslení cedulek), pak layout a UI
+  // počkej na fonty (kvůli cedulkám), pak sestav layout a UI
   await document.fonts?.load?.('400 16px Poppins');
   await document.fonts?.load?.('600 16px Poppins');
 
   applyFixedLayout();
   bindBarControls();
 
-  // Spustit hvězdy až po sestavení scény (jen desktop)
+  // spustit hvězdy až po sestavení scény (jen desktop)
   if (STARS_ENABLED) {
     createFallingStars();
   }
 
-  // Výchozí póza kamery (bez animace)
+  // výchozí kamera bez animace při startu
   resetCamera({ animate: false });
 })();
 
-// Volitelně: ošetři ztrátu/obnovu WebGL contextu (hlavně při přepínání tabů)
+// Volitelně: log při ztrátě/obnově WebGL contextu
 try {
   engine.onContextLostObservable.add(() => {
     console.warn('[BJS] WebGL context lost.');
@@ -1426,9 +1427,7 @@ try {
       createFallingStars();
     }
   });
-} catch(_) {
-  // starší verze enginu – nic se neděje
-}
+} catch(_) { /* starší engine – ignoruj */ }
 
 engine.runRenderLoop(() => {
   if (!scene) return;
@@ -1440,12 +1439,12 @@ engine.runRenderLoop(() => {
   // Render frame
   scene.render();
 
-  // ★ Aktualizace hvězd (plynulý fade-in/out dle směru pohledu)
+  // ★ aktualizace hvězd (plynulý fade-in/out dle směru pohledu)
   if (STARS_ENABLED && starsSystem) {
     updateStars(engine.getDeltaTime());
   }
 
-  // Auto-scale pro mobily (ponecháno z tvé logiky)
+  // Auto-scale pro mobily (ponecháno dle tvé logiky)
   if (AutoScale.enabled){
     const now = performance.now();
     AutoScale.accMs += engine.getDeltaTime();
@@ -1480,11 +1479,12 @@ engine.runRenderLoop(() => {
   }
 });
 
-// Resize jen jednou
+// Resize jen jednou (mimo run loop)
 function handleResize(){ applyHardwareScale(); engine.resize(true); }
 window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
 document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
+</script>
 
   /* ========= UI: reset + fullscreen ========= */
   const resetCamIcon = document.getElementById('resetCamIcon');
