@@ -471,6 +471,7 @@ function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
 /* === Video do rámu s letterbox/pillarbox (bez deformace) === */
 function setVideoToFrame(url, targetItem, { loop=true, muted=true, autoplay=true } = {}) {
   const vt = new BABYLON.VideoTexture(
+    vt.gammaSpace = true;   // sRGB video beze změny barevnosti
     "vidTex_"+Math.random(), url, scene, true, false,
     BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
     { autoPlay: autoplay, loop: loop, muted: muted }
