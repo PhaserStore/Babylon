@@ -920,18 +920,29 @@ function hint(msg){ console.log(msg); }
     }, { passive:true });
   }
 
- // Vycentrovat na VÝŠKU přední stěny a mírně "nahoru", aby bylo více nebe
-const RESET_POSE = {
-  // Přesný střed VIDLITELNÉ stěny (WALL_H/2), kde WALL_H = (ROOM.H - 0.04) - 0.005
-  target: new BABYLON.Vector3(0, (ROOM.H - 0.04 - 0.005) / 2, 0),
+ /* ========= Camera reset (opraveno + animace) ========= */
 
-  // Lehce dál = víc nebe v záběru
+// Střed viditelné plochy stěn (od podlahy po límec/strop):
+// WALL_H = (ROOM.H - 0.04) - 0.005  =>  y-centrum = WALL_H / 2
+const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
+
+// Chceme mířit na PŘEDNÍ stěnu (+Z).
+// Target na ose Z posuneme co nejvíc dopředu v rámci měkkých limitů,
+// aby byl kompozičně "uprostřed" a ne v hloubce místnosti.
+const TARGET_FRONT_Z = (ROOM.D / 2) - 0.55; // = CAM_BOUNDS.maxZ (viz CAM_MARGIN = 0.55)
+
+// Finální reset pozice:
+const RESET_POSE = {
+  target: new BABYLON.Vector3(0, WALL_CENTER_Y, TARGET_FRONT_Z),
+
+  // Mírně dál od stěny, aby se nad ní "otevřelo" víc nebe
   radius: 12.8,
 
-  // Směrem k přední stěně: +Z => alpha = +PI/2
+  // Směr k přední stěně: +Z => alpha = +PI/2
   alpha:  Math.PI / 2,
 
-  // Mírně NAD horizont (β > π/2) => vzhlížím k nebi
+  // Lehce NAD horizontem (menší číslo než PI/2 znamená, že kamera míří výš)
+  // Jemně dolaď – pokud chceš ještě víc nebe, zmenši beta (např. Math.PI/1.9).
   beta:   Math.PI / 1.82
 };
 
