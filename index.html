@@ -451,6 +451,7 @@ function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
 
     fitDrawToCanvas(ctx, img, texW, texH, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
     dt.update();
+    dt.gammaSpace = true;   // zachovat sRGB
 
     const mat = unlitTex(dt);
     mat.zOffset = -1;
