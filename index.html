@@ -1395,7 +1395,7 @@ function updateStars(dtMs) {
 }
 
  <!-- ========= Boot ========= -->
-<script>
+
 createScene();
 
 (async function boot(){
@@ -1484,7 +1484,7 @@ function handleResize(){ applyHardwareScale(); engine.resize(true); }
 window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
 document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
-</script>
+
 
   /* ========= UI: reset + fullscreen ========= */
   const resetCamIcon = document.getElementById('resetCamIcon');
