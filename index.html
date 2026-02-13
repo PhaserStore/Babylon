@@ -920,53 +920,14 @@ function hint(msg){ console.log(msg); }
     }, { passive:true });
   }
 
- /* ========= Camera reset (opraveno + animace) ========= */
+  /* ========= Camera reset (opraveno + animace) ========= */
+  const RESET_POSE = {
+    target: new BABYLON.Vector3(0, ROOM.H*0.48, 0),
+    radius: 11.5,
+    alpha:  -Math.PI/2,
+    beta:    Math.PI/2.25
+  };
 
-// střed viditelné výšky stěn (od podlahy po okraj stropu)
-const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
-
-/**
- * Nastaví kompozici tak, aby:
- * - target byl UPROSTŘED místnosti (x=0, y=WALL_CENTER_Y, z=0),
- * - koukáme na PŘEDNÍ stěnu (alpha = +PI/2),
- * - beta je lehce NAD horizontem (víc nebe),
- * - radius je odladěný pro běžné poměry stran (16:9, 21:9…).
- */
-function applyCenterFraming({ animate = true } = {}) {
-  const target = new BABYLON.Vector3(0, WALL_CENTER_Y, 0);
-
-  // držíme vertikální FOV (kompozice se pak méně "rozjíždí" na ultrawide)
-  camera.fovMode = BABYLON.Camera.FOVMODE_VERTICAL_FIXED;
-  camera.fov = 0.84; // ~48°; klidně zkus 0.80–0.88
-
-  const alpha = Math.PI / 2;   // směr k přední stěně (+Z)
-  const beta  = Math.PI / 1.85; // ~97.3° = lehce nad horizontem → víc nebe
-
-  // jemné přizpůsobení radiusu podle poměru stran, aby záběr odpovídal screenu
-  const aspect = engine.getRenderWidth() / engine.getRenderHeight();
-  let radius = 17.0; // výchozí vzdálenost od středu (laděno na 16:9)
-  if (aspect >= 2.0)       radius *= 1.06; // 21:9 → mírně dál
-  else if (aspect <= 1.4)  radius *= 0.94; // 4:3 / 3:2 → trochu blíž
-
-  const pose = { alpha, beta, radius, target };
-
-  if (animate) {
-    animateCameraTo(pose, 420);
-  } else {
-    camera.alpha  = alpha;
-    camera.beta   = beta;
-    camera.radius = radius;
-    camera.setTarget(target.clone());
-  }
-}
-
-// výchozí RESET_POSE už jen odkazuje na "center framing"
-const RESET_POSE = {
-  target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
-  radius: 17.0,
-  alpha:  Math.PI / 2,
-  beta:   Math.PI / 1.85
-};
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
     if (!camera) return;
 
@@ -1291,10 +1252,7 @@ const RESET_POSE = {
     await document.fonts?.load?.('600 16px Poppins');
     applyFixedLayout();
     bindBarControls();
-    
-/ místo prostého resetCamera():
-applyCenterFraming({ animate: false }); // přesné výchozí zarámování
-
+    resetCamera({animate:false}); // nastav výchozí pozici (bez animace při startu)
   })();
 
   engine.runRenderLoop(()=>{
