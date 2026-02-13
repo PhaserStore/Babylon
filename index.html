@@ -1270,6 +1270,134 @@ scene.imageProcessingConfiguration.contrast = 1.0;
     }
   }
 
+// === FALLING STARS (desktop only) ===========================================
+const STARS_ENABLED = !IS_MOBILE;  // jen desktop
+let starsSystem = null;
+let starsRoot = null;
+
+// geometrie z místnosti
+// ROOM: { W:16, D:30, H:13 }
+// Přední stěna je na z ≈ +ROOM.D/2
+function createFallingStars() {
+  if (!STARS_ENABLED || !scene) return;
+
+  // Kotevní uzel ~ “nebe” nad přední stěnou (trochu před stěnu a do prostoru)
+  starsRoot = new BABYLON.TransformNode("starsRoot", scene);
+  const zFront = ROOM.D/2 - 0.4;      // lehce před stěnou
+  const yBase  = ROOM.H - 0.2;        // těsně pod stropní hranu
+  starsRoot.position = new BABYLON.Vector3(0, yBase, zFront);
+  starsRoot.rotation = new BABYLON.Vector3(0, 0, 0);
+
+  // Emisní box – soustava částic “před” stěnou v okně nebe
+  // Šířku vezmeme podle šířky místnosti, hloubku malou (pásmo před stěnou)
+  const EMIT_W = ROOM.W * 0.85;   // přes celou “přední oblohu”
+  const EMIT_H = ROOM.H * 0.35;   // horní pruh
+  const EMIT_D = 0.6;             // slabá hloubka před stěnou
+
+  // CPU ParticleSystem – jednoduché, spolehlivé
+  const ps = new BABYLON.ParticleSystem("fallingStars", 1200, scene);
+  starsSystem = ps;
+
+  // Textura částic (pokud nemáš, můžeš řádek zakomentovat a jet “bez textury”)
+  try {
+    ps.particleTexture = new BABYLON.Texture("./assets/star.png", scene, true, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+  } catch(e) { /* optional */}
+  
+  // Emitor: box emitter
+  const emitterBox = BABYLON.MeshBuilder.CreateBox("starsEmitterBox", {
+    width: EMIT_W,
+    height: EMIT_H,
+    depth: EMIT_D
+  }, scene);
+  emitterBox.isVisible = false;
+  emitterBox.isPickable = false;
+  emitterBox.parent = starsRoot;
+
+  ps.emitter = emitterBox;
+  ps.createBoxEmitter(
+    // emit from box volume (random)
+    new BABYLON.Vector3(-EMIT_W/2, -EMIT_H/2, -EMIT_D/2),
+    new BABYLON.Vector3(+EMIT_W/2, +EMIT_H/2, +EMIT_D/2),
+    // direction1 - direction2 (směr)
+    new BABYLON.Vector3(-0.25, -1.00, -0.15), // mírně šikmo dolů/do místnosti
+    new BABYLON.Vector3(+0.25, -1.25, -0.45)  // rozptyl směru
+  );
+
+  // Základní vzhled částic (bílé, jemné)
+  ps.color1 = new BABYLON.Color4(1,1,1,1);
+  ps.color2 = new BABYLON.Color4(1,1,1,0.8);
+  ps.colorDead = new BABYLON.Color4(1,1,1,0);
+
+  // Velikost hvězd
+  ps.minSize = 0.015;
+  ps.maxSize = 0.06;
+
+  // Život a rychlost (padání)
+  ps.minLifeTime = 1.2;
+  ps.maxLifeTime = 2.4;
+  ps.minEmitPower = 1.8;
+  ps.maxEmitPower = 3.8;
+  ps.addVelocityGradient(0, 1.0);
+  ps.addVelocityGradient(1, 1.0);
+
+  // Emisní rychlost (počet částic za sekundu)
+  ps.emitRate = 320;
+
+  // Gravitace – jemně stáhne dolů
+  ps.gravity = new BABYLON.Vector3(0, -0.6, 0);
+
+  // Blend mód: additive (hvězdy “svítí”)
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+
+  // Vypneme hloubkové testy, ať jemné světelné tečky “probijí” i ve švech,
+  // ale ponecháme depthWrite = false (default u částic)
+  ps.isBillboardBased = true;
+
+  // Aktivovat glow?
+  // Glow layer bere emissive – částice jsou texturou, additive blend vypadá skvěle
+  // (nic dalšího netřeba, glow už máš)
+  // Start hned a pak budeme pauzovat/pouštět podle úhlu kamery:
+  ps.start();
+}
+
+// Jednoduchý watcher pohledu: “koukáme nahoru k nebi?”
+function shouldShowStars() {
+  if (!camera) return false;
+
+  // 1) Podle beta – když je beta menší, koukáš víc nahoru.
+  // U tebe je default beta ~ PI/1.88 (~1.67). Zde hranice pro “nahoru”:
+  const lookingUpByBeta = camera.beta < 1.35; // klidně doladit (nižší = víc vzhůru)
+
+  // 2) A zároveň ať cíl (target) je poblíž přední stěny (koukáš dopředu & nahoru)
+  const frontZ = ROOM.D/2;
+  const closeToFront = (frontZ - camera.target.z) < 6.0; // v dosahu přední stěny
+
+  return lookingUpByBeta && closeToFront;
+}
+
+// Plynulé “zapnutí” a “vypnutí” emisního rate (ať to nebliká)
+let starsVisible = false;
+let starsFade = 0; // 0 .. 1
+function updateStars(dtMs) {
+  if (!starsSystem) return;
+
+  const want = shouldShowStars();
+  const fadeSpeed = 0.005; // rychlost přechodu
+
+  if (want) starsFade = Math.min(1, starsFade + dtMs * fadeSpeed);
+  else      starsFade = Math.max(0, starsFade - dtMs * fadeSpeed);
+
+  const baseEmit = 320;              // shodné s ps.emitRate v create
+  starsSystem.emitRate = baseEmit * starsFade;
+
+  // Udržet pozici rootu tak, aby “nebe” bylo vždy relativně vepředu
+  // (jemný parallax podle targetu)
+  if (starsRoot) {
+    starsRoot.position.x = BABYLON.Scalar.Lerp(starsRoot.position.x, 0, 0.1);
+    starsRoot.position.z = BABYLON.Scalar.Lerp(starsRoot.position.z, ROOM.D/2 - 0.4, 0.1);
+  }
+}
+
   /* ========= Boot ========= */
   createScene();
   (async function boot(){
@@ -1282,6 +1410,39 @@ scene.imageProcessingConfiguration.contrast = 1.0;
 
   engine.runRenderLoop(()=>{
     if (!scene) return;
+
+    createScene();
+
+// po vytvoření scény:
+if (STARS_ENABLED) {
+  createFallingStars();
+}
+
+(async function boot(){
+  await document.fonts?.load?.('400 16px Poppins');
+  await document.fonts?.load?.('600 16px Poppins');
+  applyFixedLayout();
+  bindBarControls();
+  resetCamera({animate:false});
+})();
+
+engine.runRenderLoop(() => {
+  if (!scene) return;
+
+  constrainTarget();
+  constrainCameraRadius();
+
+  scene.render();
+
+  // Auto-scale …
+  // ...
+
+  // ★ aktualizace hvězd
+  if (STARS_ENABLED && starsSystem) {
+    updateStars(engine.getDeltaTime());
+  }
+});
+    
 
     // Kamera uvnitř místnosti
     constrainTarget();
