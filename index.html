@@ -1407,7 +1407,7 @@ createScene();
   applyFixedLayout();
   bindBarControls?.();          // pokud máš definované
   resetCamera({animate:false});
-  addFallingStars();            // <<< spustí hvězdy + trail
+  startShootingStars();         // <<< jednou za čas jedna čára nad "nebem"
 })();
 
 /* ========= Render loop ========= */
