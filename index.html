@@ -1394,7 +1394,7 @@ function updateStars(dtMs) {
   }
 }
 
- <!-- ========= Boot ========= -->
+ /* ========= Boot ========= */
 
 createScene();
 
@@ -1422,7 +1422,6 @@ try {
   });
   engine.onContextRestoredObservable.add(() => {
     console.warn('[BJS] WebGL context restored.');
-    // Pokud by částice po obnově nebyly, vytvoř je znovu:
     if (STARS_ENABLED && !starsSystem) {
       createFallingStars();
     }
@@ -1432,19 +1431,14 @@ try {
 engine.runRenderLoop(() => {
   if (!scene) return;
 
-  // Kamera uvnitř místnosti
   constrainTarget();
   constrainCameraRadius();
-
-  // Render frame
   scene.render();
 
-  // ★ aktualizace hvězd (plynulý fade-in/out dle směru pohledu)
   if (STARS_ENABLED && starsSystem) {
     updateStars(engine.getDeltaTime());
   }
 
-  // Auto-scale pro mobily (ponecháno dle tvé logiky)
   if (AutoScale.enabled){
     const now = performance.now();
     AutoScale.accMs += engine.getDeltaTime();
