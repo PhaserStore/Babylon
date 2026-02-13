@@ -922,11 +922,22 @@ function hint(msg){ console.log(msg); }
 
   /* ========= Camera reset (opraveno + animace) ========= */
   const RESET_POSE = {
-    target: new BABYLON.Vector3(0, ROOM.H*0.48, 0),
-    radius: 11.5,
-    alpha:  -Math.PI/2,
-    beta:    Math.PI/2.25
-  };
+  // Target uprostřed místnosti – ať jsou "v dosahu" všechny stěny
+  target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
+
+  // Dálka od středu – základ pro 16:9; klidně dolaď o ±0.5
+  radius: 17.0,
+
+  // Směr na PŘEDNÍ stěnu (+Z)
+  alpha:  Math.PI / 2,
+
+  // Lehce NAD horizontem → víc oblohy, ale pořád vycentrovaný dojem na výšku
+  // (pro "o chlup výš" zkus 1.86–1.92; menší hodnota = víc vzhůru)
+  beta:   Math.PI / 1.88
+};
+
+    // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
+const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
 
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
     if (!camera) return;
