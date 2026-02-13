@@ -921,7 +921,10 @@ function hint(msg){ console.log(msg); }
   }
 
   /* ========= Camera reset (opraveno + animace) ========= */
-  const RESET_POSE = {
+  // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
+const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
+    
+    const RESET_POSE = {
   // Target uprostřed místnosti – ať jsou "v dosahu" všechny stěny
   target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
 
@@ -936,8 +939,7 @@ function hint(msg){ console.log(msg); }
   beta:   Math.PI / 1.88
 };
 
-    // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
-const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
+    
 
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
     if (!camera) return;
