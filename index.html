@@ -439,6 +439,7 @@ function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
     const { texW, texH } = getFrameTexSize(); // textura 9:16
 
     const dt = makeDT("imgDT_"+Math.random(), texW, texH, !IS_MOBILE);
+    dt.gammaSpace = true; // zachovat sRGB
     const ctx = dt.getContext();
 
     fitDrawToCanvas(ctx, img, texW, texH, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
