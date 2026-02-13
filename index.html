@@ -920,13 +920,20 @@ function hint(msg){ console.log(msg); }
     }, { passive:true });
   }
 
-  /* ========= Camera reset (opraveno + animace) ========= */
-  const RESET_POSE = {
-    target: new BABYLON.Vector3(0, ROOM.H*0.48, 0),
-    radius: 11.5,
-    alpha:  -Math.PI/2,
-    beta:    Math.PI/2.25
-  };
+ // Vycentrovat na VÝŠKU přední stěny a mírně "nahoru", aby bylo více nebe
+const RESET_POSE = {
+  // Přesný střed VIDLITELNÉ stěny (WALL_H/2), kde WALL_H = (ROOM.H - 0.04) - 0.005
+  target: new BABYLON.Vector3(0, (ROOM.H - 0.04 - 0.005) / 2, 0),
+
+  // Lehce dál = víc nebe v záběru
+  radius: 12.8,
+
+  // Směrem k přední stěně: +Z => alpha = +PI/2
+  alpha:  Math.PI / 2,
+
+  // Mírně NAD horizont (β > π/2) => vzhlížím k nebi
+  beta:   Math.PI / 1.82
+};
 
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
     if (!camera) return;
