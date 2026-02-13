@@ -182,7 +182,7 @@
   const MAX_TEX_CAP = Math.max(512, sceneCaps.maxTextureSize || 2048);
   const MOBILE_TEX_CAP  = Math.min(MAX_TEX_CAP, 768);
   const DESKTOP_TEX_CAP = Math.min(MAX_TEX_CAP, 4096);
-  const TEX_BASE = IS_MOBILE ? 1048 : 768;
+  const TEX_BASE = IS_MOBILE ? 1024 : 768;
   const nearestPOT = (n, cap)=> Math.min(Math.pow(2, Math.round(Math.log2(Math.max(2, n)))), cap || n);
   let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
