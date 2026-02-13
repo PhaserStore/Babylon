@@ -1030,12 +1030,12 @@ const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
     glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
-    // ImageProcessing – bez post-processu
-    scene.imageProcessingConfiguration.toneMappingEnabled = false;
-    scene.imageProcessingConfiguration.exposure = 1.0;
-    scene.imageProcessingConfiguration.applyByPostProcess = false;
-    scene.imageProcessingConfiguration.contrast = 1.0;
-    scene.imageProcessingConfiguration.isEnabled = true;
+    // ImageProcessing – zcela vypnout (žádný tone-mapping/kontrast/gamma post-process)
+scene.imageProcessingConfiguration.isEnabled = false;
+scene.imageProcessingConfiguration.applyByPostProcess = false;
+scene.imageProcessingConfiguration.toneMappingEnabled = false;
+scene.imageProcessingConfiguration.exposure = 1.0;
+scene.imageProcessingConfiguration.contrast = 1.0;
 
     buildRoom();
     buildLED();
