@@ -1398,38 +1398,54 @@ function updateStars(dtMs) {
 createScene();
 
 (async function boot(){
-  // počkej na fonty (kvůli cedulkám), pak sestav layout a UI
+  // Fonty (kvůli vykreslení cedulek), pak layout a UI
   await document.fonts?.load?.('400 16px Poppins');
   await document.fonts?.load?.('600 16px Poppins');
 
   applyFixedLayout();
   bindBarControls();
 
-  // spustit hvězdy až po sestavení scény (jen desktop)
+  // Spustit hvězdy až po sestavení scény (jen desktop)
   if (STARS_ENABLED) {
     createFallingStars();
   }
 
-  // výchozí kamera bez animace při startu
+  // Výchozí póza kamery (bez animace)
   resetCamera({ animate: false });
 })();
+
+// Volitelně: ošetři ztrátu/obnovu WebGL contextu (hlavně při přepínání tabů)
+try {
+  engine.onContextLostObservable.add(() => {
+    console.warn('[BJS] WebGL context lost.');
+  });
+  engine.onContextRestoredObservable.add(() => {
+    console.warn('[BJS] WebGL context restored.');
+    // Pokud by částice po obnově nebyly, vytvoř je znovu:
+    if (STARS_ENABLED && !starsSystem) {
+      createFallingStars();
+    }
+  });
+} catch(_) {
+  // starší verze enginu – nic se neděje
+}
 
 engine.runRenderLoop(() => {
   if (!scene) return;
 
-  // udržuj kameru uvnitř místnosti
+  // Kamera uvnitř místnosti
   constrainTarget();
   constrainCameraRadius();
 
-  // render
+  // Render frame
   scene.render();
 
-  // ★ aktualizace hvězd (plynulý fade-in/out dle směru pohledu)
+  // ★ Aktualizace hvězd (plynulý fade-in/out dle směru pohledu)
   if (STARS_ENABLED && starsSystem) {
     updateStars(engine.getDeltaTime());
   }
 
-  // Auto-scale pro mobily (ponecháno dle tvé logiky)
+  // Auto-scale pro mobily (ponecháno z tvé logiky)
   if (AutoScale.enabled){
     const now = performance.now();
     AutoScale.accMs += engine.getDeltaTime();
@@ -1457,52 +1473,18 @@ engine.runRenderLoop(() => {
         }
       }
 
-      AutoScale.accMs   = 0;
-      AutoScale.frames  = 0;
-      AutoScale.lastEval= now;
+      AutoScale.accMs    = 0;
+      AutoScale.frames   = 0;
+      AutoScale.lastEval = now;
     }
   }
 });
-``
-    
 
-    // Kamera uvnitř místnosti
-    constrainTarget();
-    constrainCameraRadius();
-
-    scene.render();
-
-    // Auto-scale pro mobily
-    if (AutoScale.enabled){
-      const now = performance.now();
-      AutoScale.accMs += engine.getDeltaTime();
-      AutoScale.frames++;
-      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-        const avgMs = AutoScale.accMs / AutoScale.frames;
-        let changed = false;
-        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
-          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
-          changed = true;
-        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
-          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
-          changed = true;
-        }
-        if (changed){
-          applyHardwareScale(currentScaleLevel);
-          if (glow){
-            const base = IS_MOBILE ? 36 : 96;
-            glow.blurKernelSize = Math.round( base * (0.9 + 0.2*(1 - (currentScaleLevel-0.33)/(1-0.33))) );
-          }
-        }
-        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
-      }
-    }
-  });
-
-  function handleResize(){ applyHardwareScale(); engine.resize(true); }
-  window.addEventListener("resize", handleResize, { passive:true });
-  window.addEventListener("orientationchange", handleResize);
-  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
+// Resize jen jednou
+function handleResize(){ applyHardwareScale(); engine.resize(true); }
+window.addEventListener("resize", handleResize, { passive:true });
+window.addEventListener("orientationchange", handleResize);
+document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
   /* ========= UI: reset + fullscreen ========= */
   const resetCamIcon = document.getElementById('resetCamIcon');
