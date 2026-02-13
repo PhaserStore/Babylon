@@ -1349,7 +1349,8 @@ function createFallingStars() {
   ps.updateSpeed = 0.015; // méně výpočtů, hladší pád
 
   // Spustíme se základní emitací = 0 (budeme řídit fadováním)
-  ps.emitRate = 0;
+ - ps.emitRate = 0;
++ ps.emitRate = 260; // jen pro test, ať hned něco padá
   ps.start();
 }
 
@@ -1384,8 +1385,9 @@ function updateStars(dtMs) {
   const density = fps < 50 ? 0.6 : fps < 58 ? 0.85 : 1.0;
 
   // Základní emisní rychlost
-  const baseEmit = 240; // tvůj původní rozsah 220–320; 240 je příjemný střed
-  starsSystem.emitRate = baseEmit * starsFade * density;
+ - const baseEmit = 240;
+- starsSystem.emitRate = baseEmit * starsFade * density;
++ starsSystem.emitRate = 240; // TEST: fixní emise na ověření
 
   // Jemný „parallax“ u rootu, aby nebe drželo „u stěny“
   if (starsRoot) {
