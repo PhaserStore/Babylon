@@ -1058,175 +1058,133 @@ function createScene(){
   setupZoomUX();
   return scene;
 }
-/* ========= Falling + Shooting stars s TRAIL ========= */
-let starsPS, shootingPS;
+/* ========= Shooting star with TRAIL (single, above the skylight only) ========= */
 
-// „hlavička“ + TrailMesh
-function spawnTrailStar(startPos, dir, speed, lifeSec, size = 0.18, color = new BABYLON.Color3(1,1,1)) {
-  if (!scene || !BABYLON) return null;
+/** Rozměry otvoru ve stropě (musí sedět s buildCeilingWithAperture({ inw: 0.1 })) */
+const APERTURE_INSET = 0.1;                   // stejné "inw" jako v buildCeilingWithAperture
+const CEIL_Y = ROOM.H - 0.04;                 // výška spodní hrany stropu (z tvé konstrukce)
+const OPEN_W = ROOM.W - 2 * APERTURE_INSET;   // šířka otvoru
+const OPEN_D = ROOM.D - 2 * APERTURE_INSET;   // délka otvoru
 
-  const head = BABYLON.MeshBuilder.CreateSphere("trailHead", { diameter: size }, scene);
-  head.position.copyFrom(startPos);
-
-  const mat = new BABYLON.StandardMaterial("trailHeadMat", scene);
-  mat.emissiveColor = color;
-  mat.disableLighting = true;
-  mat.specularColor = new BABYLON.Color3(0,0,0);
-  head.material = mat;
+/** Vytvoří jednu "padající hvězdu" (hlavička + trail) a odanimuje ji po úsečce nad stropem.
+ *  POZOR: Babylon.js v8 → new TrailMesh(name, generator, scene, diameter, length, autoStart)
+ */
+function spawnOneShootingStar({
+  start,                    // {x,z} v rámci otvoru
+  end,                      // {x,z} v rámci otvoru
+  y = CEIL_Y + 1.2,         // vždy nad stropem
+  lifeSec = 1.4,            // 1–2 s
+  size = 0.2,
+  color = new BABYLON.Color3(1, 1, 1) // případně lehce modrá: (0.9, 0.95, 1)
+}){
+  // Hlavička (emisivní kulička)
+  const head = BABYLON.MeshBuilder.CreateSphere("shootHead", { diameter: size }, scene);
+  head.position.set(start.x, y, start.z);
   head.renderingGroupId = 1;
 
-  let trail = null;
-  if (BABYLON.TrailMesh) {
-    const trailWidth = size * 0.65;
-    const trailPoints = 64;
-    trail = new BABYLON.TrailMesh("trail", head, trailPoints, scene, trailWidth, true);
-    trail.renderingGroupId = 1;
+  const mHead = new BABYLON.StandardMaterial("shootHeadMat", scene);
+  mHead.disableLighting = true;
+  mHead.emissiveColor = color;
+  mHead.specularColor = new BABYLON.Color3(0,0,0);
+  head.material = mHead;
 
-    const tMat = new BABYLON.StandardMaterial("trailSMat", scene);
-    tMat.emissiveColor = color;
-    tMat.alpha = 0.85;
-    tMat.backFaceCulling = false;
-    trail.material = tMat;
-  }
+  // TrailMesh — SPRÁVNÉ pořadí parametrů pro BJS v8!
+  const trailWidth  = size * 0.75; // tloušťka čáry
+  const trailPoints = 84;          // délka čáry (zvyšte pro delší stopu)
+  const trail = new BABYLON.TrailMesh("shootTrail", head, scene, trailWidth, trailPoints, true);
+  trail.renderingGroupId = 1;
 
-  const baseVel = dir.normalize().scale(speed);
-  const wobble = new BABYLON.Vector3(
-    BABYLON.Scalar.RandomRange(-0.15, 0.15),
-    BABYLON.Scalar.RandomRange(-0.08, 0.08),
-    BABYLON.Scalar.RandomRange(-0.15, 0.15)
-  );
+  const mTrail = new BABYLON.StandardMaterial("shootTrailMat", scene);
+  mTrail.disableLighting = true;
+  mTrail.emissiveColor = color;
+  mTrail.alpha = 0.92;
+  mTrail.backFaceCulling = false;
+  trail.material = mTrail;
 
-  let life = lifeSec;
+  // (volitelné) zvýraznit glow layerem
+  try { glow?.addIncludedOnlyMesh(head); glow?.addIncludedOnlyMesh(trail); } catch(e){}
+
+  // Animace po úsečce A → B, s malinkým „wobble“, aby to nebylo pravítko
+  const A = new BABYLON.Vector3(start.x, y, start.z);
+  const B = new BABYLON.Vector3(end.x,   y, end.z);
+
+  const t0 = performance.now();
+  const totalMs = lifeSec * 1000;
   const obs = scene.onBeforeRenderObservable.add(()=>{
-    const dt = engine.getDeltaTime() * 0.001;
-    life -= dt;
-    const k = Math.sin(performance.now()*0.002)*0.5 + 0.5;
-    const vNow = baseVel.add(wobble.scale(k*0.35));
-    head.position.addInPlace(vNow.scale(dt));
+    const t = performance.now();
+    const r = Math.min(1, (t - t0) / totalMs);
 
-    if (life <= 0){
+    const wob = 0.02; // jemné vlnění
+    const px = BABYLON.Scalar.Lerp(A.x, B.x, r) + Math.sin(t*0.01) * wob;
+    const pz = BABYLON.Scalar.Lerp(A.z, B.z, r) + Math.cos(t*0.012) * wob * 0.6;
+    head.position.set(px, y, pz);
+
+    if (r >= 1){
       scene.onBeforeRenderObservable.remove(obs);
-      const t0 = performance.now();
+      // krátké dohasnutí
+      const tFade0 = performance.now();
       const fadeMs = 240;
-      const fadeObs = scene.onBeforeRenderObservable.add(()=>{
-        const r = (performance.now() - t0) / fadeMs;
-        const a = Math.max(0, 0.85*(1 - r));
-        if (trail && trail.material) trail.material.alpha = a;
-        mat.emissiveColor = color.scale(1 - r);
-        if (r >= 1){
-          scene.onBeforeRenderObservable.remove(fadeObs);
-          if (trail) { trail.dispose(); if (trail.material) trail.material.dispose(); }
-          head.dispose(); mat.dispose();
+      const obs2 = scene.onBeforeRenderObservable.add(()=>{
+        const rf = Math.min(1, (performance.now() - tFade0) / fadeMs);
+        mTrail.alpha = 0.92 * (1 - rf);
+        mHead.emissiveColor = color.scale(1 - rf);
+        if (rf >= 1){
+          scene.onBeforeRenderObservable.remove(obs2);
+          try { glow?.removeIncludedOnlyMesh(head); glow?.removeIncludedOnlyMesh(trail); } catch(e){}
+          trail.dispose(); mTrail.dispose?.();
+          head.dispose();  mHead.dispose?.();
         }
       });
     }
   });
-
-  return { head, trail };
 }
 
-function addFallingStars(){
-  if (!scene || !BABYLON) return;
+/** Náhodně zvolí protilehlé hrany otvoru (uvnitř OPEN_W × OPEN_D), aby hvězda letěla napříč */
+function pickEdgePoints(){
+  const halfW = OPEN_W/2 - 0.15; // malá rezerva od rámu
+  const halfD = OPEN_D/2 - 0.15;
+  const horizontal = Math.random() < 0.5;
 
-  const isMobile = (typeof IS_MOBILE !== 'undefined') ? IS_MOBILE : /Mobi|Android/i.test(navigator.userAgent);
-  const area = 20;
-  const topY = 10;
-  const baseCap = isMobile ? 400 : 1200;
-
-  const makePS = (name, capacity) => {
-    return (BABYLON.GPUParticleSystem && BABYLON.GPUParticleSystem.IsSupported)
-      ? new BABYLON.GPUParticleSystem(name, { capacity }, scene)
-      : new BABYLON.ParticleSystem(name, capacity, scene);
-  };
-
-  // déšť
-  starsPS = makePS("stars", baseCap);
-  starsPS.particleTexture = new BABYLON.Texture("assets/star.png", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-  starsPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-  starsPS.renderingGroupId = 1;
-  starsPS.emitter    = new BABYLON.Vector3(0, topY, 0);
-  starsPS.minEmitBox = new BABYLON.Vector3(-area, 0, -area);
-  starsPS.maxEmitBox = new BABYLON.Vector3( area, 0,  area);
-  starsPS.direction1 = new BABYLON.Vector3(-0.25, -1.1,  0.25);
-  starsPS.direction2 = new BABYLON.Vector3( 0.25, -1.6, -0.25);
-  starsPS.gravity    = new BABYLON.Vector3(0, -0.15, 0);
-  starsPS.minLifeTime = 3.0;
-  starsPS.maxLifeTime = 7.0;
-  starsPS.minEmitPower = 0.5;
-  starsPS.maxEmitPower = 1.5;
-  starsPS.updateSpeed  = 0.015;
-  starsPS.minSize   = 0.06;
-  starsPS.maxSize   = 0.22;
-  starsPS.color1    = new BABYLON.Color4(1, 1, 1, 1.0);
-  starsPS.color2    = new BABYLON.Color4(1, 1, 1, 0.9);
-  starsPS.colorDead = new BABYLON.Color4(1, 1, 1, 0.0);
-  starsPS.emitRate  = isMobile ? 140 : 380;
-  if (starsPS.preWarmCycles !== undefined){
-    starsPS.preWarmCycles = 60;
-    starsPS.preWarmStepOffset = 5;
-  }
-  starsPS.start();
-
-  // shooting + trail
-  shootingPS = makePS("shootingStars", 220);
-  shootingPS.particleTexture = new BABYLON.Texture("assets/star.png", scene);
-  shootingPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-  shootingPS.renderingGroupId = 1;
-  shootingPS.emitRate = 0;
-  shootingPS.minSize = 0.06;
-  shootingPS.maxSize = 0.18;
-  shootingPS.minLifeTime = 0.5;
-  shootingPS.maxLifeTime = 1.1;
-  shootingPS.minEmitPower = 6;
-  shootingPS.maxEmitPower = 12;
-  shootingPS.updateSpeed  = 0.02;
-  shootingPS.gravity = new BABYLON.Vector3(0, 0, 0);
-  shootingPS.emitter = new BABYLON.Vector3(0, topY - 1.5, -area);
-  shootingPS.direction1 = new BABYLON.Vector3(1.2, -0.55, 0.8);
-  shootingPS.direction2 = new BABYLON.Vector3(1.6, -0.35, 1.2);
-  shootingPS.start();
-
-  let lastBurst = 0;
-  let nextIn = 2000 + Math.random()*4000;
-
-  scene.onBeforeRenderObservable.add(() => {
-    const t = performance.now();
-    if (t - lastBurst > nextIn){
-      const x = BABYLON.Scalar.RandomRange(-area, area);
-      const z = BABYLON.Scalar.RandomRange(-area, area);
-      const start = new BABYLON.Vector3(x, topY - 1.5, z);
-
-      const dirX = BABYLON.Scalar.RandomRange(0.9, 1.8);
-      const dirZ = BABYLON.Scalar.RandomRange(0.2, 1.4);
-      const dirY = BABYLON.Scalar.RandomRange(-0.75, -0.35);
-      const dir = new BABYLON.Vector3(dirX, dirY, dirZ);
-
-      shootingPS.emitter = start.clone();
-      shootingPS.direction1 = dir.scale(0.7);
-      shootingPS.direction2 = dir.scale(1.1);
-      shootingPS.manualEmitCount = isMobile ? 16 : 32;
-
-      const speed = BABYLON.Scalar.RandomRange(10, 22);
-      const life  = BABYLON.Scalar.RandomRange(0.9, 1.6);
-      const size  = BABYLON.Scalar.RandomRange(0.16, 0.24);
-      spawnTrailStar(start, dir, speed, life, size, new BABYLON.Color3(1,1,1));
-
-      lastBurst = t;
-      nextIn = 2000 + Math.random()*4000;
-    }
-  });
-
-  if (typeof AutoScale !== 'undefined'){
-    scene.onBeforeRenderObservable.add(() => {
-      if (typeof currentScaleLevel !== 'undefined'){
-        const lerp = (currentScaleLevel - (AutoScale?.minLevel ?? 0.33)) / ((AutoScale?.maxLevel ?? 1.0) - (AutoScale?.minLevel ?? 0.33));
-        const density = BABYLON.Scalar.Clamp(1 - lerp, 0.4, 1.0);
-        starsPS.emitRate = (isMobile ? 140 : 380) * density;
-      }
-    });
+  if (horizontal){
+    const z = BABYLON.Scalar.RandomRange(-halfD, halfD);
+    const startLeft = Math.random() < 0.5;
+    const start = { x: startLeft ? -halfW :  halfW, z };
+    const end   = { x: startLeft ?  halfW : -halfW, z: z + BABYLON.Scalar.RandomRange(-0.2, 0.2) };
+    return { start, end };
+  } else {
+    const x = BABYLON.Scalar.RandomRange(-halfW, halfW);
+    const startBack = Math.random() < 0.5;
+    const start = { x, z: startBack ? -halfD :  halfD };
+    const end   = { x: x + BABYLON.Scalar.RandomRange(-0.2, 0.2), z: startBack ?  halfD : -halfD };
+    return { start, end };
   }
 }
 
+let shootingTimer = null;
+
+/** Naplánuje jednu hvězdu a po ní další s náhodným intervalem (6–12 s) */
+function scheduleShootingStar(){
+  const wait = 6000 + Math.random() * 6000; // 6–12 s
+  shootingTimer = setTimeout(()=>{
+    const { start, end } = pickEdgePoints();
+    const life = BABYLON.Scalar.RandomRange(1.0, 1.8);    // ~1–2 s letu
+    const size = BABYLON.Scalar.RandomRange(0.16, 0.24);  // hlavička
+    const y    = CEIL_Y + 1.2;                            // vždy nad stropem
+    const color= new BABYLON.Color3(1, 1, 1);             // nebo (0.9,0.95,1) pro studenější nádech
+
+    spawnOneShootingStar({ start, end, y, lifeSec: life, size, color });
+    scheduleShootingStar(); // plánuj další
+  }, wait);
+}
+
+function startShootingStars(){
+  if (shootingTimer) clearTimeout(shootingTimer);
+  scheduleShootingStar();
+}
+function stopShootingStars(){
+  if (shootingTimer){ clearTimeout(shootingTimer); shootingTimer = null; }
+}
+``
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
     const YCENTER = ROOM.H * 0.55;
