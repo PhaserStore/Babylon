@@ -1034,132 +1034,37 @@ function hint(msg){ console.log(msg); }
     setupZoomUX();
     return scene;
   }
-<script>
-// ===== SHOOTING STARS – definice =====
-function enableShootingStars({
-  minIntervalMs = 9000,
-  maxIntervalMs = 18000,
-  firstSpawnRange = [500, 1200],  // první hvězda rychle
-  speed = 13,                     // m/s v měřítku scény (16×30 m)
-  altitudeOffset = 1.8,           // kolik metrů nad stropem (ROOM.H)
-  xMargin = 1.2,                  // nezačínat/nekončit úplně v rozích
-  zJitter = 0.4,                  // malý rozptyl v Z
-  trailDiameter = 0.40,           // šířka ocasu
-  trailSegments = 140,            // délka ocasu (počet segmentů)
-  starSize = 0.33,                // průměr „hlavičky“ hvězdy
-  colorHex = "#e8f3ff",           // barva žáru
-  requireUpwardView = false,      // vypnuto, ať hvězdy uvidíš hned
-  upwardDot = 0.28                // (ponecháno pro případný návrat)
-} = {}) {
-  if (!scene || !camera) return;
 
-  console.log("[ShootingStar] init", { minIntervalMs, maxIntervalMs, firstSpawnRange });
+  /* ========= Layout apply ========= */
+  function applyFixedLayout() {
+    const YCENTER = ROOM.H * 0.55;
+    const safeWall   = FIXED_LAYOUT.safeWall;
+    const cornerSafe = FIXED_LAYOUT.cornerSafe;
 
-  // Materiály (svítí přes GlowLayer)
-  const starMat = new BABYLON.StandardMaterial("shootStarMat", scene);
-  starMat.disableLighting = true;
-  starMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
-  starMat.alpha = 1.0;
+    const baseW = FIXED_LAYOUT.frame.width;   // 2.2
+    const baseH = FIXED_LAYOUT.frame.height;  // 2.2
+    FRAME_BASE_H = baseH;
 
-  const trailMat = new BABYLON.StandardMaterial("shootTrailMat", scene);
-  trailMat.disableLighting = true;
-  trailMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
-  trailMat.alpha = 0.9;
+    // portrait 9:16
+    const newW = baseW;
+    const newH = baseW * (16/9);
 
-  const randBetween = (a,b)=> a + Math.random()*(b-a);
-  const FRONT_Z = ROOM.D/2 - 0.3; // těsně „před“ přední stěnou (uvnitř místnosti)
+    FRAME_SIZE.W     = newW;
+    FRAME_SIZE.H     = newH;
+    FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
+    FRAME_COLOR      = FIXED_LAYOUT.frame.color;
 
-  function isLookingUp(){
-    const sinBeta = Math.sin(camera.beta);
-    const dir = new BABYLON.Vector3(
-      Math.cos(camera.alpha) * sinBeta,
-      Math.cos(camera.beta),
-      Math.sin(camera.alpha) * sinBeta
-    );
-    return dir.y > upwardDot;
+    FRAME_DELTA_H = newH - baseH;
+    const centerY = YCENTER - FRAME_DELTA_H/2; // ukotvení nahoře
+
+    createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
+    createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
+
+    assignDataAllWalls(DATA);
   }
 
-  function spawnOne(){
-    if (requireUpwardView && !isLookingUp()){
-      setTimeout(spawnOne, 800);
-      return;
-    }
-
-    // Trajektorie: nad PŘEDNÍ STĚNOU, lehce nad stropem
-    const y = ROOM.H + Math.max(0.4, altitudeOffset);
-
-    const leftX  = -ROOM.W/2 + xMargin;
-    const rightX =  ROOM.W/2 - xMargin;
-
-    const LtoR   = Math.random() < 0.5;
-    const startX = LtoR ? leftX  : rightX;
-    const endX   = LtoR ? rightX : leftX;
-
-    const startZ = FRONT_Z + randBetween(-zJitter, zJitter);
-    const endZ   = FRONT_Z + randBetween(-zJitter, zJitter);
-
-    const start = new BABYLON.Vector3(startX, y, startZ);
-    const end   = new BABYLON.Vector3(endX,   y, endZ);
-
-    // Hvězda (koule)
-    const star = BABYLON.MeshBuilder.CreateSphere("shootStar", { diameter: starSize, segments: 12 }, scene);
-    star.position.copyFrom(start);
-    star.material = starMat;
-    star.isPickable = false;
-    if (glow) glow.addIncludedOnlyMesh(star);
-
-    // Trail (diameter = šířka, length = počet segmentů)
-    const trail = new BABYLON.TrailMesh("shootTrail", star, scene, trailDiameter, trailSegments, true);
-    trail.material = trailMat;
-    trail.isPickable = false;
-    if (glow) glow.addIncludedOnlyMesh(trail);
-
-    // Pohyb
-    const dir = end.subtract(start).normalize();
-    const vel = dir.scale(speed); // m/s
-    const maxFlightTime = start.distanceTo(end) / speed;
-    const FADE_T = Math.min(0.45, maxFlightTime * 0.5);
-
-    let t = 0;
-    const beforeObs = scene.onBeforeRenderObservable.add(()=>{
-      const dt = scene.getEngine().getDeltaTime() / 1000;
-      t += dt;
-      star.position.addInPlace(vel.scale(dt));
-
-      const timeLeft = maxFlightTime - t;
-      if (timeLeft <= FADE_T){
-        const k = Math.max(0, timeLeft / FADE_T);
-        star.material.alpha  = k;
-        trail.material.alpha = 0.25 + 0.65 * k;
-      }
-
-      if (t >= maxFlightTime){
-        scene.onBeforeRenderObservable.remove(beforeObs);
-        try{
-          if (glow){
-            glow.removeIncludedOnlyMesh(star);
-            glow.removeIncludedOnlyMesh(trail);
-          }
-          trail.dispose();
-          star.dispose();
-        }catch(e){}
-      }
-    });
-
-    console.log("[ShootingStar] spawn over FRONT wall", { y, startX, endX, z: FRONT_Z, speed });
-  }
-
-  function scheduleNext(first=false){
-    const ms = first ? randBetween(firstSpawnRange[0], firstSpawnRange[1])
-                     : randBetween(minIntervalMs, maxIntervalMs);
-    console.log("[ShootingStar] schedule next in", Math.round(ms), "ms");
-    setTimeout(()=>{ spawnOne(); scheduleNext(false); }, ms);
-  }
-
-  // První hvězda rychle, pak v intervalu
-  scheduleNext(true);
-}
-</script>
   /* ========= Soft camera bounds – keep camera inside the room ========= */
   const CAM_MARGIN = 0.55;
   const CAM_BOUNDS = {
@@ -1356,32 +1261,6 @@ function enableShootingStars({
     // Kamera uvnitř místnosti
     constrainTarget();
     constrainCameraRadius();
-      <script>
-// ⭐ Spustit padající hvězdy jen na desktopu – až bude scéna připravena
-if (!IS_MOBILE){
-  (function startStarsWhenReady(){
-    if (scene && camera){
-      console.log("[ShootingStar] desktop enabled (IS_MOBILE=false)");
-      enableShootingStars({
-        minIntervalMs: 9000,
-        maxIntervalMs: 18000,
-        firstSpawnRange: [500, 1200],
-        speed: 13,
-        altitudeOffset: 1.8,
-        xMargin: 1.2,
-        zJitter: 0.4,
-        trailDiameter: 0.40,
-        trailSegments: 140,
-        starSize: 0.33,
-        colorHex: "#e8f3ff",
-        requireUpwardView: false
-      });
-    } else {
-      setTimeout(startStarsWhenReady, 200);
-    }
-  })();
-}
-</script>
 
     scene.render();
 
