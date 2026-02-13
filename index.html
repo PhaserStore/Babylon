@@ -454,10 +454,9 @@ function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
     dt.update();
     
 
-    const mat = unlitTex(dt);
-    mat.zOffset = -1;
-
-    targetItem.frame.material = mat;
+    const mat = unlitTex(dt, { doubleSided: true }); // ← přidat
+mat.zOffset = -1;
+targetItem.frame.material = mat;
     console.log("[WebP] OK:", safeUrl);
   };
 
@@ -667,9 +666,9 @@ function addFrame(pos, rotY=0, wall='front'){
   const ctx = dt.getContext();
   drawChecker(ctx, phW, phH);
   dt.update();
-  const fMat = unlitTex(dt);
-  fMat.zOffset = -1;
-  f.material = fMat;
+const fMat = unlitTex(dt, { doubleSided: true }); // ← přidat
+fMat.zOffset = -1;
+f.material = fMat;
 
   // cedulka
   const placW = FRAME_SIZE.W;
