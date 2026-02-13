@@ -158,9 +158,6 @@
   const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
   const SC_ENABLED = !IS_MOBILE; // mobil: SoundCloud zcela vypnutý
-    
-    // Desktop‑only vizuální efekty (padající hvězdy apod.)
-const STARS_ENABLED = !IS_MOBILE;
 
   const fmtTime = (ms)=> {
     const sec = Math.max(0, Math.floor((ms||0)/1000));
@@ -1043,7 +1040,7 @@ const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
-    glow.intensity = IS_MOBILE ? 0.45 : 0.60; // už máš ~0.65, klidně 0.6
+    glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
     // ImageProcessing – zcela vypnout (žádný tone-mapping/kontrast/gamma post-process)
 scene.imageProcessingConfiguration.isEnabled = false;
@@ -1273,4 +1270,265 @@ scene.imageProcessingConfiguration.contrast = 1.0;
     }
   }
 
-FALLING STARS
+  <script>
+  /* ========= Boot ========= */
+  createScene();
+
+  // === Falling stars (particles) + Shooting stars with trails ===
+  let starsPS, shootingPS;
+
+  // === TRAIL: helper ===
+  function spawnTrailStar(startPos, dir, speed, lifeSec, size = 0.18, color = new BABYLON.Color3(1,1,1)) {
+    // Hlavička – drobná kulička s emisivním materiálem (glow ji hezky zvýrazní)
+    const head = BABYLON.MeshBuilder.CreateSphere("trailHead", {diameter: size}, scene);
+    head.position.copyFrom(startPos);
+
+    const mat = new BABYLON.StandardMaterial("trailMat", scene);
+    mat.emissiveColor = color;
+    mat.disableLighting = true;
+    mat.specularColor = new BABYLON.Color3(0,0,0);
+    head.material = mat;
+    head.renderingGroupId = 1; // nad skyboxem
+
+    // TrailMesh (stužka)
+    const trailWidth = size * 0.65;     // šířka stužky
+    const trailPoints = 64;             // délka (počet vzorků)
+    const trail = new BABYLON.TrailMesh("trail", head, trailPoints, scene, trailWidth, true);
+    trail.renderingGroupId = 1;
+
+    // Volitelně lehká průhlednost a rozplynutí materiálu trailu
+    const tMat = new BABYLON.StandardMaterial("trailSMat", scene);
+    tMat.emissiveColor = color;
+    tMat.alpha = 0.85;
+    tMat.backFaceCulling = false;
+    trail.material = tMat;
+
+    // Fyzika pohybu (jednoduchá kinematika)
+    const vel = dir.normalize().scale(speed);
+    let life = lifeSec;
+    const dtScale = 1.0;
+
+    // Mírná „turbulence“, ať to není 100% rovné
+    const wobble = new BABYLON.Vector3(
+      BABYLON.Scalar.RandomRange(-0.15, 0.15),
+      BABYLON.Scalar.RandomRange(-0.08, 0.08),
+      BABYLON.Scalar.RandomRange(-0.15, 0.15)
+    );
+
+    const obs = scene.onBeforeRenderObservable.add(()=>{
+      const dt = engine.getDeltaTime() * 0.001 * dtScale;
+      life -= dt;
+      // Jemná změna směru v čase
+      const k = Math.sin(performance.now()*0.002)*0.5 + 0.5;
+      const vNow = vel.add(wobble.scale(k*0.35));
+      head.position.addInPlace(vNow.scale(dt));
+
+      if (life <= 0){
+        scene.onBeforeRenderObservable.remove(obs);
+        // Plynulé dohasínání trailu (krátké zpoždění)
+        const fadeStart = performance.now();
+        const fadeMs = 240;
+        const fadeObs = scene.onBeforeRenderObservable.add(()=>{
+          const r = (performance.now() - fadeStart) / fadeMs;
+          const a = Math.max(0, 0.85*(1 - r));
+          tMat.alpha = a;
+          mat.emissiveColor = color.scale(1 - r);
+          if (r >= 1){
+            scene.onBeforeRenderObservable.remove(fadeObs);
+            trail.dispose();
+            head.dispose();
+            mat.dispose();
+            tMat.dispose();
+          }
+        });
+      }
+    });
+
+    // Vrátíme reference, pokud byste to chtěl ručně spravovat
+    return { head, trail, mat, tMat };
+  }
+
+  function addFallingStars(){
+    if (!scene) return;
+
+    const isMobile = (typeof IS_MOBILE !== 'undefined') ? IS_MOBILE : /Mobi|Android/i.test(navigator.userAgent);
+    const area = 20;
+    const topY = 10;
+    const baseCap = isMobile ? 400 : 1200;
+
+    const makePS = (name, capacity) => {
+      return (BABYLON.GPUParticleSystem && BABYLON.GPUParticleSystem.IsSupported)
+        ? new BABYLON.GPUParticleSystem(name, { capacity }, scene)
+        : new BABYLON.ParticleSystem(name, capacity, scene);
+    };
+
+    // ===== Jemný déšť hvězd (beze změn) =====
+    starsPS = makePS("stars", baseCap);
+    starsPS.particleTexture = new BABYLON.Texture("assets/star.png", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    starsPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    starsPS.renderingGroupId = 1;
+
+    starsPS.emitter   = new BABYLON.Vector3(0, topY, 0);
+    starsPS.minEmitBox = new BABYLON.Vector3(-area, 0, -area);
+    starsPS.maxEmitBox = new BABYLON.Vector3( area, 0,  area);
+
+    starsPS.direction1 = new BABYLON.Vector3(-0.25, -1.1,  0.25);
+    starsPS.direction2 = new BABYLON.Vector3( 0.25, -1.6, -0.25);
+    starsPS.gravity    = new BABYLON.Vector3(0, -0.15, 0);
+
+    starsPS.minLifeTime = 3.0;
+    starsPS.maxLifeTime = 7.0;
+    starsPS.minEmitPower = 0.5;
+    starsPS.maxEmitPower = 1.5;
+    starsPS.updateSpeed  = 0.015;
+
+    starsPS.minSize   = 0.06;
+    starsPS.maxSize   = 0.22;
+    starsPS.color1    = new BABYLON.Color4(1, 1, 1, 1.0);
+    starsPS.color2    = new BABYLON.Color4(1, 1, 1, 0.9);
+    starsPS.colorDead = new BABYLON.Color4(1, 1, 1, 0.0);
+    starsPS.emitRate = isMobile ? 140 : 380;
+
+    if (starsPS.preWarmCycles !== undefined){
+      starsPS.preWarmCycles = 60;
+      starsPS.preWarmStepOffset = 5;
+    }
+    starsPS.start();
+
+    // ===== Shooting stars (s trail efektem) =====
+    // ponecháme i drobné částice pro jiskření kolem hlavičky
+    shootingPS = makePS("shootingStars", 220);
+    shootingPS.particleTexture = new BABYLON.Texture("assets/star.png", scene);
+    shootingPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    shootingPS.renderingGroupId = 1;
+
+    shootingPS.emitRate = 0; // jen dávky
+    shootingPS.minSize = 0.06;
+    shootingPS.maxSize = 0.18;
+    shootingPS.minLifeTime = 0.5;
+    shootingPS.maxLifeTime = 1.1;
+    shootingPS.minEmitPower = 6;
+    shootingPS.maxEmitPower = 12;
+    shootingPS.updateSpeed  = 0.02;
+    shootingPS.gravity = new BABYLON.Vector3(0, 0, 0);
+
+    shootingPS.emitter = new BABYLON.Vector3(0, topY - 1.5, -area);
+    shootingPS.direction1 = new BABYLON.Vector3(1.2, -0.55, 0.8);
+    shootingPS.direction2 = new BABYLON.Vector3(1.6, -0.35, 1.2);
+    shootingPS.start();
+
+    let lastBurst = 0;
+    let nextIn = 2000 + Math.random()*4000;
+
+    scene.onBeforeRenderObservable.add(() => {
+      const t = performance.now();
+      if (t - lastBurst > nextIn){
+        const x = BABYLON.Scalar.RandomRange(-area, area);
+        const z = BABYLON.Scalar.RandomRange(-area, area);
+        const start = new BABYLON.Vector3(x, topY - 1.5, z);
+
+        // Náhodný směr
+        const dirX = BABYLON.Scalar.RandomRange(0.9, 1.8);
+        const dirZ = BABYLON.Scalar.RandomRange(0.2, 1.4);
+        const dirY = BABYLON.Scalar.RandomRange(-0.75, -0.35);
+        const dir = new BABYLON.Vector3(dirX, dirY, dirZ);
+
+        // Drobné jiskření kolem hlavičky (částice)
+        shootingPS.emitter = start.clone();
+        shootingPS.direction1 = dir.scale(0.7);
+        shootingPS.direction2 = dir.scale(1.1);
+        shootingPS.manualEmitCount = isMobile ? 16 : 32;
+
+        // === TRAIL: vytvoř „hlavičku“ s trail stužkou ===
+        const speed = BABYLON.Scalar.RandomRange(10, 22); // rychlost
+        const life  = BABYLON.Scalar.RandomRange(0.9, 1.6); // život
+        const size  = BABYLON.Scalar.RandomRange(0.16, 0.24);
+        const color = new BABYLON.Color3(1, 1, 1);
+        spawnTrailStar(start, dir, speed, life, size, color);
+
+        lastBurst = t;
+        nextIn = 2000 + Math.random()*4000;
+      }
+    });
+
+    // Reakce na AutoScale – škáluj hustotu déště
+    if (typeof AutoScale !== 'undefined'){
+      scene.onBeforeRenderObservable.add(() => {
+        if (typeof currentScaleLevel !== 'undefined'){
+          const lerp = (currentScaleLevel - (AutoScale?.minLevel ?? 0.33)) / ((AutoScale?.maxLevel ?? 1.0) - (AutoScale?.minLevel ?? 0.33));
+          const density = BABYLON.Scalar.Clamp(1 - lerp, 0.4, 1.0);
+          starsPS.emitRate = (isMobile ? 140 : 380) * density;
+        }
+      });
+    }
+  }
+
+  (async function boot(){
+    await document.fonts?.load?.('400 16px Poppins');
+    await document.fonts?.load?.('600 16px Poppins');
+
+    applyFixedLayout();
+    bindBarControls();
+    resetCamera({animate:false});
+
+    addFallingStars();
+  })();
+
+  engine.runRenderLoop(()=>{
+    if (!scene) return;
+
+    constrainTarget();
+    constrainCameraRadius();
+
+    scene.render();
+
+    // AutoScale (beze změny)
+    if (AutoScale.enabled){
+      const now = performance.now();
+      AutoScale.accMs += engine.getDeltaTime();
+      AutoScale.frames++;
+      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
+        const avgMs = AutoScale.accMs / AutoScale.frames;
+        let changed = false;
+        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
+          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
+          changed = true;
+        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
+          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
+          changed = true;
+        }
+        if (changed){
+          applyHardwareScale(currentScaleLevel);
+          if (glow){
+            const base = IS_MOBILE ? 36 : 96;
+            glow.blurKernelSize = Math.round( base * (0.9 + 0.2*(1 - (currentScaleLevel-0.33)/(1-0.33))) );
+          }
+        }
+        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
+      }
+    }
+  });
+
+  function handleResize(){ applyHardwareScale(); engine.resize(true); }
+  window.addEventListener("resize", handleResize, { passive:true });
+  window.addEventListener("orientationchange", handleResize);
+  document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
+
+  /* ========= UI: reset + fullscreen ========= */
+  const resetCamIcon = document.getElementById('resetCamIcon');
+  if (resetCamIcon){
+    resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
+    resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
+    resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
+  }
+  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
+
+  const fullscreenIcon = document.getElementById('fullscreenIcon');
+  if (fullscreenIcon){
+    fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
+    fullscreenIcon.addEventListener('click', toggleFullscreen);
+    fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
+    document.addEventListener('fullscreenchange', syncFsButton);
+    document.addEventListener('webkitfullscreenchange', syncFsButton);
+  }
+</script>
