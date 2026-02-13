@@ -1070,16 +1070,18 @@ const OPEN_D = ROOM.D - 2 * APERTURE_INSET;     // délka otvoru
 const STAR_INTERVAL_MIN_MS = 6000;              // 6 s
 const STAR_INTERVAL_MAX_MS = 12000;             // 12 s
 
-/** Vnitřní margina od okraje otvoru, aby se stopa NIKDY nedotkla stěn/límce */
-const SKY_INNER_MARGIN = 0.10;
+/** Vnitřní margina od okraje otvoru – aby se stopa NIKDY nedotkla stěn/límce */
+const SKY_INNER_MARGIN = 0.14;
 
 /** Směr pohledu kamery v rovině XZ (jednotkový vektor) */
 function getFacingDirXZ(){
   const sinB = Math.sin(camera.beta);
-  const x = Math.cos(camera.alpha) * sinB;
-  const z = Math.sin(camera.alpha) * sinB;
-  const len = Math.hypot(x, z) || 1;
-  return { x: x/len, z: z/len };
+  let x = Math.cos(camera.alpha) * sinB;
+  let z = Math.sin(camera.alpha) * sinB;
+  const len = Math.hypot(x, z);
+  if (len < 1e-4){ x = 0; z = 1; } // fallback „dopředu“
+  else { x /= len; z /= len; }
+  return { x, z };
 }
 
 /** Rotace 2D vektoru (XZ) o úhel angleRad */
@@ -1088,63 +1090,82 @@ function rotate2D(x, z, angleRad){
   return { x: x*c - z*s, z: x*s + z*c };
 }
 
-/** Průsečík paprsku z (0,0) ve směru dir s vnitřním obdélníkem [-halfW, halfW] × [-halfD, halfD] */
-function rayRectHit(halfW, halfD, dir){
-  const eps = 1e-6, cands = [];
+/** Ray-rect hit: průsečík paprsku z libovolného bodu P=(px,pz) se směr. vektorem d=(dx,dz)
+ *  a vnitřním obdélníkem [-halfW, halfW] × [-halfD, halfD] (vše v rovině XZ).
+ */
+function rayRectHitFromPoint(px, pz, dx, dz, halfW, halfD){
+  const eps = 1e-6, c = [];
 
-  if (Math.abs(dir.x) > eps){
-    const tR =  halfW / dir.x, zR = tR * dir.z;
-    const tL = -halfW / dir.x, zL = tL * dir.z;
-    if (tR > 0 && Math.abs(zR) <= halfD + eps) cands.push({ t:tR, x: halfW, z:zR });
-    if (tL > 0 && Math.abs(zL) <= halfD + eps) cands.push({ t:tL, x:-halfW, z:zL });
+  if (Math.abs(dx) > eps){
+    const tR = ( halfW - px) / dx, zR = pz + tR*dz;
+    const tL = (-halfW - px) / dx, zL = pz + tL*dz;
+    if (tR > 0 && Math.abs(zR) <= halfD + eps) c.push({ t:tR, x:  halfW, z:zR });
+    if (tL > 0 && Math.abs(zL) <= halfD + eps) c.push({ t:tL, x: -halfW, z:zL });
   }
-  if (Math.abs(dir.z) > eps){
-    const tF =  halfD / dir.z, xF = tF * dir.x;
-    const tB = -halfD / dir.z, xB = tB * dir.x;
-    if (tF > 0 && Math.abs(xF) <= halfW + eps) cands.push({ t:tF, x:xF, z: halfD });
-    if (tB > 0 && Math.abs(xB) <= halfW + eps) cands.push({ t:tB, x:xB, z:-halfD });
+  if (Math.abs(dz) > eps){
+    const tF = ( halfD - pz) / dz, xF = px + tF*dx;
+    const tB = (-halfD - pz) / dz, xB = px + tB*dx;
+    if (tF > 0 && Math.abs(xF) <= halfW + eps) c.push({ t:tF, x:xF, z:  halfD });
+    if (tB > 0 && Math.abs(xB) <= halfW + eps) c.push({ t:tB, x:xB, z: -halfD });
   }
-  if (!cands.length) return null;
-  cands.sort((a,b)=> a.t - b.t);
-  return { x: cands[0].x, z: cands[0].z, t: cands[0].t };
+
+  if (!c.length) return null;
+  c.sort((a,b)=> a.t - b.t);
+  return c[0]; // nejbližší průsečík
 }
 
-/** Vybere přímku uvnitř SKY okna: STŘED → HRANA v náhodném šikmém úhlu okolo směru kamery.
- *  Délka se navíc zkrátí náhodným faktorem (0.55–1.00), takže čáry jsou různě dlouhé.
+/** Náhodný start uvnitř středu okna (malý disk/ellipse), náhodný šikmý směr ±maxAngle
+ *  okolo směru kamery; koncový bod = zásah hrany vnitřního obdélníku, navíc zkrácený (0.5–1.0×).
  */
-function pickCenterToFacingSegment({
-  maxAngleDeg = 65,            // ± úhlová odchylka od směru kamery
-  minFrac = 0.55, maxFrac = 1.00
+function pickRandomSegmentInSky({
+  maxAngleDeg = 70,             // úhlová odchylka okolo směru kamery (větší = víc šikmé)
+  startFrac = 0.22,             // jak velký „středový“ disk pro start (relativně k min poloměru)
+  minFracLen = 0.50,            // minimální délkový faktor (0.5–1.0)
+  maxFracLen = 1.00
 }={}){
   const halfW = OPEN_W/2 - SKY_INNER_MARGIN;
   const halfD = OPEN_D/2 - SKY_INNER_MARGIN;
 
-  // Základní směr = směr kamery; náhodná odchylka ±maxAngle
+  // 1) náhodný start uvnitř středového disku/ellipsy
+  const rMax = Math.min(halfW, halfD) * startFrac;
+  const rr = Math.sqrt(Math.random()) * rMax;      // zploštění distribuce do disku
+  const ang = Math.random() * Math.PI * 2;
+  const sx = rr * Math.cos(ang);
+  const sz = rr * Math.sin(ang);
+
+  // 2) základní směr = facing, odchýlený ±maxAngle
   const f = getFacingDirXZ();
-  const angle = (Math.random()*2 - 1) * (maxAngleDeg * Math.PI / 180);
-  let d = rotate2D(f.x, f.z, angle);
+  const delta = (Math.random()*2 - 1) * (maxAngleDeg * Math.PI / 180);
+  let d = rotate2D(f.x, f.z, delta);
 
-  // Pokud by směr mířil dozadu (od pozorovatele), otoč ho (chceme "směrem vpřed")
-  if (d.x * f.x + d.z * f.z < 0) { d = { x:-d.x, z:-d.z }; }
+  // pokud by směr mířil silně „zpět“ vzhledem k facing, otoč ho
+  if (d.x * f.x + d.z * f.z < 0) d = { x:-d.x, z:-d.z };
 
-  const hit = rayRectHit(halfW, halfD, d);
-  if (!hit) return { start:{x:0,z:0}, end:{x:d.x*halfW, z:d.z*halfD} };
+  // 3) průsečík paprsku z (sx,sz) ve směru d s hranou
+  const hit = rayRectHitFromPoint(sx, sz, d.x, d.z, halfW, halfD);
+  const center = { x:sx, z:sz };
+  if (!hit){
+    // fallback – na jistotu: do středu nejbližší hrany podle směru
+    return { start:center, end:{ x: sx + d.x*halfW, z: sz + d.z*halfD } };
+  }
 
-  // Zkrať na náhodnou délku (0.55–1.0) — různé délky stop
-  const frac = BABYLON.Scalar.RandomRange(minFrac, maxFrac);
-  const end = { x: hit.x * frac, z: hit.z * frac };
-  return { start:{x:0,z:0}, end, len: Math.hypot(end.x, end.z) };
+  // 4) zkrácení na náhodnou délku (různé dlouhé čáry)
+  const frac = BABYLON.Scalar.RandomRange(minFracLen, maxFracLen);
+  const ex = sx + d.x * hit.t * frac;
+  const ez = sz + d.z * hit.t * frac;
+
+  return { start:center, end:{ x:ex, z:ez } };
 }
 
-/** Jedna „padající hvězda“ – přímka ze středu okna v náhodném šikmém směru.
- *  Zůstává nad stropem. TrailMesh (BJS v8): new TrailMesh(name, generator, scene, diameter, length, autoStart)
+/** Jedna „padající hvězda“ – přímka uvnitř SKY okna (žádné vlnění), nad stropem.
+ *  TrailMesh (BJS v8): new TrailMesh(name, generator, scene, diameter, length, autoStart)
  */
 function spawnOneShootingStar({
   start,
   end,
-  yTop = CEIL_Y + 1.55,
-  yBot = CEIL_Y + 0.92,
-  lifeSec,                         // dopočítáme z délky a rychlosti
+  yTop = CEIL_Y + 1.56,
+  yBot = CEIL_Y + 0.90,
+  lifeSec,                              // vypočte se z délky a rychlosti
   size = 0.10,
   color = new BABYLON.Color3(1,1,1),
   trailWidth = 0.004,
@@ -1153,17 +1174,19 @@ function spawnOneShootingStar({
   // Hlavička
   const head = BABYLON.MeshBuilder.CreateSphere("shootHead", { diameter: size }, scene);
   head.position.set(start.x, yTop, start.z);
-  head.renderingGroupId = 0;  // standardní skupina (respektuje depth)
+  head.renderingGroupId = 0; // stejná skupina jako stěny → korektní depth
 
   const mHead = new BABYLON.StandardMaterial("shootHeadMat", scene);
   mHead.disableLighting = true;
   mHead.emissiveColor = color;
   mHead.specularColor = new BABYLON.Color3(0,0,0);
   mHead.backFaceCulling = false;
-  mHead.disableDepthWrite = false; // jistota — zapisuj do depth
+  mHead.alpha = 1.0;
+  mHead.forceDepthWrite = true;       // ↙ depth „přebije“ i s alphou
+  mHead.needDepthPrePass = true;      // zlepší okraje s MSAA/alpha
   head.material = mHead;
 
-  // TrailMesh – velmi tenká přímka
+  // Trail – velmi tenká přímka, respektuje depth
   const trail = new BABYLON.TrailMesh("shootTrail", head, scene, trailWidth, trailPoints, true);
   trail.renderingGroupId = 0;
 
@@ -1172,16 +1195,18 @@ function spawnOneShootingStar({
   mTrail.emissiveColor = color;
   mTrail.alpha = 0.98;
   mTrail.backFaceCulling = false;
-  mTrail.disableDepthWrite = false; // trail má respektovat depth
+  mTrail.forceDepthWrite = true;      // ↙ aby nepřekresloval stěny
+  mTrail.needDepthPrePass = true;
+  mTrail.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
   trail.material = mTrail;
 
-  // DŮLEŽITÉ: NEpřidávat do GlowLayeru (glow může přesahovat přes hrany stěn)
+  // GlowLayer NEpoužít (rozmazání by „přesahovalo“ přes okraje stěn)
   // try { glow?.addIncludedOnlyMesh(head); glow?.addIncludedOnlyMesh(trail); } catch(e){}
 
   // Přímka A→B, Y z yTop → yBot (clamp nad stropem)
   const A = new BABYLON.Vector3(start.x, yTop, start.z);
   const B = new BABYLON.Vector3(end.x,   yBot, end.z);
-  const minY = CEIL_Y + 0.80;
+  const minY = CEIL_Y + 0.82;
 
   const t0 = performance.now();
   const totalMs = lifeSec * 1000;
@@ -1195,7 +1220,7 @@ function spawnOneShootingStar({
 
     if (r >= 1){
       scene.onBeforeRenderObservable.remove(obs);
-      // rychlé dohasnutí
+      // krátké dohasnutí
       const tFade0 = performance.now(), fadeMs = 140;
       const obs2 = scene.onBeforeRenderObservable.add(()=>{
         const rf = Math.min(1, (performance.now() - tFade0) / fadeMs);
@@ -1214,30 +1239,33 @@ function spawnOneShootingStar({
 let shootingTimer = null;
 
 /** Naplánuje jednu hvězdu a po ní další (6–12 s).
- *  Úhel i délka přímky se náhodně mění; rychlost je náhodná, životnost se dopočítá z délky.
+ *  Úhel, délka, tloušťka, rychlost i velikost se náhodně mění.
  */
 function scheduleShootingStar(){
   const wait = STAR_INTERVAL_MIN_MS + Math.random() * (STAR_INTERVAL_MAX_MS - STAR_INTERVAL_MIN_MS);
 
   shootingTimer = setTimeout(()=>{
-    // Vyber přímku jen uvnitř SKY okna (střed -> hrana v náhodném šikmém směru)
-    const seg = pickCenterToFacingSegment({ maxAngleDeg: 70, minFrac: 0.55, maxFrac: 1.00 });
+    // vyber přímku uvnitř SKY okna – náhodný šikmý směr kolem směru kamery
+    const seg = pickRandomSegmentInSky({
+      maxAngleDeg: 70,       // hodně šikmé směry
+      startFrac: 0.22,       // start poblíž středu, ale ne přesně uprostřed
+      minFracLen: 0.50,
+      maxFracLen: 1.00
+    });
 
-    // Náhodný vzhled a rychlost
+    // délka přímky v XZ
+    const lenXZ = Math.hypot(seg.end.x - seg.start.x, seg.end.z - seg.start.z);
+
+    // náhodná rychlost → z ní se dopočítá životnost (různě rychlé = různě dlouhé v čase)
+    const speed   = BABYLON.Scalar.RandomRange(16, 28);            // jednotky/s
+    const lifeSec = Math.max(0.50, Math.min(1.40, lenXZ / speed)); // 0.5–1.4 s
+
     const size       = BABYLON.Scalar.RandomRange(0.07, 0.12);
-    const trailWidth = BABYLON.Scalar.RandomRange(0.003, 0.007);      // velmi tenké
-    const trailPts   = Math.round(BABYLON.Scalar.RandomRange(90, 150)); // různá délka stopy
-
-    // Rychlost (světové jednotky/s) a životnost z délky -> různé rychlosti a délky v čase
-    const speed      = BABYLON.Scalar.RandomRange(14, 26); // rychlejší/slabší
-    const length     = seg.len ?? Math.hypot(seg.end.x - seg.start.x, seg.end.z - seg.start.z);
-    let   lifeSec    = Math.max(0.50, Math.min(1.40, length / speed));
-
-    // Vertikální průhyb – stále nad stropem
-    const yTop = CEIL_Y + BABYLON.Scalar.RandomRange(1.45, 1.60);
-    const yBot = CEIL_Y + BABYLON.Scalar.RandomRange(0.88, 1.02);
-
-    const color = new BABYLON.Color3(1, 1, 1);
+    const trailWidth = BABYLON.Scalar.RandomRange(0.003, 0.007);   // velmi tenké
+    const trailPts   = Math.round(BABYLON.Scalar.RandomRange(90, 150));
+    const yTop       = CEIL_Y + BABYLON.Scalar.RandomRange(1.48, 1.62);
+    const yBot       = CEIL_Y + BABYLON.Scalar.RandomRange(0.88, 1.02);
+    const color      = new BABYLON.Color3(1, 1, 1);
 
     spawnOneShootingStar({
       start: seg.start,
@@ -1259,7 +1287,6 @@ function startShootingStars(){
 function stopShootingStars(){
   if (shootingTimer){ clearTimeout(shootingTimer); shootingTimer = null; }
 }
-``
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
     const YCENTER = ROOM.H * 0.55;
