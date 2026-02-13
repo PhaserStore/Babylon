@@ -214,19 +214,27 @@
     m.specularColor = new BABYLON.Color3(0,0,0);
     return m;
   }
-  function unlitTex(tex, { doubleSided=false } = {}){
-    const m = new BABYLON.StandardMaterial("mt", scene);
-    m.disableLighting = true;
-    m.diffuseTexture = tex;
-    m.emissiveTexture = tex;
-    m.backFaceCulling = !doubleSided;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    if (tex){
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      tex.anisotropicFilteringLevel = MAX_ANISO;
-    }
-    return m;
+ function unlitTex(tex, { doubleSided=false } = {}){
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting = true;
+
+  // ZÁSADNÍ: renderovat jen přes emissive (žádný diffuse řetězec)
+  m.diffuseTexture  = null;
+  m.emissiveTexture = tex;
+  m.emissiveColor   = new BABYLON.Color3(1,1,1);
+  m.backFaceCulling = !doubleSided;
+  m.specularColor   = new BABYLON.Color3(0,0,0);
+
+  if (tex){
+    // přesné zobrazení sRGB (bez přepočtu do linear)
+    tex.gammaSpace = true;       // důležité pro správnou barevnost
+    tex.level = 1.0;             // žádné zeslabování
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = MAX_ANISO;
+  }
+  return m;
+}
   }
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
@@ -1030,12 +1038,13 @@ const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
     glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
     glow.intensity = IS_MOBILE ? 0.45 : 0.65;
 
-    // ImageProcessing – bez post-processu
-    scene.imageProcessingConfiguration.toneMappingEnabled = false;
-    scene.imageProcessingConfiguration.exposure = 1.0;
-    scene.imageProcessingConfiguration.applyByPostProcess = false;
-    scene.imageProcessingConfiguration.contrast = 1.0;
-    scene.imageProcessingConfiguration.isEnabled = true;
+    // === ImageProcessing úplně vypnout (žádné tone mappingy, žádné gamma korekce) ===
+scene.imageProcessingConfiguration.isEnabled = false;
+// pro jistotu i toto:
+scene.imageProcessingConfiguration.applyByPostProcess = false;
+scene.imageProcessingConfiguration.toneMappingEnabled = false;
+scene.imageProcessingConfiguration.exposure = 1.0;
+scene.imageProcessingConfiguration.contrast = 1.0;
 
     buildRoom();
     buildLED();
