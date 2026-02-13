@@ -932,74 +932,82 @@ function hint(msg){ console.log(msg); }
   }
 
   /* ========= Camera reset (opraveno + animace) ========= */
-  // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
+
+// Střed viditelné výšky stěn: (ROOM.H - 0.04) je horní hrana stěny (LED_TOP),
+// -0.005 je malý "límec" (lip). Tohle drž prosím nad RESET_POSE.
 const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
-    
-    const RESET_POSE = {
-  // Target uprostřed místnosti – ať jsou "v dosahu" všechny stěny
+
+// Výchozí pozice pro reset – target uprostřed místnosti (x=0, z=0),
+// y na střed stěn; směr k přední stěně; beta lehce nad horizontem.
+const RESET_POSE = {
   target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
-
-  // Dálka od středu – základ pro 16:9; klidně dolaď o ±0.5
   radius: 17.0,
-
-  // Směr na PŘEDNÍ stěnu (+Z)
   alpha:  Math.PI / 2,
-
-  // Lehce NAD horizontem → víc oblohy, ale pořád vycentrovaný dojem na výšku
-  // (pro "o chlup výš" zkus 1.86–1.92; menší hodnota = víc vzhůru)
   beta:   Math.PI / 1.88
 };
 
-    
+function animateCameraTo({alpha, beta, radius, target}, durationMs = 400){
+  if (!camera) return;
 
-  function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
-    if (!camera) return;
+  const fps = 60;
+  const frames = Math.max(1, Math.round(durationMs / (1000 / fps)));
+  const easing = new BABYLON.CubicEase();
+  easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
 
-    const fps = 60, frames = Math.max(1, Math.round(durationMs / (1000/fps)));
-    const easing = new BABYLON.CubicEase(); easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
-
-    const makeAnim = (prop, from, to) => {
-      const a = new BABYLON.Animation("anim_"+prop, prop, fps, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-      a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
-      a.setEasingFunction(easing);
-      return a;
-    };
-
-    // alpha, beta, radius
-    const anims = [
-      makeAnim("alpha",  camera.alpha,  alpha),
-      makeAnim("beta",   camera.beta,   beta),
-      makeAnim("radius", camera.radius, radius),
-    ];
-
-    // target (Vector3) – animujeme po složkách
-    const makeVAnim = (axis, from, to) => {
-      const a = new BABYLON.Animation("anim_t"+axis, "target."+axis, fps, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-      a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
-      a.setEasingFunction(easing);
-      return a;
-    };
-    anims.push(
-      makeVAnim("x", camera.target.x, target.x),
-      makeVAnim("y", camera.target.y, target.y),
-      makeVAnim("z", camera.target.z, target.z)
+  const makeAnim = (prop, from, to) => {
+    const a = new BABYLON.Animation(
+      "anim_" + prop,
+      prop,
+      fps,
+      BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
     );
+    a.setKeys([{ frame: 0, value: from }, { frame: frames, value: to }]);
+    a.setEasingFunction(easing);
+    return a;
+  };
 
-    camera.animations = anims;
-    scene.beginAnimation(camera, 0, frames, false);
-  }
+  const anims = [
+    makeAnim("alpha",  camera.alpha,  alpha),
+    makeAnim("beta",   camera.beta,   beta),
+    makeAnim("radius", camera.radius, radius),
+  ];
 
-  function resetCamera({animate=true} = {}){
-    if (!camera) return;
-    if (animate){
-      animateCameraTo(RESET_POSE, 420);
-    } else {
-      camera.alpha  = RESET_POSE.alpha;
-      camera.beta   = RESET_POSE.beta;
-      camera.radius = RESET_POSE.radius;
-      camera.setTarget(RESET_POSE.target.clone()); // DŮLEŽITÉ: nový vektor do targetu
-    }
+  // Target (Vector3) animujeme po složkách
+  const makeVAnim = (axis, from, to) => {
+    const a = new BABYLON.Animation(
+      "anim_t" + axis,
+      "target." + axis,
+      fps,
+      BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    a.setKeys([{ frame: 0, value: from }, { frame: frames, value: to }]);
+    a.setEasingFunction(easing);
+    return a;
+  };
+
+  anims.push(
+    makeVAnim("x", camera.target.x, target.x),
+    makeVAnim("y", camera.target.y, target.y),
+    makeVAnim("z", camera.target.z, target.z)
+  );
+
+  camera.animations = anims;
+  scene.beginAnimation(camera, 0, frames, false);
+}
+
+function resetCamera({ animate = true } = {}){
+  if (!camera) return;
+  if (animate){
+    animateCameraTo(RESET_POSE, 420);
+  } else {
+    camera.alpha  = RESET_POSE.alpha;
+    camera.beta   = RESET_POSE.beta;
+    camera.radius = RESET_POSE.radius;
+    camera.setTarget(RESET_POSE.target.clone());
   }
+}
 
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
