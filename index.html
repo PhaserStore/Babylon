@@ -214,20 +214,27 @@
     m.specularColor = new BABYLON.Color3(0,0,0);
     return m;
   }
-  function unlitTex(tex, { doubleSided=false } = {}){
-    const m = new BABYLON.StandardMaterial("mt", scene);
-    m.disableLighting = true;
-    m.diffuseTexture = tex;
-    m.emissiveTexture = tex;
-    m.backFaceCulling = !doubleSided;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    if (tex){
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      tex.anisotropicFilteringLevel = MAX_ANISO;
-    }
-    return m;
+ function unlitTex(tex, { doubleSided=false } = {}){
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting = true;
+
+  // ✨ JEN emissive – žádný diffuse řetězec
+  m.diffuseTexture  = null;
+  m.emissiveTexture = tex;
+  m.emissiveColor   = new BABYLON.Color3(1, 1, 1);
+
+  m.backFaceCulling = !doubleSided;
+  m.specularColor   = new BABYLON.Color3(0, 0, 0);
+
+  if (tex){
+    // sRGB / žádné ořezávání barev
+    tex.gammaSpace = true;
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = MAX_ANISO;
   }
+  return m;
+}
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
