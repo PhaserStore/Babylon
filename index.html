@@ -1061,25 +1061,30 @@ function createScene(){
 /* ========= Shooting star with TRAIL (single, above the skylight only) ========= */
 
 /** Rozměry otvoru ve stropě (musí sedět s buildCeilingWithAperture({ inw: 0.1 })) */
-const APERTURE_INSET = 0.1;                   // stejné "inw" jako v buildCeilingWithAperture
-const CEIL_Y = ROOM.H - 0.04;                 // výška spodní hrany stropu (z tvé konstrukce)
-const OPEN_W = ROOM.W - 2 * APERTURE_INSET;   // šířka otvoru
-const OPEN_D = ROOM.D - 2 * APERTURE_INSET;   // délka otvoru
+const APERTURE_INSET = 0.1;                     // stejné "inw" jako v buildCeilingWithAperture
+const CEIL_Y = ROOM.H - 0.04;                   // výška spodní hrany "límce" stropu
+const OPEN_W = ROOM.W - 2 * APERTURE_INSET;     // šířka otvoru
+const OPEN_D = ROOM.D - 2 * APERTURE_INSET;     // délka otvoru
+
+/** Nastavení intervalu výskytu jedné hvězdy */
+const STAR_INTERVAL_MIN_MS = 6000;              // 6 s
+const STAR_INTERVAL_MAX_MS = 12000;             // 12 s
 
 /** Vytvoří jednu "padající hvězdu" (hlavička + trail) a odanimuje ji po úsečce nad stropem.
  *  POZOR: Babylon.js v8 → new TrailMesh(name, generator, scene, diameter, length, autoStart)
  */
 function spawnOneShootingStar({
-  start,                    // {x,z} v rámci otvoru
-  end,                      // {x,z} v rámci otvoru
-  y = CEIL_Y + 1.2,         // vždy nad stropem
-  lifeSec = 1.4,            // 1–2 s
-  size = 0.2,
-  color = new BABYLON.Color3(1, 1, 1) // případně lehce modrá: (0.9, 0.95, 1)
+  start,                                   // {x,z} v rámci otvoru (zadní hrana)
+  end,                                     // {x,z} v rámci otvoru (přední hrana)
+  yTop = CEIL_Y + 1.40,                    // start výš
+  yBot = CEIL_Y + 0.85,                    // cíl níž (pořád nad stropem)
+  lifeSec = 0.85,                          // kratší = rychlejší let (0.75–1.1 doporučeno)
+  size = 0.16,                             // menší hlavička
+  color = new BABYLON.Color3(1, 1, 1)      // případně lehce modrá: (0.9, 0.95, 1)
 }){
   // Hlavička (emisivní kulička)
   const head = BABYLON.MeshBuilder.CreateSphere("shootHead", { diameter: size }, scene);
-  head.position.set(start.x, y, start.z);
+  head.position.set(start.x, yTop, start.z);
   head.renderingGroupId = 1;
 
   const mHead = new BABYLON.StandardMaterial("shootHeadMat", scene);
@@ -1088,46 +1093,53 @@ function spawnOneShootingStar({
   mHead.specularColor = new BABYLON.Color3(0,0,0);
   head.material = mHead;
 
-  // TrailMesh — SPRÁVNÉ pořadí parametrů pro BJS v8!
-  const trailWidth  = size * 0.75; // tloušťka čáry
-  const trailPoints = 84;          // délka čáry (zvyšte pro delší stopu)
+  // TrailMesh — TENKÁ a DELŠÍ čára (správné pořadí parametrů pro BJS v8!)
+  const trailWidth  = size * 0.35;   // tenká stopa
+  const trailPoints = 96;            // delší čára (zvyšte pro ještě delší stopu)
   const trail = new BABYLON.TrailMesh("shootTrail", head, scene, trailWidth, trailPoints, true);
   trail.renderingGroupId = 1;
 
   const mTrail = new BABYLON.StandardMaterial("shootTrailMat", scene);
   mTrail.disableLighting = true;
   mTrail.emissiveColor = color;
-  mTrail.alpha = 0.92;
+  mTrail.alpha = 0.95;
   mTrail.backFaceCulling = false;
   trail.material = mTrail;
 
   // (volitelné) zvýraznit glow layerem
   try { glow?.addIncludedOnlyMesh(head); glow?.addIncludedOnlyMesh(trail); } catch(e){}
 
-  // Animace po úsečce A → B, s malinkým „wobble“, aby to nebylo pravítko
-  const A = new BABYLON.Vector3(start.x, y, start.z);
-  const B = new BABYLON.Vector3(end.x,   y, end.z);
+  // Animace po úsečce A → B, s mírným poklesem Y z yTop → yBot (ale nikdy pod CEIL_Y + 0.75)
+  const A = new BABYLON.Vector3(start.x, yTop, start.z);
+  const B = new BABYLON.Vector3(end.x,   yBot, end.z);
+  const minY = CEIL_Y + 0.75;
 
   const t0 = performance.now();
   const totalMs = lifeSec * 1000;
+
   const obs = scene.onBeforeRenderObservable.add(()=>{
     const t = performance.now();
     const r = Math.min(1, (t - t0) / totalMs);
 
-    const wob = 0.02; // jemné vlnění
-    const px = BABYLON.Scalar.Lerp(A.x, B.x, r) + Math.sin(t*0.01) * wob;
-    const pz = BABYLON.Scalar.Lerp(A.z, B.z, r) + Math.cos(t*0.012) * wob * 0.6;
-    head.position.set(px, y, pz);
+    // jemné vlnění (menší, aby čára působila „ostřeji“)
+    const wob = 0.012;
+    const px = BABYLON.Scalar.Lerp(A.x, B.x, r) + Math.sin(t * 0.010) * wob;
+    const py = Math.max(minY, BABYLON.Scalar.Lerp(A.y, B.y, r));
+    const pz = BABYLON.Scalar.Lerp(A.z, B.z, r) + Math.cos(t * 0.012) * wob * 0.5;
+
+    head.position.set(px, py, pz);
 
     if (r >= 1){
       scene.onBeforeRenderObservable.remove(obs);
-      // krátké dohasnutí
+
+      // rychlé dohasnutí (fade)
       const tFade0 = performance.now();
-      const fadeMs = 240;
+      const fadeMs = 200;
       const obs2 = scene.onBeforeRenderObservable.add(()=>{
         const rf = Math.min(1, (performance.now() - tFade0) / fadeMs);
-        mTrail.alpha = 0.92 * (1 - rf);
+        mTrail.alpha = 0.95 * (1 - rf);
         mHead.emissiveColor = color.scale(1 - rf);
+
         if (rf >= 1){
           scene.onBeforeRenderObservable.remove(obs2);
           try { glow?.removeIncludedOnlyMesh(head); glow?.removeIncludedOnlyMesh(trail); } catch(e){}
@@ -1139,40 +1151,36 @@ function spawnOneShootingStar({
   });
 }
 
-/** Náhodně zvolí protilehlé hrany otvoru (uvnitř OPEN_W × OPEN_D), aby hvězda letěla napříč */
+/** Vždy letí zezadu dopředu (směr k přední stěně) v rámci otvoru */
 function pickEdgePoints(){
-  const halfW = OPEN_W/2 - 0.15; // malá rezerva od rámu
+  const halfW = OPEN_W/2 - 0.15;           // malá rezerva od rámu
   const halfD = OPEN_D/2 - 0.15;
-  const horizontal = Math.random() < 0.5;
 
-  if (horizontal){
-    const z = BABYLON.Scalar.RandomRange(-halfD, halfD);
-    const startLeft = Math.random() < 0.5;
-    const start = { x: startLeft ? -halfW :  halfW, z };
-    const end   = { x: startLeft ?  halfW : -halfW, z: z + BABYLON.Scalar.RandomRange(-0.2, 0.2) };
-    return { start, end };
-  } else {
-    const x = BABYLON.Scalar.RandomRange(-halfW, halfW);
-    const startBack = Math.random() < 0.5;
-    const start = { x, z: startBack ? -halfD :  halfD };
-    const end   = { x: x + BABYLON.Scalar.RandomRange(-0.2, 0.2), z: startBack ?  halfD : -halfD };
-    return { start, end };
-  }
+  // X náhodně v šířce otvoru, start na zadní hraně (−Z), konec na přední (+Z)
+  const x = BABYLON.Scalar.RandomRange(-halfW, halfW);
+  const start = { x, z: -halfD };
+  const end   = { x: x + BABYLON.Scalar.RandomRange(-0.18, 0.18), z: +halfD };
+
+  return { start, end };
 }
 
 let shootingTimer = null;
 
 /** Naplánuje jednu hvězdu a po ní další s náhodným intervalem (6–12 s) */
 function scheduleShootingStar(){
-  const wait = 6000 + Math.random() * 6000; // 6–12 s
+  const wait = STAR_INTERVAL_MIN_MS + Math.random() * (STAR_INTERVAL_MAX_MS - STAR_INTERVAL_MIN_MS);
+
   shootingTimer = setTimeout(()=>{
     const { start, end } = pickEdgePoints();
-    const life = BABYLON.Scalar.RandomRange(1.0, 1.8);    // ~1–2 s letu
-    const size = BABYLON.Scalar.RandomRange(0.16, 0.24);  // hlavička
-    const y    = CEIL_Y + 1.2;                            // vždy nad stropem
-    const color= new BABYLON.Color3(1, 1, 1);             // nebo (0.9,0.95,1) pro studenější nádech
 
-    spawnOneShootingStar({ start, end, y, lifeSec: life, size, color });
+    // kratší život = rychlejší průlet; menší hlavička = subtilnější čára
+    const life = BABYLON.Scalar.RandomRange(0.75, 1.10);
+    const size = BABYLON.Scalar.RandomRange(0.14, 0.18);
+    const yTop = CEIL_Y + 1.40;   // vždy nad stropem
+    const yBot = CEIL_Y + 0.85;
+    const color = new BABYLON.Color3(1, 1, 1);
+
+    spawnOneShootingStar({ start, end, yTop, yBot, lifeSec: life, size, color });
     scheduleShootingStar(); // plánuj další
   }, wait);
 }
@@ -1184,6 +1192,7 @@ function startShootingStars(){
 function stopShootingStars(){
   if (shootingTimer){ clearTimeout(shootingTimer); shootingTimer = null; }
 }
+``
 ``
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
