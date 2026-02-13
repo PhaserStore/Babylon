@@ -1273,7 +1273,7 @@ scene.imageProcessingConfiguration.contrast = 1.0;
 // === FALLING STARS (desktop only) ===========================================
 const STARS_ENABLED = !IS_MOBILE;  // jen desktop
 let starsSystem = null;
-let starsRoot = null;
+let starsRoot   = null;
 
 // Přední stěna je na z ≈ +ROOM.D/2
 function createFallingStars() {
@@ -1281,7 +1281,7 @@ function createFallingStars() {
 
   // Kotevní uzel ~ “nebe” nad přední stěnou (trochu před stěnu a do prostoru)
   starsRoot = new BABYLON.TransformNode("starsRoot", scene);
-  const zFront = ROOM.D / 2 - 0.4;  // lehce před stěnou
+  const zFront = ROOM.D / 2 - 0.4;  // lehce před stěnou (do místnosti)
   const yBase  = ROOM.H - 0.2;      // těsně pod stropní hranu
   starsRoot.position = new BABYLON.Vector3(0, yBase, zFront);
 
@@ -1310,27 +1310,26 @@ function createFallingStars() {
     console.warn("Star texture load failed:", e);
   }
 
-  // Emitter – neviditelný box
+  // Emitter – neviditelný box (lze si dočasně zapnout vizualizaci)
   const emitterBox = BABYLON.MeshBuilder.CreateBox("starsEmitterBox", {
     width: EMIT_W, height: EMIT_H, depth: EMIT_D
   }, scene);
-  emitterBox.isVisible  = false;
+  emitterBox.isVisible  = false; // pro debug můžeš dát true
   emitterBox.isPickable = false;
   emitterBox.parent     = starsRoot;
 
+  // Emitor & směrové vektory (mírně dolů a do místnosti)
   ps.emitter = emitterBox;
   ps.createBoxEmitter(
-    // emise z objemu boxu
     new BABYLON.Vector3(-EMIT_W/2, -EMIT_H/2, -EMIT_D/2),
     new BABYLON.Vector3(+EMIT_W/2, +EMIT_H/2, +EMIT_D/2),
-    // směrový rozptyl – mírně dolů a do místnosti
     new BABYLON.Vector3(-0.25, -1.00, -0.15),
     new BABYLON.Vector3(+0.25, -1.25, -0.45)
   );
 
   // Vzhled a chování částic
-  ps.color1 = new BABYLON.Color4(1,1,1,1);
-  ps.color2 = new BABYLON.Color4(1,1,1,0.8);
+  ps.color1    = new BABYLON.Color4(1,1,1,1);
+  ps.color2    = new BABYLON.Color4(1,1,1,0.8);
   ps.colorDead = new BABYLON.Color4(1,1,1,0);
 
   ps.minSize = 0.015;
@@ -1343,14 +1342,18 @@ function createFallingStars() {
   ps.maxEmitPower = 3.8;
 
   ps.gravity = new BABYLON.Vector3(0, -0.6, 0);
-
-  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD; // „svítící“ hvězdy
+  ps.updateSpeed = 0.015;
   ps.isBillboardBased = true;
-  ps.updateSpeed = 0.015; // méně výpočtů, hladší pád
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD; // „svítící“ hvězdy
 
-  // Spustíme se základní emitací = 0 (budeme řídit fadováním)
- - ps.emitRate = 0;
-+ ps.emitRate = 260; // jen pro test, ať hned něco padá
+  // ★ Kritické pro „vždy nad stěnami“
+  ps.renderingGroupId    = 2;      // zdi = 0, částice = 2 => kreslí se po zdech
+  ps.isDepthTestEnabled  = false;  // žádný Z-test (nikdy se „neschovají“)
+  ps.forceDepthWrite     = false;  // a nezapisovat do Z
+
+  // Start – řídí se fade‑in (emitRate = 0); pro rychlý kickoff můžeš dát nenulovou hodnotu
+  ps.emitRate = 0;
+
   ps.start();
 }
 
@@ -1358,12 +1361,12 @@ function createFallingStars() {
 function shouldShowStars() {
   if (!camera) return false;
 
-  // Menší beta = kamera víc nahoru (doladitelné)
-  const lookingUpByBeta = camera.beta < 1.35;
+  // Méně přísné: stačí mírně nahoru
+  const lookingUpByBeta = camera.beta < 1.55;
 
-  // Target poblíž přední stěny
+  // Target poblíž přední stěny (větší tolerance než dřív)
   const frontZ = ROOM.D / 2;
-  const closeToFront = (frontZ - camera.target.z) < 6.0;
+  const closeToFront = (frontZ - camera.target.z) < 14.0;
 
   return lookingUpByBeta && closeToFront;
 }
@@ -1377,17 +1380,17 @@ function updateStars(dtMs) {
   const want = shouldShowStars();
 
   // Plynulý náběh/útlum
-  if (want) starsFade = Math.min(1, starsFade + dtMs * fadeSpeed);
-  else      starsFade = Math.max(0, starsFade - dtMs * fadeSpeed);
+  starsFade = want
+    ? Math.min(1, starsFade + dtMs * fadeSpeed)
+    : Math.max(0, starsFade - dtMs * fadeSpeed);
 
   // Adaptivní hustota podle FPS
   const fps = engine.getFps ? engine.getFps() : 60;
   const density = fps < 50 ? 0.6 : fps < 58 ? 0.85 : 1.0;
 
   // Základní emisní rychlost
- - const baseEmit = 240;
-- starsSystem.emitRate = baseEmit * starsFade * density;
-+ starsSystem.emitRate = 240; // TEST: fixní emise na ověření
+  const baseEmit = 240;
+  starsSystem.emitRate = baseEmit * starsFade * density;
 
   // Jemný „parallax“ u rootu, aby nebe drželo „u stěny“
   if (starsRoot) {
@@ -1396,7 +1399,7 @@ function updateStars(dtMs) {
   }
 }
 
- /* ========= Boot ========= */
+/* ========= Boot ========= */
 
 createScene();
 
@@ -1411,6 +1414,14 @@ createScene();
   // spustit hvězdy až po sestavení scény (jen desktop)
   if (STARS_ENABLED) {
     createFallingStars();
+
+    // (volitelné) krátký kickoff na 1.5 s, aby bylo hned něco vidět
+    const KICKOFF_EMIT = 0; // nastav na např. 200 pro okamžité ověření
+    if (KICKOFF_EMIT > 0 && starsSystem) {
+      const prev = starsSystem.emitRate;
+      starsSystem.emitRate = KICKOFF_EMIT;
+      setTimeout(() => { starsSystem.emitRate = prev; }, 1500);
+    }
   }
 
   // výchozí kamera bez animace při startu
@@ -1481,28 +1492,21 @@ window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
 document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
 
+/* ========= UI: reset + fullscreen ========= */
+const resetCamIcon = document.getElementById('resetCamIcon');
+if (resetCamIcon){
+  resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
+  resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
+  resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
+}
+// Globální zkratka R
+window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
 
-  /* ========= UI: reset + fullscreen ========= */
-  const resetCamIcon = document.getElementById('resetCamIcon');
-  if (resetCamIcon){
-    // Zabraň „tahání“ obrázku
-    resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
-    // Klik
-    resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
-    // Klávesy na ikoně
-    resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
-  }
-  // Globální zkratka R
-  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
-
-  const fullscreenIcon = document.getElementById('fullscreenIcon');
-  if (fullscreenIcon){
-    fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
-    fullscreenIcon.addEventListener('click', toggleFullscreen);
-    fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
-    document.addEventListener('fullscreenchange', syncFsButton);
-    document.addEventListener('webkitfullscreenchange', syncFsButton);
-  }
-  </script>
-</body>
-</html>
+const fullscreenIcon = document.getElementById('fullscreenIcon');
+if (fullscreenIcon){
+  fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
+  fullscreenIcon.addEventListener('click', toggleFullscreen);
+  fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
+  document.addEventListener('fullscreenchange', syncFsButton);
+  document.addEventListener('webkitfullscreenchange', syncFsButton);
+}
