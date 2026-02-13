@@ -216,25 +216,35 @@
   }
  function unlitTex(tex, { doubleSided=false } = {}){
   const m = new BABYLON.StandardMaterial("mt", scene);
+
+  // Bez světel – ať do barev nic nevstupuje
   m.disableLighting = true;
 
-  // ✨ JEN emissive – žádný diffuse řetězec
-  m.diffuseTexture  = null;
-  m.emissiveTexture = tex;
-  m.emissiveColor   = new BABYLON.Color3(1, 1, 1);
-
+  // ✨ POUZE diffuse chain (to byl ten "fungující" původní stav)
+  m.diffuseTexture  = tex;
+  m.emissiveTexture = null;                 // žádné přičítání/overlay
+  m.diffuseColor    = new BABYLON.Color3(1, 1, 1); // jednotkový gain
+  m.specularColor   = new BABYLON.Color3(0, 0, 0); // bez spekuly
   m.backFaceCulling = !doubleSided;
-  m.specularColor   = new BABYLON.Color3(0, 0, 0);
 
   if (tex){
-    // sRGB / žádné ořezávání barev
+    // Zachovat sRGB vstup → 1:1 vzhled
+    // (u DynamicTexture je to zásadní; u běžných obrázků nevadí, spíš pomůže)
     tex.gammaSpace = true;
+
+    // Bez zbytečného zeslabení
+    tex.level = 1.0;
+
+    // Žádné opakování na hranách
     tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+    // Rozumné filtrování
     tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     tex.anisotropicFilteringLevel = MAX_ANISO;
   }
   return m;
 }
+``
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
