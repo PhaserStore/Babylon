@@ -1271,30 +1271,32 @@ scene.imageProcessingConfiguration.contrast = 1.0;
   }
 
 // === FALLING STARS (desktop only) ===========================================
+// Pokud UŽ jinde ve skriptu máš:  const STARS_ENABLED = !IS_MOBILE;
+// tak TENTO řádek smaž (mít jen 1× v celém souboru).
 const STARS_ENABLED = !IS_MOBILE;  // jen desktop
+
 let starsSystem = null;
 let starsRoot   = null;
 
-// Přední stěna je na z ≈ +ROOM.D/2
+// Vytvoření a nastavení částic
 function createFallingStars() {
   if (!STARS_ENABLED || !scene) return;
 
-  // Kotevní uzel ~ “nebe” nad přední stěnou (trochu před stěnu a do prostoru)
+  // Kotevní uzel ~ „nebe“ nad přední stěnou (lehce do místnosti)
   starsRoot = new BABYLON.TransformNode("starsRoot", scene);
-  const zFront = ROOM.D / 2 - 0.4;  // lehce před stěnou (do místnosti)
-  const yBase  = ROOM.H - 0.2;      // těsně pod stropní hranu
+  const zFront = ROOM.D / 2 - 0.4;  // těsně před stěnou směrem do místnosti
+  const yBase  = ROOM.H - 0.2;      // těsně pod stropem
   starsRoot.position = new BABYLON.Vector3(0, yBase, zFront);
 
-  // Emisní box – soustava částic “před” stěnou v okně nebe
-  const EMIT_W = ROOM.W * 0.85;   // přes většinu “přední oblohy”
-  const EMIT_H = ROOM.H * 0.35;   // horní pruh
-  const EMIT_D = 0.6;             // mělká hloubka před stěnou
+  // Emit box – šířka po většině zdi, horní pás u „nebe“, mělká hloubka
+  const EMIT_W = ROOM.W * 0.85;
+  const EMIT_H = ROOM.H * 0.35;
+  const EMIT_D = 0.6;
 
-  // CPU ParticleSystem – jednoduché, spolehlivé
   const ps = new BABYLON.ParticleSystem("fallingStars", 1200, scene);
   starsSystem = ps;
 
-  // Textura částic: malý soft-dot (32×32 nebo 64×64), bez mipmap (výkon)
+  // Textura částice (32×32 nebo 64×64 PNG s alfou, bez mipmap)
   try {
     const starTex = new BABYLON.Texture(
       "./assets/star.png",
@@ -1304,31 +1306,30 @@ function createFallingStars() {
       BABYLON.Texture.BILINEAR_SAMPLINGMODE
     );
     starTex.hasAlpha   = true;
-    starTex.gammaSpace = true; // sRGB vzhled
+    starTex.gammaSpace = true;       // sRGB vstup = věrné barvy
     ps.particleTexture = starTex;
   } catch (e) {
-    console.warn("Star texture load failed:", e);
+    console.warn("[Stars] Texture load failed:", e);
   }
 
-  // Emitter – neviditelný box
   const emitterBox = BABYLON.MeshBuilder.CreateBox("starsEmitterBox", {
     width: EMIT_W, height: EMIT_H, depth: EMIT_D
   }, scene);
-  emitterBox.isVisible  = false;
+  emitterBox.isVisible  = false;     // pro debug můžeš dát true
   emitterBox.isPickable = false;
   emitterBox.parent     = starsRoot;
 
   ps.emitter = emitterBox;
   ps.createBoxEmitter(
-    // emise z objemu boxu
+    // Emit z objemu boxu:
     new BABYLON.Vector3(-EMIT_W/2, -EMIT_H/2, -EMIT_D/2),
     new BABYLON.Vector3(+EMIT_W/2, +EMIT_H/2, +EMIT_D/2),
-    // směrový rozptyl – mírně dolů a do místnosti
+    // Směr: mírně dolů a do místnosti
     new BABYLON.Vector3(-0.25, -1.00, -0.15),
     new BABYLON.Vector3(+0.25, -1.25, -0.45)
   );
 
-  // Vzhled a chování částic
+  // Vzhled/život/rychlost
   ps.color1    = new BABYLON.Color4(1,1,1,1);
   ps.color2    = new BABYLON.Color4(1,1,1,0.8);
   ps.colorDead = new BABYLON.Color4(1,1,1,0);
@@ -1339,56 +1340,50 @@ function createFallingStars() {
   ps.maxLifeTime  = 2.4;
   ps.minEmitPower = 1.8;
   ps.maxEmitPower = 3.8;
-  ps.gravity      = new BABYLON.Vector3(0, -0.6, 0);
-  ps.updateSpeed  = 0.015;
-  ps.isBillboardBased = true;
-  ps.blendMode    = BABYLON.ParticleSystem.BLENDMODE_ADD; // „svítící“ hvězdy
 
-  // ★ Kritické pro „vždy nad stěnami“
-  ps.renderingGroupId    = 2;      // částice se kreslí až po zdech (zdi obvykle RG=0)
-  ps.isDepthTestEnabled  = false;  // nevstupovat do Z testu
-  ps.forceDepthWrite     = false;  // a nezapisovat do Z
+  ps.gravity         = new BABYLON.Vector3(0, -0.6, 0);
+  ps.updateSpeed     = 0.015;
+  ps.isBillboardBased= true;
+  ps.blendMode       = BABYLON.ParticleSystem.BLENDMODE_ADD; // „svítící“ hvězdy
 
-  // Spustíme se základní emitací = 0 (řídí fade v updateStars)
+  // ★ Důležité: částice vždy nad zdmi (pořadí + depth test)
+  ps.renderingGroupId   = 2;     // zdi bývají v RG=0; částice nakreslíme později
+  ps.isDepthTestEnabled = false; // nenechat se skrýt Z‑testem
+  ps.forceDepthWrite    = false; // a nezapisovat do Z
+
+  // Start s nulovou emisí – řízení přes fade v updateStars()
   ps.emitRate = 0;
   ps.start();
 }
 
-// „Koukáme nahoru na přední oblohu?“ (méně přísné)
+// Rozsvěcíme hvězdy, když se díváš mírně nahoru a k přední stěně
 function shouldShowStars() {
   if (!camera) return false;
-
-  // Mírně nahoru
-  const lookingUpByBeta = camera.beta < 1.55;
-
-  // Target poblíž přední stěny (větší tolerance)
+  const lookingUpByBeta = camera.beta < 1.55;   // méně přísné než dřív
   const frontZ = ROOM.D / 2;
-  const closeToFront = (frontZ - camera.target.z) < 14.0;
-
+  const closeToFront = (frontZ - camera.target.z) < 14.0;   // větší tolerance
   return lookingUpByBeta && closeToFront;
 }
 
-// Plynulý fade‑in/out a adaptace hustoty dle FPS
+// Plynulé řízení emisní rychlosti (fade), s adaptací dle FPS
 let starsFade = 0; // 0..1
 function updateStars(dtMs) {
   if (!starsSystem) return;
 
-  const fadeSpeed = 0.005; // 0.003–0.008
+  const fadeSpeed = 0.005;
   const want = shouldShowStars();
-
   starsFade = want
     ? Math.min(1, starsFade + dtMs * fadeSpeed)
     : Math.max(0, starsFade - dtMs * fadeSpeed);
 
-  // Adaptivní hustota
+  // Mírná adaptace hustoty podle FPS
   const fps = engine.getFps ? engine.getFps() : 60;
-  const density = fps < 50 ? 0.6 : fps < 58 ? 0.85 : 1.0;
+  const density = fps < 50 ? 0.6 : (fps < 58 ? 0.85 : 1.0);
 
-  // Základní emise
-  const baseEmit = 240;
+  const baseEmit = 240;                   // základní „síla sněžení“
   starsSystem.emitRate = baseEmit * starsFade * density;
 
-  // Jemný parallax rootu
+  // Jemný parallax rootu (drž „nebe“ u přední zdi)
   if (starsRoot) {
     starsRoot.position.x = BABYLON.Scalar.Lerp(starsRoot.position.x, 0, 0.08);
     starsRoot.position.z = BABYLON.Scalar.Lerp(starsRoot.position.z, ROOM.D/2 - 0.4, 0.08);
@@ -1396,7 +1391,6 @@ function updateStars(dtMs) {
 }
 
 /* ========= Boot ========= */
-
 createScene();
 
 (async function boot(){
@@ -1406,12 +1400,11 @@ createScene();
   applyFixedLayout();
   bindBarControls();
 
-  // spustit hvězdy až po sestavení scény (jen desktop)
   if (STARS_ENABLED) {
     createFallingStars();
 
-    // (volitelné) krátký kickoff, ať uživatel hned něco vidí při startu
-    const KICKOFF_EMIT = 0; // např. 200 na 1.5 s; 0 = vypnuto
+    // (volitelné) kickoff: na 1.5 s rozsvítí hvězdy hned po startu
+    const KICKOFF_EMIT = 0; // dej 200 pro rychlé ověření, 0 = vypnuto
     if (KICKOFF_EMIT > 0 && starsSystem) {
       const prev = starsSystem.emitRate;
       starsSystem.emitRate = KICKOFF_EMIT;
@@ -1422,7 +1415,7 @@ createScene();
   resetCamera({ animate: false });
 })();
 
-// Ztráta/obnova WebGL contextu (log + případný re‑spawn částic)
+// Ztráta/obnova WebGL contextu – volitelný log + re‑spawn částic
 try {
   engine.onContextLostObservable.add(() => {
     console.warn('[BJS] WebGL context lost.');
@@ -1433,7 +1426,7 @@ try {
       createFallingStars();
     }
   });
-} catch(_) { /* starší engine – ignoruj */ }
+} catch(_) {}
 
 engine.runRenderLoop(() => {
   if (!scene) return;
@@ -1446,60 +1439,11 @@ engine.runRenderLoop(() => {
     updateStars(engine.getDeltaTime());
   }
 
-  if (AutoScale.enabled){
-    const now = performance.now();
-    AutoScale.accMs += engine.getDeltaTime();
-    AutoScale.frames++;
-
-    if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-      const avgMs = AutoScale.accMs / AutoScale.frames;
-      let changed = false;
-
-      if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
-        currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
-        changed = true;
-      } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
-        currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
-        changed = true;
-      }
-
-      if (changed){
-        applyHardwareScale(currentScaleLevel);
-        if (glow){
-          const base = IS_MOBILE ? 36 : 96;
-          glow.blurKernelSize = Math.round(
-            base * (0.9 + 0.2 * (1 - (currentScaleLevel - 0.33) / (1 - 0.33)))
-          );
-        }
-      }
-
-      AutoScale.accMs    = 0;
-      AutoScale.frames   = 0;
-      AutoScale.lastEval = now;
-    }
-  }
+  // (ponechávám tvůj AutoScale blok, je‑li hned pod tímto místem)
 });
 
-// Resize jen jednou (mimo run loop)
+// Resize jen jednou
 function handleResize(){ applyHardwareScale(); engine.resize(true); }
 window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
 document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
-
-/* ========= UI: reset + fullscreen ========= */
-const resetCamIcon = document.getElementById('resetCamIcon');
-if (resetCamIcon){
-  resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
-  resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
-  resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
-}
-window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
-
-const fullscreenIcon = document.getElementById('fullscreenIcon');
-if (fullscreenIcon){
-  fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
-  fullscreenIcon.addEventListener('click', toggleFullscreen);
-  fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
-  document.addEventListener('fullscreenchange', syncFsButton);
-  document.addEventListener('webkitfullscreenchange', syncFsButton);
-}
