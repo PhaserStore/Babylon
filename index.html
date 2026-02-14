@@ -1355,7 +1355,9 @@ if (USE_BLOOM) {
 star.material = mat;
 
 // Optional glow jen pro star
-if (USE_GLOW && scene.getLayerByName && scene.getLayerByName("glow")) {
+if (USE_GLOW && glow) {
+  glow.addIncludedOnlyMesh(star);
+}
   // když jsi GlowLayer vytvořil… (viz sekce 1)
   scene.getLayerByName("glow").addIncludedOnlyMesh(star);
 }
@@ -1680,7 +1682,7 @@ function onCameraResetForStars(){
   }
 
 
- /* ========= BOOT ========= */
+/* ========= BOOT ========= */
 createScene();
 
 (async function boot(){
@@ -1688,23 +1690,24 @@ createScene();
     await document.fonts?.load?.('400 16px Poppins');
     await document.fonts?.load?.('600 16px Poppins');
   }catch(e){}
+
   applyFixedLayout();
-  bindBarControls?.();          // pokud máš definované
+  bindBarControls?.();
+
+  // pevné natočení na přední stěnu
   resetCamera({animate:false});
-  
-  // volitelně: malinká animace po 1 frame – estetické, ne povinné
+
+  // jemná „oživující“ animace 1 frame po startu (volitelné)
   requestAnimationFrame(() => animateCameraTo({
     alpha: normAlpha(FRONT_ALPHA),
     beta:  camera.beta,
     radius: camera.radius,
     target: camera.target.clone()
   }, 320));
-  
-  startShootingStars();
+
+  startShootingStars(); // jednou za čas jedna hvězda
 })();
 
-  startShootingStars();         // <<< jednou za čas jedna čára nad "nebem"
-})();
 
 /* ========= Render loop ========= */
 engine.runRenderLoop(()=>{
