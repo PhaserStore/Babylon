@@ -935,6 +935,17 @@ function hint(msg){ console.log(msg); }
   /* ========= Camera reset (opraveno + animace) ========= */
   // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
 const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
+
+    /* === Přední stěna – +Z === */
+const FRONT_ALPHA = Math.PI / 2;
+
+/* Normalizace úhlu do [0, 2π) – aby se ArcRotate neskákal „oklikou“ */
+function normAlpha(a){
+  const TAU = Math.PI * 2;
+  a = a % TAU; if (a < 0) a += TAU;
+  return a;
+}
+    
     
     const RESET_POSE = {
   // Target uprostřed místnosti – ať jsou "v dosahu" všechny stěny
@@ -991,16 +1002,27 @@ const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
   }
 
   function resetCamera({animate=true} = {}){
-    if (!camera) return;
-    if (animate){
-      animateCameraTo(RESET_POSE, 420);
-    } else {
-      camera.alpha  = RESET_POSE.alpha;
-      camera.beta   = RESET_POSE.beta;
-      camera.radius = RESET_POSE.radius;
-      camera.setTarget(RESET_POSE.target.clone()); // DŮLEŽITÉ: nový vektor do targetu
-    }
+  if (!camera) return;
+
+  const pose = {
+    alpha:  normAlpha(FRONT_ALPHA),       // jistota: vždy PŘEDNÍ stěna
+    beta:   RESET_POSE.beta,
+    radius: RESET_POSE.radius,
+    target: RESET_POSE.target.clone()
+  };
+
+  if (animate){
+    animateCameraTo(pose, 420);
+  } else {
+    camera.alpha  = pose.alpha;
+    camera.beta   = pose.beta;
+    camera.radius = pose.radius;
+    camera.setTarget(pose.target);
   }
+
+  // ✨ krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
+  onCameraResetForStars?.();
+}
 
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
@@ -1669,6 +1691,18 @@ createScene();
   applyFixedLayout();
   bindBarControls?.();          // pokud máš definované
   resetCamera({animate:false});
+  
+  // volitelně: malinká animace po 1 frame – estetické, ne povinné
+  requestAnimationFrame(() => animateCameraTo({
+    alpha: normAlpha(FRONT_ALPHA),
+    beta:  camera.beta,
+    radius: camera.radius,
+    target: camera.target.clone()
+  }, 320));
+  
+  startShootingStars();
+})();
+
   startShootingStars();         // <<< jednou za čas jedna čára nad "nebem"
 })();
 
