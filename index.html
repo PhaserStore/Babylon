@@ -1086,27 +1086,112 @@ function getStarTexture(){
   return STAR_TEX;
 }
 
-/** Směr pohledu v XZ (jednotkový) */
-function getFacingDirXZ(){
-  const sinB = Math.sin(camera.beta);
-  let x = Math.cos(camera.alpha) * sinB;
-  let z = Math.sin(camera.alpha) * sinB;
-  const len = Math.hypot(x, z);
-  if (len < 1e-4){ x = 0; z = 1; } else { x/=len; z/=len; }
-  return { x, z };
-}
-function rotate2D(x, z, a){
-  const c = Math.cos(a), s = Math.sin(a);
-  return { x: x*c - z*s, z: x*s + z*c };
+/* ------------------------ Screen-space báze -> world (projekce do XZ) ------------------------ */
+
+/** Jednotkové směry „doprava“ a „dolů na obrazovce“ ve world-space, ale promítnuté do XZ (rovina stropu). */
+const ScreenBasisXZ = {
+  right: BABYLON.Vector3.Zero(),
+  down : BABYLON.Vector3.Zero(),
+};
+
+/** Přepočet podle aktuální kamery. */
+function updateScreenBasisXZ() {
+  // světové osy kamery
+  const rightW = camera.getDirection(BABYLON.Axis.X); // „doprava na obrazovce“
+  const upW    = camera.getDirection(BABYLON.Axis.Y); // „nahoru na obrazovce“
+  const downW  = upW.scale(-1);                       // „dolů na obrazovce“
+
+  // Projekce do XZ (aby se pohyb držel „po stropě“)
+  ScreenBasisXZ.right.set(rightW.x, 0, rightW.z);
+  ScreenBasisXZ.down .set(downW.x , 0, downW.z);
+
+  // fallbacky (když míříš hodně kolmo ke stropu → projekce může být skoro nulová)
+  const eps = 1e-4;
+  let lr = ScreenBasisXZ.right.length();
+  let ld = ScreenBasisXZ.down.length();
+
+  // Pokud „down“ zkolabuje, vezmeme XZ složku dopředného směru jako náhradu „dolů“.
+  if (ld < eps) {
+    const fwdW = camera.getDirection(BABYLON.Axis.Z);
+    ScreenBasisXZ.down.set(fwdW.x, 0, fwdW.z);
+    ld = ScreenBasisXZ.down.length();
+  }
+
+  // Když i „right“ zkolabuje, dopočítáme ji jako 90° rotaci „down“ v XZ.
+  if (lr < eps) {
+    ScreenBasisXZ.right.set(-ScreenBasisXZ.down.z, 0, ScreenBasisXZ.down.x);
+    lr = ScreenBasisXZ.right.length();
+  }
+
+  ScreenBasisXZ.right.scaleInPlace(1 / Math.max(lr, eps));
+  ScreenBasisXZ.down .scaleInPlace(1 / Math.max(ld, eps));
 }
 
-/** Biasovaný náhodný úhel kolem směru kamery – pro „viditelnost i na stěně“ */
-const FACING_DIR_BIAS = 0.65; // 0–1 (víc = častěji „směrem dopředu“)
-function randomBiasedAngle(maxAngleRad, bias = FACING_DIR_BIAS){
-  const t = Math.pow(Math.random(), 1 + 2*bias);
-  const a = t * maxAngleRad;
-  return (Math.random()<0.5 ? -a : a);
+/** Krátká pomůcka: náhodný sklon směru (šikmé úhly dolů) */
+function makeDownwardDirXZ(maxTiltDeg = 35, lateralBias = 0) {
+  updateScreenBasisXZ();
+
+  const tilt = BABYLON.Angle.FromDegrees(BABYLON.Scalar.RandomRange(0, maxTiltDeg)).radians();
+  const sgn  = (Math.random() + lateralBias) >= 0.5 ? 1 : -1;
+
+  // v = dominantně „dolů“, plus malá příčná složka „doprava/doleva“
+  const downMag = Math.cos(tilt);
+  const latMag  = Math.sin(tilt) * sgn;
+
+  const v = ScreenBasisXZ.down.scale(downMag).add(ScreenBasisXZ.right.scale(latMag));
+  const len = v.length();
+  return len > 1e-5 ? v.scale(1/len) : ScreenBasisXZ.down.clone();
 }
+
+/* ------------------------ Viditelná část nebe (spawn podle obrazovky) ------------------------ */
+
+/** NDC → ray z kamery (ndcX, ndcY v rozsahu [-1,1]) */
+function rayFromNDC(ndcX, ndcY) {
+  const engine = scene.getEngine();
+  const px = (ndcX * 0.5 + 0.5) * engine.getRenderWidth();
+  const py = (1 - (ndcY * 0.5 + 0.5)) * engine.getRenderHeight();
+  return scene.createPickingRay(px, py, BABYLON.Matrix.Identity(), camera, false);
+}
+
+/** Průsečík ray s horizontální rovinou y = yPlane. Vrátí null, když je rovnoběžný/mimo. */
+function rayHitYPlane(ray, yPlane){
+  const vy = ray.direction.y;
+  if (Math.abs(vy) < 1e-6) return null;
+  const t = (yPlane - ray.origin.y) / vy;
+  if (t <= 0) return null;
+  const hit = ray.origin.add(ray.direction.scale(t));
+  return hit;
+}
+
+/** Výběr startu jen v aktuálně VIDITELNÉ oblasti stropního otvoru */
+function pickVisibleSkyStart({
+  yPlane        = CEIL_Y + 1.45,   // přibližný „vršek“ dráhy (nad stropem)
+  xMin = -0.95, xMax = 0.95,       // téměř celá šířka obrazovky
+  yMin = 0.15,  yMax = 0.95,       // horní pás obrazovky (nad zadní stěnou)
+  maxTries = 10
+} = {}) {
+  const halfW = OPEN_W/2 - SKY_INNER_MARGIN;
+  const halfD = OPEN_D/2 - SKY_INNER_MARGIN;
+
+  for (let i=0; i<maxTries; i++){
+    const ndcX = BABYLON.Scalar.RandomRange(xMin, xMax);
+    const ndcY = BABYLON.Scalar.RandomRange(yMin, yMax);
+
+    const ray  = rayFromNDC(ndcX, ndcY);
+    const hit  = rayHitYPlane(ray, yPlane);
+    if (!hit) continue;
+
+    // je průsečík uvnitř otvoru?
+    if (Math.abs(hit.x) <= halfW && Math.abs(hit.z) <= halfD) {
+      return { x: hit.x, z: hit.z };
+    }
+  }
+
+  // Fallback: střed otevřené oblohy
+  return { x: 0, z: 0 };
+}
+
+/* ------------------------ Geometrie obdélníku (okrajová kolize) ------------------------ */
 
 /** Průsečík paprsku z bodu (px,pz) ve směru (dx,dz) s vnitřním obdélníkem [-halfW,halfW]×[-halfD,halfD] */
 function rayRectHitFromPoint(px, pz, dx, dz, halfW, halfD){
@@ -1128,60 +1213,70 @@ function rayRectHitFromPoint(px, pz, dx, dz, halfW, halfD){
   return c[0];
 }
 
-/** Náhodná trajektorie v „nebi“:
- *  – start v malém disku kolem středu (ne pořád přesně 0,0),
- *  – směr = facing kamery s náhodnou odchylkou (šikmé),
- *  – cíl = zásah hrany + malý přesah za hranu (zmizí za stěnou).
+/* ------------------------ Výběr trajektorie: vždy DOLŮ na obrazovce ------------------------ */
+
+/** Náhodná „screen‑down“ trajektorie:
+ *  – start = jen v aktuálně viditelné části otvoru (horní pás obrazovky),
+ *  – směr = kombinace (downXZ + ±rightXZ) = vždy dolů, šikmo,
+ *  – end = hrana obdélníku + malý přesah (zmizí za stěnou).
  */
-function pickRandomPath({
-  maxAngleDeg = 70,
-  startFrac   = 0.25, // poloměr start disku relativně k menšímu poloměru
-  minFracLen  = 0.55, // délka po hranu (0.55–1.0)
-  maxFracLen  = 1.00,
-  beyondMin   = 0.35, // „přesah“ za hranu (světové jednotky)
-  beyondMax   = 1.10
-}={}){
+function pickDownwardPath({
+  maxTiltDeg = 33,          // max odklon od čistého „dolů“
+  minFracLen = 0.55,        // délka k hraně (0.55–1.0)
+  maxFracLen = 1.00,
+  beyondMin  = 0.35,        // přesah za hranu (světové jednotky)
+  beyondMax  = 1.10,
+  lateralBias = 0.0         // >0 preferuje doprava, <0 doleva
+} = {}){
+  updateScreenBasisXZ();
+
   const halfW = OPEN_W/2 - SKY_INNER_MARGIN;
   const halfD = OPEN_D/2 - SKY_INNER_MARGIN;
 
-  // start v disku kolem středu
-  const rMax = Math.min(halfW, halfD) * startFrac;
-  const rr   = Math.sqrt(Math.random()) * rMax;
-  const ang  = Math.random()*Math.PI*2;
-  const sx   = rr*Math.cos(ang);
-  const sz   = rr*Math.sin(ang);
+  // Start jen tam, kam se opravdu koukáme (v horním pásu obrazovky)
+  const start = pickVisibleSkyStart();
 
-  // směr = facing ± biasovaný úhel
-  const f = getFacingDirXZ();
-  const delta = randomBiasedAngle(maxAngleDeg * Math.PI/180, FACING_DIR_BIAS);
-  let d = rotate2D(f.x, f.z, delta);
-  if (d.x*f.x + d.z*f.z < 0) d = {x:-d.x, z:-d.z}; // preferuj „vpřed“
+  // Vždy DOLŮ na obrazovce, ale s šikmou variací
+  const d = makeDownwardDirXZ(maxTiltDeg, lateralBias);
 
-  // zásah hrany
-  const hit = rayRectHitFromPoint(sx, sz, d.x, d.z, halfW, halfD);
+  // zásah hrany a přesah
+  const hit = rayRectHitFromPoint(start.x, start.z, d.x, d.z, halfW, halfD);
+
+  // bezpečný fallback (kdyby se to numericky nepovedlo)
+  const frac   = BABYLON.Scalar.RandomRange(minFracLen, maxFracLen);
+  const beyond = BABYLON.Scalar.RandomRange(beyondMin, beyondMax);
+
   if (!hit){
-    const ex = sx + d.x*halfW, ez = sz + d.z*halfD;
-    const beyond = BABYLON.Scalar.RandomRange(beyondMin, beyondMax);
+    const ex = start.x + d.x*halfW;
+    const ez = start.z + d.z*halfD;
     return {
-      start:{x:sx,z:sz},
-      end:{x:ex + d.x*beyond, z:ez + d.z*beyond},
-      dir:d
+      start,
+      end: { x: ex + d.x*beyond, z: ez + d.z*beyond },
+      dir: d
     };
   }
 
-  // zkrácení po hranu + přesah za hranu
-  const frac   = BABYLON.Scalar.RandomRange(minFracLen, maxFracLen);
-  const hitX   = sx + d.x * hit.t * frac;
-  const hitZ   = sz + d.z * hit.t * frac;
-  const beyond = BABYLON.Scalar.RandomRange(beyondMin, beyondMax);
+  const hitX = start.x + d.x * hit.t * frac;
+  const hitZ = start.z + d.z * hit.t * frac;
   return {
-    start:{x:sx,z:sz},
-    end:{x:hitX + d.x*beyond, z:hitZ + d.z*beyond},
-    dir:d
+    start,
+    end: { x: hitX + d.x*beyond, z: hitZ + d.z*beyond },
+    dir: d
   };
 }
 
-/** Jasový boost podle toho, jak moc letí „proti nám“ (front‑facing) – ať je vidět i při pohledu na stěnu */
+/* ------------------------ Vizuální parametry a spawn jedné hvězdy ------------------------ */
+
+/** Dopředný směr v XZ kvůli lehké modulaci jasu */
+function getFacingDirXZ(){
+  const fwd = camera.getDirection(BABYLON.Axis.Z);
+  const v = new BABYLON.Vector3(fwd.x, 0, fwd.z);
+  const len = v.length();
+  if (len < 1e-4) return { x: 0, z: 1 };
+  return { x: v.x/len, z: v.z/len };
+}
+
+/** Jasový boost proti směru pohledu (lépe vidět „nad stěnou“) */
 function visibilityBoost(dir, facing){
   const dot = Math.max(0, dir.x*facing.x + dir.z*facing.z); // 0..1
   return 0.30 + 0.70 * Math.pow(dot, 0.7);
@@ -1189,6 +1284,7 @@ function visibilityBoost(dir, facing){
 
 /** Jedna padající hvězda (billboard), bez trailu. Zůstává nad stropem a mizí za stěnou. */
 function spawnOneFallingStar({
+  // start / end v XZ + směr
   start, end, dirXZ,
   // svislý průhyb v čase (stále nad stropem)
   yTop = CEIL_Y + BABYLON.Scalar.RandomRange(1.48, 1.62),
@@ -1201,7 +1297,7 @@ function spawnOneFallingStar({
 }){
   const facing = getFacingDirXZ();
   const vis    = visibilityBoost(dirXZ, facing);  // 0.3–1.0
-  const size   = sizeBase * (0.85 + 0.4*vis);     // trochu větší proti pohledu
+  const size   = sizeBase * (0.85 + 0.4*vis);
   const tex    = getStarTexture();
 
   // Billboard hvězda (plane vždy kameře)
@@ -1214,7 +1310,7 @@ function spawnOneFallingStar({
   const mat = new BABYLON.StandardMaterial("starMat", scene);
   mat.disableLighting = true;
   mat.diffuseColor = new BABYLON.Color3(0,0,0);
-  mat.emissiveColor = color.scale(1.25 + 1.1*vis); // jas ↑ proti pohledu
+  mat.emissiveColor = color.scale(1.25 + 1.1*vis);
   mat.diffuseTexture  = tex;   // kvůli sRGB a filtrování
   mat.opacityTexture  = tex;   // průhlednost z textury
   mat.backFaceCulling = false;
@@ -1230,12 +1326,12 @@ function spawnOneFallingStar({
   const A = new BABYLON.Vector3(start.x, yTop, start.z);
   const B = new BABYLON.Vector3(end.x,   yBot, end.z);
   const lenXZ = Math.hypot(end.x - start.x, end.z - start.z);
-  const lifeSec = Math.max(0.45, Math.min(1.40, lenXZ / speed));
+  const lifeSec = Math.max(0.45, Math.min(1.40, lenXZ / Math.max(1e-4, speed)));
   const t0 = performance.now();
   const totalMs = lifeSec * 1000;
   const minY = CEIL_Y + 0.82;
 
-  // Jemné „blikání“ – hvězda dýchá (bez „dráhy“)
+  // Jemné „blikání“ – hvězda dýchá (bez „lámaní“ dráhy)
   const flickerPhase = Math.random() * Math.PI*2;
   const baseInt = 1.25 + 1.1*vis;
 
@@ -1248,7 +1344,7 @@ function spawnOneFallingStar({
     const pz = BABYLON.Scalar.Lerp(A.z, B.z, r);
     star.position.set(px, py, pz);
 
-    // Flicker (jemné, bez „lámaní“ dráhy)
+    // Flicker (jemné, stabilní)
     const flick = 0.85 + 0.25*Math.sin((now*0.012) + flickerPhase) + 0.10*Math.random();
     mat.emissiveColor = color.scale(baseInt * flick);
 
@@ -1270,19 +1366,21 @@ function spawnOneFallingStar({
   return star;
 }
 
+/* ------------------------ Plánování a spouštění ------------------------ */
+
 let shootingTimer = null;
 
-/** Plánovač: jedna hvězda každých ~6–12 s, šikmé směry, variace jasu/rychlosti/velikosti */
+/** Jedna hvězda každých ~6–12 s; vždy dolů; variace rychlosti/velikosti/jasu */
 function scheduleFallingStar(){
   const wait = STAR_INTERVAL_MIN_MS + Math.random()*(STAR_INTERVAL_MAX_MS - STAR_INTERVAL_MIN_MS);
   shootingTimer = setTimeout(()=>{
-    const seg = pickRandomPath({
-      maxAngleDeg: 70,
-      startFrac  : 0.25,
+    const seg = pickDownwardPath({
+      maxTiltDeg : 33,
       minFracLen : 0.55,
       maxFracLen : 1.00,
       beyondMin  : 0.35,
-      beyondMax  : 1.10
+      beyondMax  : 1.10,
+      lateralBias: 0.0
     });
 
     // náhodná rychlost – promítne se do lifeSec (delší dráha ≠ vždy delší čas)
@@ -1303,8 +1401,16 @@ function startShootingStars(){
   if (shootingTimer) clearTimeout(shootingTimer);
   scheduleFallingStar();
 }
+
 function stopShootingStars(){
   if (shootingTimer){ clearTimeout(shootingTimer); shootingTimer = null; }
+}
+
+/** Volitelně: po resetu kamery (nebo větší změně pohledu) zavolej: */
+function onCameraResetForStars(){
+  // Drobná pauza ve spawnu zamezí „překlopení“ uprostřed letu
+  if (shootingTimer){ clearTimeout(shootingTimer); shootingTimer = null; }
+  setTimeout(()=> scheduleFallingStar(), 220);
 }
   /* ========= Layout apply ========= */
   function applyFixedLayout() {
