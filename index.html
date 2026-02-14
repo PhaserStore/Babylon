@@ -933,12 +933,13 @@ function hint(msg){ console.log(msg); }
   }
 
   /* ========= Camera reset (opraveno + animace) ========= */
-  // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
+// Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
 const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
 
-    /* === Přední stěna – +Z === */
-const FRONT_ALPHA = 0;
-    const FRONT_ALPHA = -Math.PI / 2;   // kamera na -Z, míří k +Z => přední stěn
+/* === Přední stěna – +Z ===
+   Abychom viděli přední stěnu (z = +ROOM.D/2),
+   musí být kamera na straně -Z → alpha = -PI/2 (nebo 3*PI/2). */
+const FRONT_ALPHA = -Math.PI / 2;
 
 /* Normalizace úhlu do [0, 2π) – aby se ArcRotate neskákal „oklikou“ */
 function normAlpha(a){
@@ -946,62 +947,60 @@ function normAlpha(a){
   a = a % TAU; if (a < 0) a += TAU;
   return a;
 }
-    
-    
 
 const RESET_POSE = {
   target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
   radius: 17.0,
- alpha:  0,
- alpha:  -Math.PI / 2,                // přední stěna
+  alpha:  -Math.PI / 2,      // přední stěna (kamera na -Z)
   beta:   Math.PI / 1.88
 };
 
+function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
+  if (!camera) return;
 
-    
+  const fps = 60, frames = Math.max(1, Math.round(durationMs / (1000/fps)));
+  const easing = new BABYLON.CubicEase();
+  easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
 
-  function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
-    if (!camera) return;
+  const makeAnim = (prop, from, to) => {
+    const a = new BABYLON.Animation("anim_"+prop, prop, fps,
+      BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+    a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
+    a.setEasingFunction(easing);
+    return a;
+  };
 
-    const fps = 60, frames = Math.max(1, Math.round(durationMs / (1000/fps)));
-    const easing = new BABYLON.CubicEase(); easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+  const anims = [
+    makeAnim("alpha",  camera.alpha,  alpha),
+    makeAnim("beta",   camera.beta,   beta),
+    makeAnim("radius", camera.radius, radius),
+  ];
 
-    const makeAnim = (prop, from, to) => {
-      const a = new BABYLON.Animation("anim_"+prop, prop, fps, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-      a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
-      a.setEasingFunction(easing);
-      return a;
-    };
+  // target (Vector3) – animujeme po složkách
+  const makeVAnim = (axis, from, to) => {
+    const a = new BABYLON.Animation("anim_t"+axis, "target."+axis, fps,
+      BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+    a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
+    a.setEasingFunction(easing);
+    return a;
+  };
+  anims.push(
+    makeVAnim("x", camera.target.x, target.x),
+    makeVAnim("y", camera.target.y, target.y),
+    makeVAnim("z", camera.target.z, target.z)
+  );
 
-    // alpha, beta, radius
-    const anims = [
-      makeAnim("alpha",  camera.alpha,  alpha),
-      makeAnim("beta",   camera.beta,   beta),
-      makeAnim("radius", camera.radius, radius),
-    ];
+  camera.animations = anims;
+  scene.beginAnimation(camera, 0, frames, false);
+}
 
-    // target (Vector3) – animujeme po složkách
-    const makeVAnim = (axis, from, to) => {
-      const a = new BABYLON.Animation("anim_t"+axis, "target."+axis, fps, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-      a.setKeys([{frame:0, value:from}, {frame:frames, value:to}]);
-      a.setEasingFunction(easing);
-      return a;
-    };
-    anims.push(
-      makeVAnim("x", camera.target.x, target.x),
-      makeVAnim("y", camera.target.y, target.y),
-      makeVAnim("z", camera.target.z, target.z)
-    );
-
-    camera.animations = anims;
-    scene.beginAnimation(camera, 0, frames, false);
-  }
-
-  function resetCamera({animate=true} = {}){
+function resetCamera({animate=true} = {}){
   if (!camera) return;
 
   const pose = {
-    alpha:  normAlpha(FRONT_ALPHA),       // jistota: vždy PŘEDNÍ stěna
+    alpha:  normAlpha(FRONT_ALPHA),  // vždy na přední stěnu
     beta:   RESET_POSE.beta,
     radius: RESET_POSE.radius,
     target: RESET_POSE.target.clone()
@@ -1016,10 +1015,10 @@ const RESET_POSE = {
     camera.setTarget(pose.target);
   }
 
-  // ✨ krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
+  // krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
   onCameraResetForStars?.();
 }
-
+``
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
   }
