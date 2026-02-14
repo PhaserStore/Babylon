@@ -1300,27 +1300,62 @@ function spawnOneFallingStar({
   const size   = sizeBase * (0.85 + 0.4*vis);
   const tex    = getStarTexture();
 
-  // Billboard hvězda (plane vždy kameře)
-  const star = BABYLON.MeshBuilder.CreatePlane("star", { size }, scene);
-  star.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
-  star.position.set(start.x, yTop, start.z);
-  star.renderingGroupId = 0; // depth-occluded
-  star.isPickable = false;
+  
+// === zvýrazňující režimy (zapínej dle potřeby) ===
+const USE_GLOW   = true;     // GlowLayer (sekce 1)
+const USE_BLOOM  = false;    // Bloom pipeline (sekce 2) – vyžaduje init výše
+const USE_HALO   = true;     // Druhý billboard (sekce 3)
+const USE_ADD    = true;     // Additivní míchání pro hvězdu (jinak COMBINE)
 
-  const mat = new BABYLON.StandardMaterial("starMat", scene);
-  mat.disableLighting = true;
-  mat.diffuseColor = new BABYLON.Color3(0,0,0);
-  mat.emissiveColor = color.scale(1.25 + 1.1*vis);
-  mat.diffuseTexture  = tex;   // kvůli sRGB a filtrování
-  mat.opacityTexture  = tex;   // průhlednost z textury
-  mat.backFaceCulling = false;
-  mat.alphaMode       = BABYLON.Engine.ALPHA_COMBINE;
-  // Depth: aby NIKDY „nelezla“ přes stěny
-  mat.forceDepthWrite  = true;
-  mat.needDepthPrePass = true;
-  // Y‑clip: nic pod stropem (do místnosti)
-  mat.clipPlane = new BABYLON.Plane(0, -1, 0, CEIL_Y);
-  star.material = mat;
+
+  // Billboard hvězda
+const star = BABYLON.MeshBuilder.CreatePlane("star", { size }, scene);
+star.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+star.position.set(start.x, yTop, start.z);
+star.renderingGroupId = 0;
+star.isPickable = false;
+
+const mat = new BABYLON.StandardMaterial("starMat", scene);
+mat.disableLighting = true;
+mat.diffuseColor = new BABYLON.Color3(0,0,0);
+mat.emissiveColor = new BABYLON.Color3(1,1,1).scale(1.45 + 1.25*vis); // ↑ trochu víc
+mat.diffuseTexture  = tex;
+mat.opacityTexture  = tex;
+mat.backFaceCulling = false;
+mat.forceDepthWrite  = true;
+mat.needDepthPrePass = true;
+mat.alphaMode = USE_ADD ? BABYLON.Engine.ALPHA_ADD : BABYLON.Engine.ALPHA_COMBINE;
+
+if (USE_BLOOM) {
+  // Přidej ještě „HDR“ do emissive — bloom to vyzobe
+  mat.emissiveColor = mat.emissiveColor.scale(1.35);
+}
+star.material = mat;
+
+// Optional glow jen pro star
+if (USE_GLOW && scene.getLayerByName && scene.getLayerByName("glow")) {
+  // když jsi GlowLayer vytvořil… (viz sekce 1)
+  scene.getLayerByName("glow").addIncludedOnlyMesh(star);
+}
+
+// Optional HALO (sekce 3)
+if (USE_HALO) {
+  const halo = BABYLON.MeshBuilder.CreatePlane("starHalo", { size: size * 2.2 }, scene);
+  halo.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+  halo.parent = star;
+
+  const matHalo = new BABYLON.StandardMaterial("starHaloMat", scene);
+  matHalo.disableLighting = true;
+  matHalo.emissiveColor = new BABYLON.Color3(1,1,1).scale(0.75);
+  matHalo.diffuseColor  = new BABYLON.Color3(0,0,0);
+  matHalo.diffuseTexture = tex;
+  matHalo.opacityTexture = tex;
+  matHalo.backFaceCulling = false;
+  matHalo.forceDepthWrite  = true;
+  matHalo.needDepthPrePass = true;
+  matHalo.alphaMode        = BABYLON.Engine.ALPHA_ADD;
+  halo.material = matHalo;
+}
 
   // Trajektorie (přímka) + svislý průhyb; lifeSec z délky a rychlosti
   const A = new BABYLON.Vector3(start.x, yTop, start.z);
