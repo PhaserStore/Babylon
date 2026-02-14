@@ -938,6 +938,7 @@ const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
 
     /* === Přední stěna – +Z === */
 const FRONT_ALPHA = 0;
+    const FRONT_ALPHA = -Math.PI / 2;   // kamera na -Z, míří k +Z => přední stěn
 
 /* Normalizace úhlu do [0, 2π) – aby se ArcRotate neskákal „oklikou“ */
 function normAlpha(a){
@@ -947,20 +948,15 @@ function normAlpha(a){
 }
     
     
-    const RESET_POSE = {
-  // Target uprostřed místnosti – ať jsou "v dosahu" všechny stěny
+
+const RESET_POSE = {
   target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
-
-  // Dálka od středu – základ pro 16:9; klidně dolaď o ±0.5
   radius: 17.0,
-
-  // Směr na PŘEDNÍ stěnu (+Z)
-  alpha:  0,
-
-  // Lehce NAD horizontem → víc oblohy, ale pořád vycentrovaný dojem na výšku
-  // (pro "o chlup výš" zkus 1.86–1.92; menší hodnota = víc vzhůru)
+ alpha:  0,
+ alpha:  -Math.PI / 2,                // přední stěna
   beta:   Math.PI / 1.88
 };
+
 
     
 
