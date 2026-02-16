@@ -331,9 +331,11 @@ function makeTypewriterPlane({ name, y, z, rotY, width, height, color=TW_COLOR_H
   plane.isPickable = false;
 
 
-const texW = Math.max(512, BABYLON.Scalar.NextPowerOfTwo(Math.round(1024 * (width / 4))));
-const texH = Math.max(128, BABYLON.Scalar.NextPowerOfTwo(Math.round(TW_FONT_PX * 2)))
-  const nextPOT = n => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
+
+ // ⚙️ bezpečný výpočet nejbližší power‑of‑two
+const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
+
+// ⚙️ velikosti textur pro typewriter DynamicTexture
 const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4))));
 const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
 
