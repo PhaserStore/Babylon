@@ -1008,29 +1008,64 @@ function buildGalleryLogo(){
     __logoBack.rotation.y = Math.PI;
     __logoBack.material   = matBack;
 
-    // 7) Anchory pro HTML overlay text – v MEZEŘE mezi horní hranou rámu a SPODKEM loga
-const logoBottomY = yPos - logoH / 2;         // spodní hrana loga (světové Y)
-const frameTop    = frameTopY;                 // horní hrana rámu
+    
+// === SCÉNOVÝ TYPEWRITER TEXT mezi horní hranou rámu a SPODKEM loga (přední + zadní) ===
+const logoBottomY = yPos - logoH / 2;   // spodní hrana loga (světové Y)
+const frameTop    = frameTopY;          // horní hrana rámu
 
-// Posadíme text trochu blíž k logu (vizuálně to funguje nejlépe).
-// 0.50 = střed mezery; 0.60–0.70 = blíž k logu; 0.35–0.45 = blíž k rámu
+// 0.50 = střed mezery; 0.62 ≈ blíž k logu (doladíš dle oka 0.60–0.70)
 const GAP_T = 0.62;
 const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
 
-// z‑offsety pro jistotu, aby projekce HTML overlaye nikdy „nezanikla“ na hraně stěny:
-const Z_EPS_FRONT = 0.008;   // přední stěna – drobný posun kameře (směrem do -Z)
-const Z_EPS_BACK  = 0.008;   // zadní stěna – drobný posun kameře (směrem do +Z)
+// šířka panelu napříč stěnou s rezervou u rohů
+const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2; // (m)
+const panelW = Math.max(1.0, wallInnerWidth);
+const panelH = Math.max(0.20, TW_FONT_PX / 100);    // např. 54px ~ 0.54 m
 
-// Uklidíme staré ankory, pokud existovaly
-try { twFrontAnchor?.dispose?.(); } catch(_){}
-try { twBackAnchor ?.dispose?.(); } catch(_){}
+// cleanup případných starých typewriter panelů/animací
+try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
+try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
+try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
+try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
-// Vytvoříme nové anchory přesně do mezery
-twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
-twFrontAnchor.position.set(0, yText, zFront - Z_EPS_FRONT);
+// PŘEDNÍ – mírně „před“ stěnu (do místnosti)
+{
+  const { plane, dt, texW, texH } = makeTypewriterPlane({
+    name:  "tw_front",
+    y:     yText,
+    z:     zFront - 0.004,
+    rotY:  0,
+    width: panelW,
+    height: panelH,
+    color: TW_COLOR_HEX
+  });
+  __twFrontPlane = plane;
+  __twFrontDT = dt;
+  __twFrontRAF = runTypewriterToDT(dt, {
+    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+  });
+}
 
-twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
-twBackAnchor.position.set(0, yText, zBack + Z_EPS_BACK);
+// ZADNÍ – otočeno do místnosti
+{
+  const { plane, dt, texW, texH } = makeTypewriterPlane({
+    name:  "tw_back",
+    y:     yText,
+    z:     zBack + 0.004,
+    rotY:  Math.PI,
+    width: panelW,
+    height: panelH,
+    color: TW_COLOR_HEX
+  });
+  __twBackPlane = plane;
+  __twBackDT = dt;
+  __twBackRAF = runTypewriterToDT(dt, {
+    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+  });
+}
+
     
 
     hint("Logo zobrazeno (front + back) + overlay anchor připraven ✔");
@@ -1953,11 +1988,7 @@ createScene();
   applyFixedLayout();
   buildGalleryLogo();      // <- teď už máme FRAME_CENTER_Y připravené
     
-    // Spustit typewriter na obou stěnách (po buildu loga – ankory existují)
-const twF = document.getElementById('twFront');
-const twB = document.getElementById('twBack');
-if (twF) runTypewriter(twF, TYPEWRITER_TEXT, { loop: true, pauseEndMs: TYPEWRITER_PAUSE_MS });
-if (twB) runTypewriter(twB, TYPEWRITER_TEXT, { loop: true, pauseEndMs: TYPEWRITER_PAUSE_MS });
+   
     
   bindBarControls?.();
 
@@ -1985,31 +2016,7 @@ engine.runRenderLoop(()=>{
 
   scene.render();
 
-    // --- Overlay: promítnout anchory do obrazovky a posunout HTML texty ---
-  const elF = document.getElementById('twFront');
-  const elB = document.getElementById('twBack');
-
-  if (elF && twFrontAnchor){
-    const p = projectToScreen(twFrontAnchor.getAbsolutePosition());
-if (p.visible){
-  elF.style.left   = p.cssX + 'px';
-  elF.style.top    = p.cssY + 'px';
-  elF.style.opacity = '1';
-} else {
-  elF.style.opacity = '0';
-}
-``
-  }
-  if (elB && twBackAnchor){
- const p = projectToScreen(twBackAnchor.getAbsolutePosition());
-if (p.visible){
-  elB.style.left   = p.cssX + 'px';
-  elB.style.top    = p.cssY + 'px';
-  elB.style.opacity = '1';
-} else {
-  elB.style.opacity = '0';
-}
-  }
+  
     
 
   // AutoScale
