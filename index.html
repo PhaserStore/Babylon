@@ -687,10 +687,10 @@ function addFrame(pos, rotY=0, wall='front'){
   return { frame:f, box, placard:plac, data, wall, rotY, pos };
 }
 
-  /* =========================
-     LOGO – inline SVG (ostrý + glow) na zadní i přední stěnu
-  ========================= */
-  const GALLERY_LOGO_SVG = `
+ /* =========================
+     LOGO – inline SVG (ostrý) na zadní i přední stěnu
+   ========================= */
+const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
   <defs><style>.cls-1{fill:#daff3e;}</style></defs>
   <g>
@@ -711,84 +711,78 @@ function addFrame(pos, rotY=0, wall='front'){
     <path class="cls-1" d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
   </g>
 </svg>`;
-  const LOGO_ASPECT = 941.43 / 202.86;
-  const LOGO_SCALE = 0.30;
-  const FRONT_BACK_OFFSET = 0.25;
-  const LOGO_HEIGHT_M = 6.30;
-  const GLOW_BLUR_PX = 18;
+const LOGO_ASPECT = 941.43 / 202.86;
+const LOGO_SCALE = 0.30;
+const FRONT_BACK_OFFSET = 0.25;
+const LOGO_HEIGHT_M = 6.30;
+const GLOW_BLUR_PX = 18;
 
-    // --- Logo placement globals ---
+// --- Logo placement globals ---
 let FRAME_CENTER_Y = 0; // vyplníme v applyFixedLayout()
 
-    
-// Malá utilita – můžeš klidně nechat jen console.log
+// Kolik posunout logo nad horní hranu rámu (doladíš dle oka)
+const LOGO_EXTRA_UP = 0.35;
+
 function hint(msg){ console.log(msg); }
-    
-  const LOGO_EXTRA_UP = 0.35; // <- kolik posunout logo výš (můžeš doladit)
+
 function buildGalleryLogo(){
   const img = new Image();
   img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
   img.onload = () => {
+    // Připravit ostrou texturu z inline SVG
     const SIZE = 1024;
     const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
     const ctx = dt.getContext();
     const maxW = SIZE * 0.92;
     const w = maxW, h = Math.round(maxW / LOGO_ASPECT);
     const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
-    ctx.clearRect(0,0,SIZE,SIZE); ctx.drawImage(img, x, y, w, h); dt.update();
+    ctx.clearRect(0,0,SIZE,SIZE);
+    ctx.drawImage(img, x, y, w, h);
+    dt.update();
 
-    const glowDT = new BABYLON.DynamicTexture("logoGlowDT",{width:SIZE,height:SIZE},scene,true);
-    const gc = glowDT.getContext();
-    gc.clearRect(0,0,SIZE,SIZE); gc.filter = `blur(${GLOW_BLUR_PX}px)`; gc.drawImage(img, x, y, w, h); glowDT.update();
+    // (volitelně by tu mohl být i blur DT, ale glow plane už NEpoužíváme)
 
-    const sharpMat = new BABYLON.StandardMaterial("logoSharpMat", scene);
-    sharpMat.disableLighting = true; sharpMat.diffuseTexture  = dt; sharpMat.opacityTexture  = dt;
-    sharpMat.emissiveColor   = new BABYLON.Color3(1,1,1); sharpMat.backFaceCulling = false;
-
-    const glowMat = new BABYLON.StandardMaterial("logoGlowMat", scene);
-    glowMat.disableLighting  = true; glowMat.emissiveTexture  = glowDT; glowMat.opacityTexture   = glowDT;
-    glowMat.emissiveColor    = new BABYLON.Color3(1,1,1); glowMat.backFaceCulling  = false;
-
+    // Rozměry a výška loga
     const logoW = ROOM.W * LOGO_SCALE;
     const logoH = LOGO_HEIGHT_M;
 
     // horní hrana rámu (frame plane centerY + H/2)
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-    // Posuň logo výš: pevný offset + rezerva nad rámem
-    const yPos = frameTopY + 0.68 + LOGO_EXTRA_UP; // LOGO_EXTRA_UP = 0.35 můžeš doladit
+    // finální výška loga nad horní hranou rámu
+    const yPos = frameTopY + 0.68 + LOGO_EXTRA_UP;
 
+    // 1 plane na stěnu (žádný druhý "glow" mesh)
     function placeLogo(z, rotY, idx){
-      const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
-      g.position.set(0, yPos, z - Math.sign(z)*0.005); g.rotation.y = rotY; g.material = glowMat; glow.addIncludedOnlyMesh(g);
+      const s = BABYLON.MeshBuilder.CreatePlane(`logo_${idx}`, { width:logoW, height:logoH }, scene);
+      s.position.set(0, yPos, z);
+      s.rotation.y = rotY;
 
-      const s = BABYLON.MeshBuilder.CreatePlane(`logoSharp_${idx}`, { width:logoW, height:logoH }, scene);
-      s.position.set(0, yPos, z + Math.sign(z)*0.005); s.rotation.y = rotY; s.material = sharpMat;
+      const m = new BABYLON.StandardMaterial(`logoMat_${idx}`, scene);
+      m.disableLighting = true;
+      m.diffuseTexture  = dt;
+      m.opacityTexture  = dt;
+      // Emissive necháme kvůli jemnému efektu přes GlowLayer (nebo si to klidně vypni)
+      m.emissiveTexture = dt;
+      m.emissiveColor   = new BABYLON.Color3(1,1,1);
+      m.backFaceCulling = false;
+
+      s.material = m;
     }
 
-    // zadní + přední stěna
-    const zBack  = -ROOM.D/2 + FRONT_BACK_OFFSET;
+    // Zadní i přední stěna — vždy JEDEN plane
+    const zBack  = -ROOM.D/2 + FRONT_BACK_OFFSET;  // rotace π (logo do místnosti)
     const zFront =  ROOM.D/2 - FRONT_BACK_OFFSET;
     placeLogo(zBack,  Math.PI, 0);
     placeLogo(zFront, 0,       1);
 
-    // ---- Anchor body pro text (mezi horní rám a spodní okraj loga) ----
-    const logoBottomY = yPos - logoH/2;
-    const yText = frameTopY + (logoBottomY - frameTopY) * 0.5; // přesně uprostřed “mezery”
-
-    twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
-    twBackAnchor.position.set(0, yText, zBack + 0.002);
-
-    twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
-    twFrontAnchor.position.set(0, yText, zFront - 0.002);
-
-    hint("Logo posunuto výš, typewriter anchor připraven ✔");
+    hint("Logo zobrazeno (1x na každé stěně) ✔");
   };
-  img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+  img.onerror = (e) => {
+    console.error("Logo SVG nešlo dekódovat.", e);
+    hint("Chyba: logo SVG nešlo dekódovat.");
+  };
 }
-    
-
-
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
   const FIXED_LAYOUT = {
