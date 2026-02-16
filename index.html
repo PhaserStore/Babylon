@@ -237,12 +237,19 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
     
-/* ===== Typewriter overlay – nastavení ===== */
-const TYPEWRITER_TEXT       = "WELCOME_TO_THE VIRTUAL_SHOWROOM"; // co se má psát
-const TYPEWRITER_SPEED_MS   = 38;     // ms na znak (plynulé rAF)
-const TYPEWRITER_LOOP       = true;   // opakovat v cyklu
-const TYPEWRITER_PAUSE_MS   = 1200;   // pauza po dopsání
-const CURSOR_CHAR           = "_";    // kurzor
+/* ===== Scene typewriter (na stěnách) – nastavení ===== */
+const TW_TEXT         = "WELCOME_TO_THE VIRTUAL_SHOWROOM";
+const TW_SPEED_MS     = 38;     // ms/znak
+const TW_PAUSE_MS     = 1200;   // pauza po dopsání
+const TW_CURSOR       = "_";    // vizuální kurzor
+const TW_COLOR_HEX    = "#daff3e"; // stejná barva jako logo
+const TW_FONT_PX      = 54;     // vizuálně cca 40pt (54px ~ 40pt na TVDPI)
+const TW_MARGIN_WALL  = 0.18;   // kolik (m) od vnitřní hrany stěny (aby netrčel do rohu)
+
+/* interní reference – ať je můžeme uklízet při opakovaném buildu */
+let __twFrontPlane = null, __twBackPlane = null;
+let __twFrontDT = null, __twBackDT = null;
+let __twFrontRAF = 0, __twBackRAF = 0;
 
 // Anchory se vytvoří v buildGalleryLogo()
 let twFrontAnchor = null;
@@ -315,6 +322,81 @@ function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_P
   }
   textSpan.textContent = '';
   requestAnimationFrame(tick);
+}
+   /* Vytvoří {plane, dt, texW, texH} – textový panel na stěně */
+function makeTypewriterPlane({ name, y, z, rotY, width, height, color=TW_COLOR_HEX }){
+  const plane = BABYLON.MeshBuilder.CreatePlane(name, { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+  plane.position.set(0, y, z);
+  plane.rotation.y = rotY;
+  plane.isPickable = false;
+
+  const texW = Math.max(512, BABYLON.Scalar.NextPowerOfTwo(Math.round(1024 * (width / 4))));
+  const texH = Math.max(128, BABYLON.Scalar.NextPowerOfTwo(Math.round(TW_FONT_PX * 2)));
+
+  const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  dt.hasAlpha = true;
+  dt.gammaSpace = true;
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.anisotropicFilteringLevel = scene.getEngine().getCaps().maxAnisotropy || 4;
+
+  const mat = new BABYLON.StandardMaterial(name + "_mat", scene);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  mat.diffuseTexture = dt;
+  mat.opacityTexture = dt;
+  mat.emissiveTexture = dt;
+  mat.emissiveColor = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
+
+  plane.material = mat;
+
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+  dt.update();
+
+  return { plane, dt, texW, texH };
+}
+
+/* Kreslení jednoho snímku typewriteru do DT */
+function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `600 ${fontPx}px Doto, monospace`;
+
+  const out = text.slice(0, progress) + TW_CURSOR;
+  const x = Math.round(texW / 2);
+  const y = Math.round(texH / 2);
+
+  ctx.shadowColor = "rgba(218,255,62,0.20)";
+  ctx.shadowBlur = Math.max(2, Math.round(fontPx * 0.22));
+  ctx.fillText(out, x, y);
+
+  dt.update(false);
+}
+
+/* rAF typewriter (loop) */
+function runTypewriterToDT(dt, opts){
+  const { text=TW_TEXT, speedMs=TW_SPEED_MS, pauseMs=TW_PAUSE_MS, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX } = opts;
+  let start = performance.now();
+  let rafId = 0;
+
+  function tick(now){
+    const chars = Math.floor((now - start) / speedMs);
+    if (chars <= text.length){
+      drawTypeLine(dt, { text, progress: Math.max(0, chars), texW, texH, color, fontPx });
+      rafId = requestAnimationFrame(tick);
+    } else {
+      setTimeout(() => { start = performance.now(); rafId = requestAnimationFrame(tick); }, pauseMs);
+    }
+  }
+  rafId = requestAnimationFrame(tick);
+  return rafId;
 }
 
   /* ========= Scene setup ========= */
