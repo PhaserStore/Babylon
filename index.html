@@ -1985,7 +1985,8 @@ createScene();
     
  // ✅ Důležité pro Canvas: načti Doto v cílové velikosti (TW_FONT_PX)
     await document.fonts?.load?.(`600 ${TW_FONT_PX}px Doto`);
-    await document.fonts?.load?.(`400 ${TW_
+- await document.fonts?.load?.(`400 ${TW_
++ await document.fonts?.load?.(`400 ${TW_FONT_PX}px Doto`);
 
                                         
   }catch(e){}
