@@ -236,6 +236,14 @@
   let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
+    
+/* ===== Typewriter overlay – nastavení ===== */
+const TYPEWRITER_TEXT      = "WELCOME_TO_THE VIRTUAL_SHOWROOM"; // text
+const TYPEWRITER_SPEED_MS  = 38;    // ms/znak
+const TYPEWRITER_LOOP      = true;  // smyčka
+const TYPEWRITER_PAUSE_MS  = 1200;  // pauza po dopsání
+const CURSOR_CHAR          = "_";   // vzhled kurzoru
+
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
@@ -777,70 +785,89 @@ let __logoBack  = null;
 function hint(msg){ console.log(msg); }
 
 function buildGalleryLogo(){
-  // cleanup starých meshů při opakovaném buildu
-  try{ __logoFront?.dispose?.(); __logoFront = null; }catch(_){}
-  try{ __logoBack ?.dispose?.(); __logoBack  = null; }catch(_){}
+  // 0) Cleanup starých meshů při opakovaném buildu
+  try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
+  try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
+  try { twFrontAnchor?.dispose?.(); twFrontAnchor = null; } catch(_){}
+  try { twBackAnchor ?.dispose?.(); twBackAnchor  = null; } catch(_){}
 
   const img = new Image();
   img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
+
   img.onload = () => {
-    // 1) ostrá textura z inline SVG
+    // 1) Ostrá textura z inline SVG
     const SIZE = 1024;
-    const dt  = new BABYLON.DynamicTexture("logoDT",{width:SIZE,height:SIZE},scene,true);
-    const ctx = dt.getContext();
+    const dt   = new BABYLON.DynamicTexture("logoDT", { width: SIZE, height: SIZE }, scene, true);
+    const ctx  = dt.getContext();
+
     const maxW = SIZE * 0.92;
-    const w = maxW, h = Math.round(maxW / LOGO_ASPECT);
-    const x = Math.round((SIZE - w)/2), y = Math.round((SIZE - h)/2);
-    ctx.clearRect(0,0,SIZE,SIZE);
+    const w    = maxW;
+    const h    = Math.round(maxW / LOGO_ASPECT);
+    const x    = Math.round((SIZE - w) / 2);
+    const y    = Math.round((SIZE - h) / 2);
+
+    ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.drawImage(img, x, y, w, h);
     dt.update();
 
-    // 2) rozměry a výška
+    // 2) Rozměry a výška
     const logoW = ROOM.W * LOGO_SCALE;
     const logoH = LOGO_HEIGHT_M;
 
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-    // cap pod LED lištou (bezpečný odstup)
+    // Bezpečný „cap“ pod LED lištou
     const LED_TOP = ROOM.H - 0.04;
     const Y_MAX   = LED_TOP - 0.10;
 
-    // Výška: rezerva + doladění podle linky
+    // Výška loga: rezerva + jemné doladění
     const yPosRaw = frameTopY + 0.68 + LOGO_EXTRA_UP;
     const yPos    = Math.min(Y_MAX, yPosRaw);
 
-    // 3) Jediný plane na každé stěně (front + back)
-    const zFront =  ROOM.D/2 - FRONT_BACK_OFFSET;
-    const zBack  = -ROOM.D/2 + FRONT_BACK_OFFSET;
+    // 3) Pozice na stěnách (přední + zadní)
+    const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
+    const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
-    // Materiál (sdílený look & feel; emissive kvůli jemnému glow efektu)
+    // 4) Materiály (sdílený vzhled; emissive kvůli GlowLayer – pokud nechceš, tyto 2 řádky smaž)
     const makeMat = (name) => {
       const m = new BABYLON.StandardMaterial(name, scene);
-      m.disableLighting = true;
-      m.diffuseTexture  = dt;
-      m.opacityTexture  = dt;
-      m.emissiveTexture = dt;                 // smaž, pokud chceš bez glow
-      m.emissiveColor   = new BABYLON.Color3(1,1,1);
-      m.backFaceCulling = false;
+      m.disableLighting  = true;
+      m.diffuseTexture   = dt;
+      m.opacityTexture   = dt;
+      m.emissiveTexture  = dt;
+      m.emissiveColor    = new BABYLON.Color3(1, 1, 1);
+      m.backFaceCulling  = false;
       return m;
     };
     const matFront = makeMat("logoMat_front");
     const matBack  = makeMat("logoMat_back");
 
-    // PŘEDNÍ
-    __logoFront = BABYLON.MeshBuilder.CreatePlane("logo_front", { width:logoW, height:logoH }, scene);
+    // 5) PŘEDNÍ logo
+    __logoFront = BABYLON.MeshBuilder.CreatePlane("logo_front", { width: logoW, height: logoH }, scene);
     __logoFront.position.set(0, yPos, zFront);
     __logoFront.rotation.y = 0;
     __logoFront.material   = matFront;
 
-    // ZADNÍ (rotace π, aby bylo „do místnosti“)
-    __logoBack = BABYLON.MeshBuilder.CreatePlane("logo_back", { width:logoW, height:logoH }, scene);
+    // 6) ZADNÍ logo (rotace π, aby směřovalo do místnosti)
+    __logoBack = BABYLON.MeshBuilder.CreatePlane("logo_back", { width: logoW, height: logoH }, scene);
     __logoBack.position.set(0, yPos, zBack);
     __logoBack.rotation.y = Math.PI;
     __logoBack.material   = matBack;
 
-    hint("Logo zobrazeno: 1× front + 1× back ve stejné výšce ✔");
+    // 7) Anchory pro HTML overlay text – přesně do MEZERY pod logem
+    const logoBottomY = yPos - logoH / 2;
+    const yText       = frameTopY + (logoBottomY - frameTopY) * 0.50; // 0.50 = střed mezery
+    // (Doladění: blíž k logu dej 0.60–0.70, blíž k rámu 0.35–0.45.)
+
+    twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
+    twFrontAnchor.position.set(0, yText, zFront - 0.002); // mírně před stěnu
+
+    twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
+    twBackAnchor.position.set(0, yText, zBack + 0.002);   // mírně před stěnu
+
+    hint("Logo zobrazeno (front + back) + overlay anchor připraven ✔");
   };
+
   img.onerror = (e) => {
     console.error("Logo SVG nešlo dekódovat.", e);
     hint("Chyba: logo SVG nešlo dekódovat.");
