@@ -911,16 +911,30 @@ function buildGalleryLogo(){
     __logoBack.rotation.y = Math.PI;
     __logoBack.material   = matBack;
 
-    // 7) Anchory pro HTML overlay text – přesně do MEZERY pod logem
-    const logoBottomY = yPos - logoH / 2;
-    const yText       = frameTopY + (logoBottomY - frameTopY) * 0.50; // 0.50 = střed mezery
-    // Doladění: blíž k logu dej 0.60–0.70, blíž k rámu 0.35–0.45.
+    // 7) Anchory pro HTML overlay text – v MEZEŘE mezi horní hranou rámu a SPODKEM loga
+const logoBottomY = yPos - logoH / 2;         // spodní hrana loga (světové Y)
+const frameTop    = frameTopY;                 // horní hrana rámu
 
-    twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
-    twFrontAnchor.position.set(0, yText, zFront - 0.002); // malý offset od stěny
+// Posadíme text trochu blíž k logu (vizuálně to funguje nejlépe).
+// 0.50 = střed mezery; 0.60–0.70 = blíž k logu; 0.35–0.45 = blíž k rámu
+const GAP_T = 0.62;
+const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
 
-    twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
-    twBackAnchor.position.set(0, yText, zBack + 0.002);
+// z‑offsety pro jistotu, aby projekce HTML overlaye nikdy „nezanikla“ na hraně stěny:
+const Z_EPS_FRONT = 0.008;   // přední stěna – drobný posun kameře (směrem do -Z)
+const Z_EPS_BACK  = 0.008;   // zadní stěna – drobný posun kameře (směrem do +Z)
+
+// Uklidíme staré ankory, pokud existovaly
+try { twFrontAnchor?.dispose?.(); } catch(_){}
+try { twBackAnchor ?.dispose?.(); } catch(_){}
+
+// Vytvoříme nové anchory přesně do mezery
+twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
+twFrontAnchor.position.set(0, yText, zFront - Z_EPS_FRONT);
+
+twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
+twBackAnchor.position.set(0, yText, zBack + Z_EPS_BACK);
+    
 
     hint("Logo zobrazeno (front + back) + overlay anchor připraven ✔");
   };
