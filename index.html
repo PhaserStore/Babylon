@@ -687,8 +687,8 @@ function addFrame(pos, rotY=0, wall='front'){
   return { frame:f, box, placard:plac, data, wall, rotY, pos };
 }
 
- /* =========================
-     LOGO – inline SVG (ostrý) pouze na PŘEDNÍ stěně
+/* =========================
+     LOGO – inline SVG (ostrý) na ZADNÍ i PŘEDNÍ stěně (1× na každé)
    ========================= */
 const GALLERY_LOGO_SVG = `
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet">
@@ -718,20 +718,19 @@ const LOGO_HEIGHT_M = 6.30;
 const GLOW_BLUR_PX = 18;
 
 // --- Umístění loga ---
-let FRAME_CENTER_Y = 0;              // nastaví se v applyFixedLayout()
-const LOGO_EXTRA_UP = 0.5;          // ↑ zvednutí nad horní hranu rámu (doladíš 0.5–1.4)
+let FRAME_CENTER_Y = 0;      // nastaví se v applyFixedLayout()
+const LOGO_EXTRA_UP = 0.78;  // ↑ doladění výšky (dle červené linky, případně uprav 0.7–1.0)
 
-// pro jistotu uchováme reference a při dalším volání je zlikvidujeme
-let __logoFrontMesh = null;
+// Udržíme reference, abychom při dalším buildu nezdvojovali
+let __logoFront = null;
+let __logoBack  = null;
 
 function hint(msg){ console.log(msg); }
 
 function buildGalleryLogo(){
-  // zlikviduj staré logo, pokud existuje (když se build spouští víckrát)
-  try {
-    __logoFrontMesh?.dispose?.();
-    __logoFrontMesh = null;
-  } catch(_) {}
+  // cleanup starých meshů při opakovaném buildu
+  try{ __logoFront?.dispose?.(); __logoFront = null; }catch(_){}
+  try{ __logoBack ?.dispose?.(); __logoBack  = null; }catch(_){}
 
   const img = new Image();
   img.src = "data:image/svg+xml;utf8," + encodeURIComponent(GALLERY_LOGO_SVG);
@@ -753,33 +752,45 @@ function buildGalleryLogo(){
 
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-    // volitelný „cap“ pod lištou stropu (aby logo nevlétlo do LED)
+    // cap pod LED lištou (bezpečný odstup)
     const LED_TOP = ROOM.H - 0.04;
     const Y_MAX   = LED_TOP - 0.10;
 
+    // Výška: rezerva + doladění podle linky
     const yPosRaw = frameTopY + 0.68 + LOGO_EXTRA_UP;
     const yPos    = Math.min(Y_MAX, yPosRaw);
 
-    // 3) JEDINÝ plane – POUZE NA PŘEDNÍ STĚNĚ
-    const zFront = ROOM.D/2 - FRONT_BACK_OFFSET;
+    // 3) Jediný plane na každé stěně (front + back)
+    const zFront =  ROOM.D/2 - FRONT_BACK_OFFSET;
+    const zBack  = -ROOM.D/2 + FRONT_BACK_OFFSET;
 
-    const s = BABYLON.MeshBuilder.CreatePlane("logo_front", { width:logoW, height:logoH }, scene);
-    s.position.set(0, yPos, zFront);
-    s.rotation.y = 0;
+    // Materiál (sdílený look & feel; emissive kvůli jemnému glow efektu)
+    const makeMat = (name) => {
+      const m = new BABYLON.StandardMaterial(name, scene);
+      m.disableLighting = true;
+      m.diffuseTexture  = dt;
+      m.opacityTexture  = dt;
+      m.emissiveTexture = dt;                 // smaž, pokud chceš bez glow
+      m.emissiveColor   = new BABYLON.Color3(1,1,1);
+      m.backFaceCulling = false;
+      return m;
+    };
+    const matFront = makeMat("logoMat_front");
+    const matBack  = makeMat("logoMat_back");
 
-    const m = new BABYLON.StandardMaterial("logoMat_front", scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = dt;
-    m.opacityTexture  = dt;
-    // Jemný glow přes GlowLayer (volitelné – když nechceš, tyto 2 řádky smaž)
-    m.emissiveTexture = dt;
-    m.emissiveColor   = new BABYLON.Color3(1,1,1);
-    m.backFaceCulling = false;
+    // PŘEDNÍ
+    __logoFront = BABYLON.MeshBuilder.CreatePlane("logo_front", { width:logoW, height:logoH }, scene);
+    __logoFront.position.set(0, yPos, zFront);
+    __logoFront.rotation.y = 0;
+    __logoFront.material   = matFront;
 
-    s.material = m;
-    __logoFrontMesh = s;
+    // ZADNÍ (rotace π, aby bylo „do místnosti“)
+    __logoBack = BABYLON.MeshBuilder.CreatePlane("logo_back", { width:logoW, height:logoH }, scene);
+    __logoBack.position.set(0, yPos, zBack);
+    __logoBack.rotation.y = Math.PI;
+    __logoBack.material   = matBack;
 
-    hint("Logo zobrazeno: 1× na PŘEDNÍ stěně ✔");
+    hint("Logo zobrazeno: 1× front + 1× back ve stejné výšce ✔");
   };
   img.onerror = (e) => {
     console.error("Logo SVG nešlo dekódovat.", e);
