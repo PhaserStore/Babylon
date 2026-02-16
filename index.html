@@ -1494,6 +1494,7 @@ function onCameraResetForStars(){
 
     FRAME_DELTA_H = newH - baseH;
     const centerY = YCENTER - FRAME_DELTA_H/2; // ukotvení nahoře
+  FRAME_CENTER_Y = centerY;                   // <<< DOPLNĚNO: použije buildGalleryLogo()
 
     createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
     createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
