@@ -716,6 +716,10 @@ function addFrame(pos, rotY=0, wall='front'){
   const FRONT_BACK_OFFSET = 0.25;
   const LOGO_HEIGHT_M = 6.30;
   const GLOW_BLUR_PX = 18;
+
+    // --- Logo placement globals ---
+let FRAME_CENTER_Y = 0; // vyplníme v applyFixedLayout()
+
     
 // Malá utilita – můžeš klidně nechat jen console.log
 function hint(msg){ console.log(msg); }
@@ -752,7 +756,7 @@ function buildGalleryLogo(){
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
     // Posuň logo výš: pevný offset + rezerva nad rámem
-    const yPos = frameTopY + 0.68 + LOGO_EXTRA_UP;
+    const yPos = frameTopY + 0.68 + LOGO_EXTRA_UP; // LOGO_EXTRA_UP = 0.35 můžeš doladit
 
     function placeLogo(z, rotY, idx){
       const g = BABYLON.MeshBuilder.CreatePlane(`logoGlow_${idx}`, { width:logoW, height:logoH }, scene);
@@ -1038,7 +1042,7 @@ function resetCamera({animate=true} = {}){
   // krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
   onCameraResetForStars?.();
 }
-``
+
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
   }
@@ -1087,7 +1091,7 @@ function createScene(){
 
   buildRoom();
   buildLED();
-  buildGalleryLogo();
+  buildGalleryLogo();      // <-- smazat/zakomentovat
   buildMySkybox();
   buildCeilingWithAperture({ inw: 0.1 });
 
@@ -1695,6 +1699,7 @@ createScene();
   }catch(e){}
 
   applyFixedLayout();
+  buildGalleryLogo();      // <- teď už máme FRAME_CENTER_Y připravené
   bindBarControls?.();
 
   // pevné natočení na přední stěnu
