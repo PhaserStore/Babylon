@@ -248,20 +248,35 @@ const CURSOR_CHAR           = "_";    // kurzor
 let twFrontAnchor = null;
 let twBackAnchor  = null;
 
-/* Projekce world -> screen (v pixelech) */
+/* Projekce world -> screen (CSS px, s ohledem na hardware scaling a DPR) */
 function projectToScreen(worldPos){
-  const engine   = scene.getEngine();
-  const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+  const eng   = scene.getEngine();
+  const vp    = camera.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+
+  // Projekce do render-pixelů
   const p = BABYLON.Vector3.Project(
     worldPos,
     BABYLON.Matrix.Identity(),
     scene.getTransformMatrix(),
-    viewport
+    vp
   );
+
+  // Přepočet render-px -> CSS-px (canvas může mít jinou velikost kvůli scalingu)
+  const rect = eng.getRenderingCanvasClientRect
+    ? eng.getRenderingCanvasClientRect()
+    : (eng.getRenderingCanvas() || canvas).getBoundingClientRect();
+
+  const sx = rect.width  / eng.getRenderWidth();
+  const sy = rect.height / eng.getRenderHeight();
+
+  const cssX = rect.left + p.x * sx;
+  const cssY = rect.top  + p.y * sy;
+
   const visible = p.z >= 0 && p.z <= 1
-               && p.x >= 0 && p.x <= engine.getRenderWidth()
-               && p.y >= 0 && p.y <= engine.getRenderHeight();
-  return { x: p.x, y: p.y, visible };
+               && p.x >= 0 && p.x <= eng.getRenderWidth()
+               && p.y >= 0 && p.y <= eng.getRenderHeight();
+
+  return { x: p.x, y: p.y, cssX, cssY, visible };
 }
 
 /* Připrav sloty: <span.tw-text></span><span.cursor>_</span> (pouze jednou) */
@@ -1894,23 +1909,24 @@ engine.runRenderLoop(()=>{
 
   if (elF && twFrontAnchor){
     const p = projectToScreen(twFrontAnchor.getAbsolutePosition());
-    if (p.visible){
-      elF.style.left = p.x + 'px';
-      elF.style.top  = p.y + 'px';
-      elF.style.opacity = '1';
-    } else {
-      elF.style.opacity = '0';
-    }
+if (p.visible){
+  elF.style.left   = p.cssX + 'px';
+  elF.style.top    = p.cssY + 'px';
+  elF.style.opacity = '1';
+} else {
+  elF.style.opacity = '0';
+}
+``
   }
   if (elB && twBackAnchor){
-    const p = projectToScreen(twBackAnchor.getAbsolutePosition());
-    if (p.visible){
-      elB.style.left = p.x + 'px';
-      elB.style.top  = p.y + 'px';
-      elB.style.opacity = '1';
-    } else {
-      elB.style.opacity = '0';
-    }
+ const p = projectToScreen(twBackAnchor.getAbsolutePosition());
+if (p.visible){
+  elB.style.left   = p.cssX + 'px';
+  elB.style.top    = p.cssY + 'px';
+  elB.style.opacity = '1';
+} else {
+  elB.style.opacity = '0';
+}
   }
     
 
