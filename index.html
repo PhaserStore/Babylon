@@ -84,7 +84,7 @@
       #fullscreenIcon{ display:none !important; }
       #scBar, #scIframeHost{ display:none !important; }
     }
-      /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
+    /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
 #typewriterLayer{
   position: fixed;
   inset: 0;
@@ -115,16 +115,14 @@
   opacity: 1;
 }
 @keyframes tw-blink{
-  0%, 50%   { opacity: 1; }
-  50.01%,100% { opacity: 0; }
+  0%, 50%      { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
 }
 
 /* Mobilní fallback */
 @media (max-width: 560px){
   .typewriterText{ font-size: 28pt; }
 }
-  </style>
-
   <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
@@ -238,12 +236,69 @@
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
     
 /* ===== Typewriter overlay – nastavení ===== */
-const TYPEWRITER_TEXT      = "WELCOME_TO_THE VIRTUAL_SHOWROOM"; // text
-const TYPEWRITER_SPEED_MS  = 38;    // ms/znak
-const TYPEWRITER_LOOP      = true;  // smyčka
-const TYPEWRITER_PAUSE_MS  = 1200;  // pauza po dopsání
-const CURSOR_CHAR          = "_";   // vzhled kurzoru
+const TYPEWRITER_TEXT       = "WELCOME_TO_THE VIRTUAL_SHOWROOM"; // co se má psát
+const TYPEWRITER_SPEED_MS   = 38;     // ms na znak (plynulé rAF)
+const TYPEWRITER_LOOP       = true;   // opakovat v cyklu
+const TYPEWRITER_PAUSE_MS   = 1200;   // pauza po dopsání
+const CURSOR_CHAR           = "_";    // kurzor
 
+// Anchory se vytvoří v buildGalleryLogo()
+let twFrontAnchor = null;
+let twBackAnchor  = null;
+
+/* Projekce world -> screen (v pixelech) */
+function projectToScreen(worldPos){
+  const engine   = scene.getEngine();
+  const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+  const p = BABYLON.Vector3.Project(
+    worldPos,
+    BABYLON.Matrix.Identity(),
+    scene.getTransformMatrix(),
+    viewport
+  );
+  const visible = p.z >= 0 && p.z <= 1
+               && p.x >= 0 && p.x <= engine.getRenderWidth()
+               && p.y >= 0 && p.y <= engine.getRenderHeight();
+  return { x: p.x, y: p.y, visible };
+}
+
+/* Připrav sloty: <span.tw-text></span><span.cursor>_</span> (pouze jednou) */
+function prepareTypewriterSlots(el){
+  if (!el) return null;
+  if (el.dataset.twInit) return el.querySelector('.tw-text');
+  const textSpan   = document.createElement('span');
+  const cursorSpan = document.createElement('span');
+  textSpan.className   = 'tw-text';
+  cursorSpan.className = 'cursor';
+  cursorSpan.textContent = CURSOR_CHAR;
+  el.innerHTML = '';
+  el.appendChild(textSpan);
+  el.appendChild(cursorSpan);
+  el.dataset.twInit = '1';
+  return textSpan;
+}
+
+/* Typewriter přes rAF (s loopem a pauzou) */
+function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_PAUSE_MS } = {}){
+  const textSpan = prepareTypewriterSlots(el);
+  if (!textSpan) return;
+  let start = performance.now();
+
+  function tick(now){
+    const chars = Math.floor((now - start) / TYPEWRITER_SPEED_MS);
+    if (chars < text.length){
+      textSpan.textContent = text.slice(0, chars);
+      requestAnimationFrame(tick);
+    } else {
+      textSpan.textContent = text;
+      if (loop){
+        setTimeout(() => { start = performance.now(); requestAnimationFrame(tick); }, pauseEndMs);
+      }
+    }
+  }
+  textSpan.textContent = '';
+  requestAnimationFrame(tick);
+}
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
@@ -775,8 +830,8 @@ const LOGO_HEIGHT_M = 6.30;
 const GLOW_BLUR_PX = 18;
 
 // --- Umístění loga ---
-let FRAME_CENTER_Y = 0;      // nastaví se v applyFixedLayout()
-const LOGO_EXTRA_UP = 2.5;  // ↑ doladění výšky (dle červené linky, případně uprav 0.7–1.0)
+let FRAME_CENTER_Y = 0;          // nastaví se v applyFixedLayout()
+const LOGO_EXTRA_UP = 2.5;       // ↑ doladění výšky (můžeš upravit; typicky 0.7–1.2 pro jemné ladění)
 
 // Udržíme reference, abychom při dalším buildu nezdvojovali
 let __logoFront = null;
@@ -785,7 +840,7 @@ let __logoBack  = null;
 function hint(msg){ console.log(msg); }
 
 function buildGalleryLogo(){
-  // 0) Cleanup starých meshů při opakovaném buildu
+  // 0) Cleanup starých meshů a anchorů při opakovaném buildu
   try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
   try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
   try { twFrontAnchor?.dispose?.(); twFrontAnchor = null; } catch(_){}
@@ -820,7 +875,7 @@ function buildGalleryLogo(){
     const LED_TOP = ROOM.H - 0.04;
     const Y_MAX   = LED_TOP - 0.10;
 
-    // Výška loga: rezerva + jemné doladění
+    // Výška loga: základní rezerva + jemné doladění
     const yPosRaw = frameTopY + 0.68 + LOGO_EXTRA_UP;
     const yPos    = Math.min(Y_MAX, yPosRaw);
 
@@ -828,13 +883,13 @@ function buildGalleryLogo(){
     const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
     const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
-    // 4) Materiály (sdílený vzhled; emissive kvůli GlowLayer – pokud nechceš, tyto 2 řádky smaž)
+    // 4) Materiály (sdílený vzhled; emissive kvůli GlowLayer – pokud nechceš glow, tyto 2 řádky smaž)
     const makeMat = (name) => {
       const m = new BABYLON.StandardMaterial(name, scene);
       m.disableLighting  = true;
       m.diffuseTexture   = dt;
       m.opacityTexture   = dt;
-      m.emissiveTexture  = dt;
+      m.emissiveTexture  = dt;                 // vypni/smaž, pokud glow nechceš
       m.emissiveColor    = new BABYLON.Color3(1, 1, 1);
       m.backFaceCulling  = false;
       return m;
@@ -842,13 +897,13 @@ function buildGalleryLogo(){
     const matFront = makeMat("logoMat_front");
     const matBack  = makeMat("logoMat_back");
 
-    // 5) PŘEDNÍ logo
+    // 5) PŘEDNÍ logo (1×)
     __logoFront = BABYLON.MeshBuilder.CreatePlane("logo_front", { width: logoW, height: logoH }, scene);
     __logoFront.position.set(0, yPos, zFront);
     __logoFront.rotation.y = 0;
     __logoFront.material   = matFront;
 
-    // 6) ZADNÍ logo (rotace π, aby směřovalo do místnosti)
+    // 6) ZADNÍ logo (1×) – rotace π, aby směřovalo do místnosti
     __logoBack = BABYLON.MeshBuilder.CreatePlane("logo_back", { width: logoW, height: logoH }, scene);
     __logoBack.position.set(0, yPos, zBack);
     __logoBack.rotation.y = Math.PI;
@@ -857,13 +912,13 @@ function buildGalleryLogo(){
     // 7) Anchory pro HTML overlay text – přesně do MEZERY pod logem
     const logoBottomY = yPos - logoH / 2;
     const yText       = frameTopY + (logoBottomY - frameTopY) * 0.50; // 0.50 = střed mezery
-    // (Doladění: blíž k logu dej 0.60–0.70, blíž k rámu 0.35–0.45.)
+    // Doladění: blíž k logu dej 0.60–0.70, blíž k rámu 0.35–0.45.
 
     twFrontAnchor = new BABYLON.TransformNode("twFrontAnchor", scene);
-    twFrontAnchor.position.set(0, yText, zFront - 0.002); // mírně před stěnu
+    twFrontAnchor.position.set(0, yText, zFront - 0.002); // malý offset od stěny
 
     twBackAnchor  = new BABYLON.TransformNode("twBackAnchor", scene);
-    twBackAnchor.position.set(0, yText, zBack + 0.002);   // mírně před stěnu
+    twBackAnchor.position.set(0, yText, zBack + 0.002);
 
     hint("Logo zobrazeno (front + back) + overlay anchor připraven ✔");
   };
@@ -1784,6 +1839,13 @@ createScene();
 
   applyFixedLayout();
   buildGalleryLogo();      // <- teď už máme FRAME_CENTER_Y připravené
+    
+    // Spustit typewriter na obou stěnách (po buildu loga – ankory existují)
+const twF = document.getElementById('twFront');
+const twB = document.getElementById('twBack');
+if (twF) runTypewriter(twF, TYPEWRITER_TEXT, { loop: true, pauseEndMs: TYPEWRITER_PAUSE_MS });
+if (twB) runTypewriter(twB, TYPEWRITER_TEXT, { loop: true, pauseEndMs: TYPEWRITER_PAUSE_MS });
+    
   bindBarControls?.();
 
   // pevné natočení na přední stěnu
@@ -1809,6 +1871,32 @@ engine.runRenderLoop(()=>{
   constrainCameraRadius?.();
 
   scene.render();
+
+    // --- Overlay: promítnout anchory do obrazovky a posunout HTML texty ---
+  const elF = document.getElementById('twFront');
+  const elB = document.getElementById('twBack');
+
+  if (elF && twFrontAnchor){
+    const p = projectToScreen(twFrontAnchor.getAbsolutePosition());
+    if (p.visible){
+      elF.style.left = p.x + 'px';
+      elF.style.top  = p.y + 'px';
+      elF.style.opacity = '1';
+    } else {
+      elF.style.opacity = '0';
+    }
+  }
+  if (elB && twBackAnchor){
+    const p = projectToScreen(twBackAnchor.getAbsolutePosition());
+    if (p.visible){
+      elB.style.left = p.x + 'px';
+      elB.style.top  = p.y + 'px';
+      elB.style.opacity = '1';
+    } else {
+      elB.style.opacity = '0';
+    }
+  }
+    
 
   // AutoScale
   if (AutoScale.enabled){
