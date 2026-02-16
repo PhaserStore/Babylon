@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  
+<!-- Font Doto -->
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600&display=swap" rel="stylesheet" />
+
 
 
   <style>
@@ -80,6 +84,45 @@
       #fullscreenIcon{ display:none !important; }
       #scBar, #scIframeHost{ display:none !important; }
     }
+      /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
+#typewriterLayer{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;      /* overlay je neklikací */
+  z-index: 10001;            /* nad HUD a scénou */
+  font-family: 'Doto', monospace;
+}
+
+/* = Text (front/back) – barva jako logo (#daff3e), 40pt = */
+.typewriterText{
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: #daff3e;            /* stejná barva jako logo */
+  font-size: 40pt;
+  letter-spacing: 1px;
+  white-space: pre;          /* zachovat podtržítka a mezery */
+  text-shadow: 0 0 10px rgba(218,255,62,0.25);
+  opacity: 0;                /* zobrazuje se jen pokud je anchor vidět */
+  will-change: transform, opacity;
+}
+
+/* Blikající kurzor */
+.typewriterText .cursor{
+  display: inline-block;
+  margin-left: 2px;
+  animation: tw-blink 0.9s steps(1, end) infinite;
+  color: #daff3e;            /* stejné jako text/logo */
+  opacity: 1;
+}
+@keyframes tw-blink{
+  0%, 50%   { opacity: 1; }
+  50.01%,100% { opacity: 0; }
+}
+
+/* Mobilní fallback */
+@media (max-width: 560px){
+  .typewriterText{ font-size: 28pt; }
+}
   </style>
 
   <!-- Babylon.js -->
@@ -89,6 +132,12 @@
 <body>
   <!-- Canvas -->
   <canvas id="renderCanvas"></canvas>
+
+  <!-- HTML overlay pro typewriter text (přední + zadní stěna) -->
+<div id="typewriterLayer" aria-hidden="true">
+  <div id="twFront" class="typewriterText"></div>
+  <div id="twBack"  class="typewriterText"></div>
+</div>
 
   <!-- Fullscreen (vlevo), Reset (vpravo) -->
   <img
