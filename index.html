@@ -1,18 +1,16 @@
 <!doctype html>
-
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Virtual Gallery — Clean View</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
-  
-<!-- Font Doto -->
-<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
-
+  <!-- Font Doto -->
+  <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -27,14 +25,33 @@
       --btn-brd:rgba(255,255,255,.15);
       --accent:#ff6a00;
     }
+
     html,body{
-      width:100%; height:100%; margin:0; overflow:hidden; background:#111; color:var(--txt);
+      width:100%; height:100%; margin:0; overflow:hidden;
+      background:#111; color:var(--txt);
       font-family:'Poppins',sans-serif;
     }
+
     #renderCanvas{
-      position:fixed; inset:0; display:block; touch-action:none; width:100vw; height:100vh;
+      position:fixed; inset:0; display:block; touch-action:none;
+      width:100vw; height:100vh;
       will-change: transform; transform: translateZ(0);
     }
+  </style>
+
+  <!-- Babylon.js -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+  <!-- TYPEWRITER SCRIPT (front + back) SEM -->
+  <!--
+      ↓↓↓ Tady vlož svůj typewriter kód, který jsi měl v <script> uvnitř <style>.
+      Musí být MIMO <style> a MIMO <body>.
+  -->
+  <script>
+    /* sem přijde celý tvůj TW block */
+  </script>
+
+</head>
 
     /* === SoundCloud full-width bottom bar (desktop only) === */
     #scBar{
