@@ -84,217 +84,250 @@
       #fullscreenIcon{ display:none !important; }
       #scBar, #scIframeHost{ display:none !important; }
     }
-    /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
-#typewriterLayer{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;      /* overlay je neklikací */
-  z-index: 10001;            /* nad HUD a scénou */
-  font-family: 'Doto', monospace;
-}
-
-/* = Text (front/back) – barva jako logo (#daff3e), 40pt = */
-.typewriterText{
-  position: absolute;
-  transform: translate(-50%, -50%);
-  color: #daff3e;            /* stejná barva jako logo */
-  font-size: 40pt;
-  letter-spacing: 1px;
-  white-space: pre;          /* zachovat podtržítka a mezery */
-  text-shadow: 0 0 10px rgba(218,255,62,0.25);
-  opacity: 0;                /* zobrazuje se jen pokud je anchor vidět */
-  will-change: transform, opacity;
-}
-
-/* Blikající kurzor */
-.typewriterText .cursor{
-  display: inline-block;
-  margin-left: 2px;
-  animation: tw-blink 0.9s steps(1, end) infinite;
-  color: #daff3e;            /* stejné jako text/logo */
-  opacity: 1;
-}
-@keyframes tw-blink{
-  0%, 50%      { opacity: 1; }
-  50.01%, 100% { opacity: 0; }
-}
-
-/* Mobilní fallback */
-@media (max-width: 560px){
-  .typewriterText{ font-size: 28pt; }
-}
-    </style>
-  
-  <!-- Babylon.js -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-</head>
-
-<body>
-  <!-- Canvas -->
-  <canvas id="renderCanvas"></canvas>
-
-  <!-- HTML overlay pro typewriter text (přední + zadní stěna) -->
-<div id="typewriterLayer" aria-hidden="true">
-  <div id="twFront" class="typewriterText"></div>
-  <div id="twBack"  class="typewriterText"></div>
-</div>
-
-  <!-- Fullscreen (vlevo), Reset (vpravo) -->
-  <img
-    id="fullscreenIcon"
-    class="hudIcon"
-    src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-    alt="Celá obrazovka"
-    title="Přepnout celé okno"
-    role="button"
-    tabindex="0"
-    aria-label="Celá obrazovka"
-    aria-pressed="false"
-  />
-  <img
-    id="resetCamIcon"
-    class="hudIcon"
-    src="./assets/focus.svg"
-    alt="Reset kamery"
-    title="Reset kamery (R)"
-    role="button"
-    tabindex="0"
-    aria-label="Reset kamery"
-  />
-
-  <!-- Desktop: SoundCloud bar -->
-  <div id="scBar" aria-label="SoundCloud Bar">
-    <div class="sc-left">
-      <button id="barPrev" title="Previous" aria-label="Previous">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
-      </button>
-      <button id="barPlay" title="Play" aria-label="Play">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button id="barPause" title="Pause" aria-label="Pause">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-      </button>
-      <button id="barNext" title="Next" aria-label="Next">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
-      </button>
-    </div>
-
-    <div class="sc-center">
-      <span id="scTimeCur" class="time">0:00</span>
-      <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div id="scSeekFill"></div>
-      </div>
-      <span id="scTimeDur" class="time">0:00</span>
-    </div>
-
-    <div class="sc-right">
-      <button id="barMute" title="Mute/Unmute" aria-label="Mute or unmute">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
-      </button>
-      <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-      <img id="scThumb" src="" alt="cover" />
-      <span id="scTitle">–</span>
-    </div>
-  </div>
-
-  <!-- Host pro SC iframe: mimo viewport (desktop) -->
-  <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
-
-  <script>
-  "use strict";
-
-  /* ========= Helpers & flags ========= */
-  const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
-  const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
-  const SC_ENABLED = !IS_MOBILE; // mobil: SoundCloud zcela vypnutý
-
-  const fmtTime = (ms)=> {
-    const sec = Math.max(0, Math.floor((ms||0)/1000));
-    const m = Math.floor(sec/60), s = sec%60;
-    return `${m}:${s.toString().padStart(2,'0')}`;
-  };
-
-  const DPR = (()=> {
-    const raw = window.devicePixelRatio || 1;
-    const steps = [1, 1.25, 1.5, 2, 2.5, 3];
-    let pick = steps[0], best = Infinity;
-    for (const s of steps){ const d = Math.abs(s - raw); if (d < best){ best = d; pick = s; } }
-    return pick;
-  })();
-
-  const canvas = document.getElementById("renderCanvas");
-  const engine = new BABYLON.Engine(canvas, true, {
-    preserveDrawingBuffer:false, stencil:true, antialias:true, adaptToDeviceRatio:false, powerPreference:"high-performance"
-  });
-
-  const sceneCaps = engine.getCaps ? engine.getCaps() : {};
-  const MAX_TEX_CAP = Math.max(512, sceneCaps.maxTextureSize || 2048);
-  const MOBILE_TEX_CAP  = Math.min(MAX_TEX_CAP, 768);
-  const DESKTOP_TEX_CAP = Math.min(MAX_TEX_CAP, 4096);
-  const TEX_BASE = IS_MOBILE ? 1048 : 768;
-  const nearestPOT = (n, cap)=> Math.min(Math.pow(2, Math.round(Math.log2(Math.max(2, n)))), cap || n);
-  let TEX_SIZE = Math.round(TEX_BASE * Math.min(DPR, 2));
-  TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
-  const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
-    
-/* ===== Scene typewriter (na stěnách) – nastavení ===== */
+    <!-- === DROP-IN: TYPEWRITER (front + back), bez deformace + blikání kurzoru === -->
+<script>
+// ===== Scene typewriter (na stěnách) – nastavení =====
 const TW_TEXT            = "WELCOME_TO_THE VIRTUAL_SHOWROOM";
 const TW_SPEED_MS        = 38;          // ms/znak
 const TW_PAUSE_MS        = 1200;        // pauza po dopsání
 const TW_CURSOR          = "_";         // vizuální kurzor
 const TW_COLOR_HEX       = "#daff3e";   // jako logo
+const TW_FONT_PX         = 128;         // výrazné písmo
+const TW_BLINK_MS        = 700;         // rychlost blikání kurzoru
+const TW_MARGIN_WALL     = 0.18;        // vnitřní okraje na stěně (pro šířku plane)
 
-// ⬆️ výrazně větší písmo
-const TW_FONT_PX         = 128;         // bylo 96/54 → teď 128 pro výraznost
+// --- Alias pro kompatibilitu s HTML overlay kódem (ponechávám funkce beze změny) ---
+const TYPEWRITER_SPEED_MS = TW_SPEED_MS;
+const TYPEWRITER_PAUSE_MS = TW_PAUSE_MS;
+const TYPEWRITER_LOOP     = true;
+const CURSOR_CHAR         = TW_CURSOR;
 
-// ⬆️ posun panelu výš (od horní hrany rámu k logu)
-const TW_Y_OFFSET        = 0.32;        // dolaď 0.28–0.38 podle oka
-
-// vnitřní margina od rohů stěny
-const TW_MARGIN_WALL     = 0.18;
-
-// ⌛ kurzor: rychlost blikání
-const TW_CURSOR_BLINK_MS = 700;
-
-/* interní reference – ať je můžeme uklízet při opakovaném buildu */
+// --- interní reference (abychom mohli uklízet při rebuildu) ---
 let __twFrontPlane = null, __twBackPlane = null;
-let __twFrontDT = null, __twBackDT = null;
-let __twFrontRAF = 0, __twBackRAF = 0;
+let __twFrontDT    = null, __twBackDT = null;
+let __twFrontRAF   = 0,    __twBackRAF = 0;
 
-// Anchory se vytvoří v buildGalleryLogo()
+// Anchory se vytvoří v buildGalleryLogo() – nechávám je tu, kdyby ses rozhodl overlay vrátit.
 let twFrontAnchor = null;
 let twBackAnchor  = null;
 
-/* Projekce world -> screen (CSS px, s ohledem na hardware scaling a DPR) */
-function projectToScreen(worldPos){
-  const eng   = scene.getEngine();
-  const vp    = camera.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+/* Utility: nejbližší power-of-two */
+const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
 
-  // Projekce do render-pixelů
-  const p = BABYLON.Vector3.Project(
-    worldPos,
-    BABYLON.Matrix.Identity(),
-    scene.getTransformMatrix(),
-    vp
-  );
-
-  // Přepočet render-px -> CSS-px (canvas může mít jinou velikost kvůli scalingu)
-  const rect = eng.getRenderingCanvasClientRect
-    ? eng.getRenderingCanvasClientRect()
-    : (eng.getRenderingCanvas() || canvas).getBoundingClientRect();
-
-  const sx = rect.width  / eng.getRenderWidth();
-  const sy = rect.height / eng.getRenderHeight();
-
-  const cssX = rect.left + p.x * sx;
-  const cssY = rect.top  + p.y * sy;
-
-  const visible = p.z >= 0 && p.z <= 1
-               && p.x >= 0 && p.x <= eng.getRenderWidth()
-               && p.y >= 0 && p.y <= eng.getRenderHeight();
-
-  return { x: p.x, y: p.y, cssX, cssY, visible };
+/* Získá world-space min/max bounding vektory */
+function getWorldMinMax(mesh) {
+  const v = mesh.getHierarchyBoundingVectors(true);
+  return { min: v.min, max: v.max };
 }
+
+/**
+ * Umístí plane přesně do středu mezi horní hranu rámu a spodní hranu loga.
+ * pad = malá vnitřní mezera, aby se text nedotýkal hran.
+ */
+function placeBetweenTopOfFrameAndBottomOfLogo(plane, frameMesh, logoMesh, pad = 0.02) {
+  const { max: frameMax } = getWorldMinMax(frameMesh); // horní hrana rámu = max.y
+  const { min: logoMin }  = getWorldMinMax(logoMesh);  // spodní hrana loga = min.y
+  const innerTop = frameMax.y - pad;
+  const innerBot = logoMin.y + pad;
+  plane.position.y = (innerTop + innerBot) * 0.5;
+}
+
+/**
+ * Vytvoří plochu (plane) + DynamicTexture bez vertikální deformace.
+ * Výška plane se odvodí z poměru textury (texH/texW), aby text vypadl 1:1.
+ *
+ * @param {object} o
+ *  - name, y, z, rotY, width, color, scene
+ */
+function makeTypewriterPlane({ name, y, z, rotY, width, color = TW_COLOR_HEX, scene }) {
+  // (1) Rozměry textury (PoT). Vyšší texW = ostřejší text.
+  const texH = Math.max(128,  nextPOT(Math.round(TW_FONT_PX * 1.8)));
+  const texW = Math.max(1024, nextPOT(1024)); // můžeš zvýšit na 2048 dle výkonu/ostrosti
+
+  // (2) Výška plane z poměru textury → žádná deformace
+  const planeHeight = width * (texH / texW);
+
+  // (3) Geometrie plane
+  const plane = BABYLON.MeshBuilder.CreatePlane(
+    name,
+    { width, height: planeHeight, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
+  plane.position.set(0, y, z);
+  plane.rotation.y = rotY;
+  plane.scaling.set(1, 1, 1);
+  plane.isPickable = false;
+
+  // (4) DynamicTexture
+  const dt = new BABYLON.DynamicTexture(
+    name + "_dt",
+    { width: texW, height: texH },
+    scene,
+    /* generateMipMaps */ false,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
+  dt.hasAlpha = true;
+  dt.gammaSpace = true;
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.anisotropicFilteringLevel = Math.min(4, scene.getEngine().getCaps().maxAnisotropy || 4);
+
+  // Babylon canvas → UV flip
+  dt.vScale = -1;
+  dt.vOffset = 1;
+
+  // (5) Materiál – čistě emissive
+  const mat = new BABYLON.StandardMaterial(name + "_mat", scene);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  mat.diffuseTexture = dt;
+  mat.opacityTexture = dt;
+  mat.emissiveTexture = dt;
+  mat.emissiveColor = BABYLON.Color3.FromHexString(color);
+  plane.material = mat;
+
+  // Clear
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+  dt.update();
+
+  return { plane, dt, texW, texH };
+}
+
+/* Vykreslí jeden snímek do DynamicTexture */
+function drawTypeLine(
+  dt,
+  { text, progress, texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX, showCursor = true }
+) {
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `600 ${fontPx}px Doto, monospace`;
+
+  const out = text.slice(0, progress) + (showCursor ? TW_CURSOR : "");
+  const x = (texW >> 1);
+  const y = (texH >> 1);
+
+  ctx.shadowColor = "rgba(218,255,62,0.18)";
+  ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.18));
+  ctx.fillText(out, x, y);
+
+  dt.update(false); // rychlý update bez regenerace mipmap
+}
+
+/**
+ * rAF smyčka, která se NEZASTAVUJE → kurzor bliká i po dopsání.
+ * Vrací rafId, které lze zrušit přes cancelAnimationFrame.
+ */
+function runTypewriterToDT(dt, opts) {
+  const {
+    text = TW_TEXT,
+    speedMs = TW_SPEED_MS,
+    pauseMs = TW_PAUSE_MS,
+    texW,
+    texH,
+    color = TW_COLOR_HEX,
+    fontPx = TW_FONT_PX
+  } = opts;
+
+  let cycleStart = performance.now();
+  let rafId = 0;
+
+  function tick(now) {
+    const elapsed    = now - cycleStart;
+    const endTime    = text.length * speedMs;
+    const typedChars = Math.min(text.length, Math.floor(elapsed / speedMs));
+
+    // Blikání kurzoru
+    const showCursor = (now % (TW_BLINK_MS * 2)) < TW_BLINK_MS;
+
+    drawTypeLine(dt, {
+      text,
+      progress: typedChars,
+      texW, texH, color, fontPx,
+      showCursor
+    });
+
+    // Po pauze znovu od začátku, rAF běží stále
+    if (elapsed >= endTime && (elapsed - endTime) >= pauseMs) {
+      cycleStart = now;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+  return rafId;
+}
+
+/* ============ BUILDER: vytvoří/aktualizuje typewritery na obou stěnách ============
+
+  Volání:
+    buildOrUpdateTypewriters(scene, {
+      front: { z: frontWallZ + 0.001, width: innerFrontWallWidth, frame: frontFrameMesh, logo: phaserLogoMesh, rotY: 0 },
+      back:  { z: backWallZ  - 0.001, width: innerBackWallWidth,  frame: backFrameMesh,  logo: phaserLogoMeshBack ?? phaserLogoMesh, rotY: Math.PI },
+      pad: 0.02
+    });
+
+  Pozn.: Šířky 'innerFrontWallWidth'/'innerBackWallWidth' klidně zmenši o vnitřní okraje,
+  např. width * (1 - 2*TW_MARGIN_WALL).
+*/
+function buildOrUpdateTypewriters(scene, { front, back, pad = 0.02 }) {
+  // Úklid případných starých rAF
+  if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF);
+  if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);
+
+  // FRONT
+  if (__twFrontPlane) { __twFrontPlane.dispose(); __twFrontPlane = null; }
+  if (__twFrontDT)    { __twFrontDT.dispose();    __twFrontDT = null;    }
+
+  if (front) {
+    const frontWidth = front.width * (1 - 2*TW_MARGIN_WALL);
+    const F = makeTypewriterPlane({
+      name: "twFront",
+      y: 0, z: front.z, rotY: front.rotY ?? 0,
+      width: frontWidth, color: TW_COLOR_HEX, scene
+    });
+    __twFrontPlane = F.plane;
+    __twFrontDT    = F.dt;
+
+    // přesně mezi horní okraj rámu a spodní hranu loga
+    placeBetweenTopOfFrameAndBottomOfLogo(__twFrontPlane, front.frame, front.logo, pad);
+
+    __twFrontRAF = runTypewriterToDT(__twFrontDT, {
+      text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+      texW: F.texW, texH: F.texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+    });
+  }
+
+  // BACK
+  if (__twBackPlane) { __twBackPlane.dispose(); __twBackPlane = null; }
+  if (__twBackDT)    { __twBackDT.dispose();    __twBackDT = null;    }
+
+  if (back) {
+    const backWidth = back.width * (1 - 2*TW_MARGIN_WALL);
+    const B = makeTypewriterPlane({
+      name: "twBack",
+      y: 0, z: back.z, rotY: back.rotY ?? Math.PI,  // otočeno do místnosti
+      width: backWidth, color: TW_COLOR_HEX, scene
+    });
+    __twBackPlane = B.plane;
+    __twBackDT    = B.dt;
+
+    placeBetweenTopOfFrameAndBottomOfLogo(__twBackPlane, back.frame, back.logo, pad);
+
+    __twBackRAF = runTypewriterToDT(__twBackDT, {
+      text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+      texW: B.texW, texH: B.texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+    });
+  }
+}
+
+/* ---------- (Volitelné) Ponechávám tvůj HTML overlay – jen fix aliasy ---------- */
 
 /* Připrav sloty: <span.tw-text></span><span class="cursor">_</span> (pouze jednou) */
 function prepareTypewriterSlots(el){
@@ -304,7 +337,7 @@ function prepareTypewriterSlots(el){
   const cursorSpan = document.createElement('span');
   textSpan.className   = 'tw-text';
   cursorSpan.className = 'cursor';
-  cursorSpan.textContent = CURSOR_CHAR;
+  cursorSpan.textContent = CURSOR_CHAR; // alias aby to nelítalo
   el.innerHTML = '';
   el.appendChild(textSpan);
   el.appendChild(cursorSpan);
@@ -312,7 +345,7 @@ function prepareTypewriterSlots(el){
   return textSpan;
 }
 
-/* Typewriter přes rAF (s loopem a pauzou) */
+/* HTML overlay varianta (ponecháno beze změn) */
 function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_PAUSE_MS } = {}){
   const textSpan = prepareTypewriterSlots(el);
   if (!textSpan) return;
@@ -333,146 +366,7 @@ function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_P
   textSpan.textContent = '';
   requestAnimationFrame(tick);
 }
-
-/* Vytvoří {plane, dt, texW, texH} – textový panel na stěně */
-function makeTypewriterPlane({ name, y, z, rotY, width, height, color = TW_COLOR_HEX }) {
-  // Geometrie panelu
-  const plane = BABYLON.MeshBuilder.CreatePlane(
-    name,
-    { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE },
-    scene
-  );
-  // ⬆️ posuneme panel výš (mezi rám a logo)
-  plane.position.set(0, y + TW_Y_OFFSET, z);
-  plane.rotation.y = rotY;
-  plane.isPickable = false;
-
-  // ⚙️ Bezpečný výpočet nejbližší power‑of‑two
-  const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-
-  // ⚡ rychlejší, ale ostrá textura (bez mipmap)
-  const texW = Math.max(512, nextPOT(Math.round(768 * (width / 4))));
-  const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 1.8)));
-
-  // DynamicTexture (genMipMaps = false → rychlejší)
-  const dt = new BABYLON.DynamicTexture(
-    name + "_dt",
-    { width: texW, height: texH },
-    scene,
-    /* generateMipMaps */ false,
-    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-  );
-  dt.hasAlpha = true;
-  dt.gammaSpace = true;
-  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.anisotropicFilteringLevel = Math.min(4, scene.getEngine().getCaps().maxAnisotropy || 4);
-
-  // 🔧 FIX: odflipovat vertikální převrácení textury
-  dt.vScale = -1;
-  dt.vOffset = 1;
-
-  // Materiál (emissive kvůli glow)
-  const mat = new BABYLON.StandardMaterial(name + "_mat", scene);
-  mat.disableLighting = true;
-  mat.backFaceCulling = false;
-  mat.diffuseTexture = dt;
-  mat.opacityTexture = dt;
-  mat.emissiveTexture = dt;
-  mat.emissiveColor = BABYLON.Color3.FromHexString(color);
-
-  plane.material = mat;
-
-  // Clear
-  const ctx = dt.getContext();
-  ctx.clearRect(0, 0, texW, texH);
-  dt.update();
-
-  return { plane, dt, texW, texH };
-}
-
-/* Kreslení jednoho snímku typewriteru do DT */
-function drawTypeLine(
-  dt,
-  { text, progress, texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX, showCursor = true }
-) {
-  const ctx = dt.getContext();
-  ctx.clearRect(0, 0, texW, texH);
-
-  // Smoothing zapneme, ale stíny necháme jemné kvůli výkonu
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `600 ${fontPx}px Doto, monospace`;
-
-  const out = text.slice(0, progress) + (showCursor ? TW_CURSOR : "");
-  const x = (texW >> 1);
-  const y = (texH >> 1);
-
-  ctx.shadowColor = "rgba(218,255,62,0.18)";
-  ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.18));
-  ctx.fillText(out, x, y);
-
-  // rychlý update (bez mipmap regen)
-  dt.update(false);
-}
-
-/* rAF typewriter (loop) */
-function runTypewriterToDT(dt, opts) {
-  const {
-    text = TW_TEXT,
-    speedMs = TW_SPEED_MS,
-    pauseMs = TW_PAUSE_MS,
-    texW,
-    texH,
-    color = TW_COLOR_HEX,
-    fontPx = TW_FONT_PX
-  } = opts;
-
-  let start = performance.now();
-  let rafId = 0;
-
-  function tick(now) {
-    const chars = Math.floor((now - start) / speedMs);
-
-    // ✨ blikání kurzoru (on/off podle času)
-    const phase = (now - start) % (TW_CURSOR_BLINK_MS * 2);
-    const showCursor = phase < TW_CURSOR_BLINK_MS;
-
-    if (chars <= text.length) {
-      drawTypeLine(dt, {
-        text,
-        progress: Math.max(0, chars),
-        texW,
-        texH,
-        color,
-        fontPx,
-        showCursor
-      });
-      rafId = requestAnimationFrame(tick);
-    } else {
-      // konečný snímek s blikáním kurzoru
-      drawTypeLine(dt, {
-        text,
-        progress: text.length,
-        texW,
-        texH,
-        color,
-        fontPx,
-        showCursor
-      });
-      setTimeout(() => {
-        start = performance.now();
-        rafId = requestAnimationFrame(tick);
-      }, pauseMs);
-    }
-  }
-
-  rafId = requestAnimationFrame(tick);
-  return rafId;
-}
+</script>
     
 
   /* ========= Scene setup ========= */
