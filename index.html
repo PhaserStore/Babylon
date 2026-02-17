@@ -324,39 +324,55 @@ function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_P
   requestAnimationFrame(tick);
 }
    /* Vytvoří {plane, dt, texW, texH} – textový panel na stěně */
-function makeTypewriterPlane({ name, y, z, rotY, width, height, color=TW_COLOR_HEX }){
-  const plane = BABYLON.MeshBuilder.CreatePlane(name, { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+function makeTypewriterPlane({ name, y, z, rotY, width, height, color = TW_COLOR_HEX }) {
+  // Geometrie panelu
+  const plane = BABYLON.MeshBuilder.CreatePlane(
+    name,
+    { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
   plane.position.set(0, y, z);
   plane.rotation.y = rotY;
   plane.isPickable = false;
 
+  // ⚙️ Bezpečný výpočet nejbližší power‑of‑two
+  const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
 
+  // ⚙️ Velikosti textur pro typewriter DynamicTexture
+  //    qualityBoost jemně zvedne rozlišení textury (ostřejší text)
+  const qualityBoost = 1.2; // 1.0–1.5 (klidně si dolaď)
+  const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4) * qualityBoost)));
+  const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2 * qualityBoost)));
 
- // ⚙️ bezpečný výpočet nejbližší power‑of‑two
-const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-
-// ⚙️ velikosti textur pro typewriter DynamicTexture
-const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4))));
-const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
-
-
-
-  const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  // DynamicTexture
+  const dt = new BABYLON.DynamicTexture(
+    name + "_dt",
+    { width: texW, height: texH },
+    scene,
+    true,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
   dt.hasAlpha = true;
   dt.gammaSpace = true;
   dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
   dt.anisotropicFilteringLevel = scene.getEngine().getCaps().maxAnisotropy || 4;
 
+  // 🔧 FIX: korekce převrácení textu vertikálně
+  dt.vScale = -1;
+  dt.vOffset = 1;
+
+  // Materiál (emissive kvůli glow)
   const mat = new BABYLON.StandardMaterial(name + "_mat", scene);
   mat.disableLighting = true;
   mat.backFaceCulling = false;
   mat.diffuseTexture = dt;
   mat.opacityTexture = dt;
   mat.emissiveTexture = dt;
-  mat.emissiveColor = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
+  mat.emissiveColor = BABYLON.Color3.FromHexString(color);
 
   plane.material = mat;
 
+  // Clear
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
   dt.update();
@@ -365,7 +381,10 @@ const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
 }
 
 /* Kreslení jednoho snímku typewriteru do DT */
-function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
+function drawTypeLine(
+  dt,
+  { text, progress, texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX }
+) {
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
 
@@ -385,27 +404,51 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   ctx.shadowBlur = Math.max(2, Math.round(fontPx * 0.22));
   ctx.fillText(out, x, y);
 
+  // dt.update(false) = rychlejší, bez regen mipmap
   dt.update(false);
 }
 
 /* rAF typewriter (loop) */
-function runTypewriterToDT(dt, opts){
-  const { text=TW_TEXT, speedMs=TW_SPEED_MS, pauseMs=TW_PAUSE_MS, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX } = opts;
+function runTypewriterToDT(dt, opts) {
+  const {
+    text = TW_TEXT,
+    speedMs = TW_SPEED_MS,
+    pauseMs = TW_PAUSE_MS,
+    texW,
+    texH,
+    color = TW_COLOR_HEX,
+    fontPx = TW_FONT_PX
+  } = opts;
+
   let start = performance.now();
   let rafId = 0;
 
-  function tick(now){
+  function tick(now) {
     const chars = Math.floor((now - start) / speedMs);
-    if (chars <= text.length){
-      drawTypeLine(dt, { text, progress: Math.max(0, chars), texW, texH, color, fontPx });
+
+    if (chars <= text.length) {
+      drawTypeLine(dt, {
+        text,
+        progress: Math.max(0, chars),
+        texW,
+        texH,
+        color,
+        fontPx
+      });
       rafId = requestAnimationFrame(tick);
     } else {
-      setTimeout(() => { start = performance.now(); rafId = requestAnimationFrame(tick); }, pauseMs);
+      // Pauza a cyklus
+      setTimeout(() => {
+        start = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }, pauseMs);
     }
   }
+
   rafId = requestAnimationFrame(tick);
   return rafId;
 }
+    
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
