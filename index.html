@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Virtual Gallery — Clean View</title>
 
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
-  <!-- Font Doto -->
   <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
@@ -37,20 +36,59 @@
       width:100vw; height:100vh;
       will-change: transform; transform: translateZ(0);
     }
+
+    /* === SoundCloud full-width bottom bar (desktop only) === */
+    #scBar{
+      position:fixed; left:0; right:0; bottom:0;
+      height:var(--bar-h); background:#1a1a1a;
+      border-top:1px solid rgba(255,255,255,.15);
+      display:flex; align-items:center; padding:0 14px; gap:20px;
+      z-index:50; font-size:13px; color:#eee;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #scBar button{
+      width:34px; height:34px; border-radius:8px; border:1px solid var(--btn-brd);
+      background:var(--btn-bg); color:#fff; cursor:pointer; display:inline-grid; place-items:center; outline:none;
+    }
+    #scBar button:hover{ background:var(--btn-bg-hover); }
+    #scBar button:focus-visible{ box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+    .icon{ width:18px; height:18px; display:block; fill:#fff; pointer-events:none; }
+    .sc-left{ display:flex; gap:6px; align-items:center; }
+    .sc-center{ flex:1; display:flex; align-items:center; gap:10px; user-select:none; min-width:180px; }
+    #scSeek{ flex:1; height:6px; background:#555; border-radius:4px; position:relative; cursor:pointer; }
+    #scSeekFill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--accent); border-radius:4px; }
+    .time{ min-width:40px; text-align:center; color:#ddd; font-variant-numeric: tabular-nums; }
+    .sc-right{ display:flex; align-items:center; gap:12px; min-width:280px; }
+    #scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
+    #barVol{ width:84px; }
+
+    /* Ikony vpravo dole nad barem */
+    .hudIcon{
+      position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); opacity:.96; transition: transform .12s ease, opacity .12s ease;
+      right:calc(12px + var(--safe-right)); bottom:calc(12px + var(--bar-h) + var(--safe-bottom));
+    }
+    .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
+    /* fullscreen ikonu posuneme o šířku tlačítka + mezeru */
+    #fullscreenIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
+
+    /* Desktop bar shrink */
+    @media (max-width: 560px){
+      #scBar{ gap:12px; padding:0 10px; }
+      .sc-right{ min-width:200px; gap:10px; }
+      #barVol{ width:70px; }
+      .time{ display:none; }
+    }
+
+    /* MOBILE: schovat fullscreen ikonu i celý SC bar + host */
+    @media (pointer:coarse), (max-width: 900px){
+      #fullscreenIcon{ display:none !important; }
+      #scBar, #scIframeHost{ display:none !important; }
+    }
   </style>
 
   <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
-
-  <!-- TYPEWRITER SCRIPT (front + back) SEM -->
-  <!--
-      ↓↓↓ Tady vlož svůj typewriter kód, který jsi měl v <script> uvnitř <style>.
-      Musí být MIMO <style> a MIMO <body>.
-  -->
-  <script>
-    /* sem přijde celý tvůj TW block */
-  </script>
-
 </head>
 
     /* === SoundCloud full-width bottom bar (desktop only) === */
