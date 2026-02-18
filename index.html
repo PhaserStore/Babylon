@@ -1926,140 +1926,200 @@ function onCameraResetForStars(){
   }
 
   // === NEW BAR UPDATE HELPERS ===
-  function scUpdateTime(cur, dur){
-    const curEl = document.getElementById("scTimeCur");
-    const durEl = document.getElementById("scTimeDur");
-    if (!curEl || !durEl) return;
-    curEl.textContent = fmtTime(cur);
-    durEl.textContent = fmtTime(dur);
-  }
-  function scUpdateThumb(s){
-    const t = document.getElementById("scThumb");
-    if (!t) return;
-    let art = s?.artwork_url || s?.user?.avatar_url || "";
-    if (art) art = art.replace("-large.jpg","-t200x200.jpg");
-    t.src = art || "";
-  }
-  function scUpdateTitle(s){
-    const el = document.getElementById("scTitle");
-    if (!el) return;
-    if (!s){ el.textContent = "–"; return; }
-    el.textContent = s.title || "Unknown";
-  }
-  function scUpdateProgress(rel){
-    const fill = document.getElementById("scSeekFill");
-    if (!fill) return;
-    fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
-  }
 
-  function initScWidgetOnce(){
-    return new Promise((resolve)=>{
-      const iframe = document.getElementById('scIframe');
-      if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
-      if (scWidget) return resolve(scWidget);
+// Čas a délka v ms -> "m:ss"
+function scUpdateTime(cur, dur){
+  const curEl = document.getElementById("scTimeCur");
+  const durEl = document.getElementById("scTimeDur");
+  if (curEl) curEl.textContent = fmtTime(cur);
+  if (durEl) durEl.textContent = fmtTime(dur);
+}
 
-      scWidget = window.SC.Widget(iframe);
+// Obal (artwork / avatar)
+function scUpdateThumb(s){
+  const t = document.getElementById("scThumb");
+  if (!t) return;
+  let art = s?.artwork_url || s?.user?.avatar_url || "";
+  if (art) art = art.replace("-large.jpg","-t200x200.jpg");
+  t.src = art || "";
+  t.title = s?.title || "";
+}
 
-      scWidget.bind(window.SC.Widget.Events.READY, ()=>{
-        scReady = true;
+// Titul
+function scUpdateTitle(s){
+  const el = document.getElementById("scTitle");
+  if (!el) return;
+  el.textContent = s ? (s.title || "Unknown") : "–";
+  el.title = s?.title || "";
+}
 
-        // Volume init
-        const barVol = document.getElementById('barVol');
-        const vol = Math.max(0, Math.min(100, +(barVol?.value || 80)));
-        scWidget.setVolume(vol);
+// Progress bar (rel 0..1)
+function scUpdateProgress(rel){
+  const fill = document.getElementById("scSeekFill");
+  if (!fill) return;
+  fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
+}
 
-        // Init meta + duration + bar
-        scWidget.getCurrentSound((s) => {
-          scUpdateTitle(s);
-          scUpdateThumb(s);
-        });
-        scWidget.getDuration((d) => {
-          scDuration = d || 0;
-          scUpdateTime(0, scDuration);
-        });
+// Kompletní refresh metadat aktuální skladby (název, obal, délka, klikací odkaz)
+function scUpdateMeta(){
+  if (!scWidget) return;
+  scWidget.getCurrentSound((s)=>{
+    scUpdateTitle(s);
+    scUpdateThumb(s);
 
-        // Eventy
-        scWidget.bind(window.SC.Widget.Events.PLAY, () => {
-          scWidget.getCurrentSound((s) => {
-            scUpdateTitle(s);
-            scUpdateThumb(s);
-          });
-        });
+    // Délka (ms) preferenčně z objektu sound
+    const d = (s && typeof s.duration === "number") ? s.duration : scDuration;
+    scDuration = d || 0;
+    scUpdateTime(0, scDuration);
 
-        scWidget.bind(window.SC.Widget.Events.PAUSE, () => { /* beze změny */ });
+    // Klikací název/cover -> permalink
+    const openLink = () => { if (s?.permalink_url) window.open(s.permalink_url, "_blank", "noopener"); };
 
-        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
-          scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
-          const cur = e.currentPosition || 0;
-          const rel = e.relativePosition || (scDuration ? cur / scDuration : 0);
-          scUpdateTime(cur, scDuration);
-          scUpdateProgress(rel);
-        });
+    const titleEl = document.getElementById("scTitle");
+    const thumbEl = document.getElementById("scThumb");
 
-        resolve(scWidget);
+    // Přepíšeme handlery (nebudou se množit)
+    if (titleEl){
+      titleEl.onclick = openLink;
+      titleEl.setAttribute("role","link");
+      titleEl.setAttribute("tabindex","0");
+      titleEl.onkeydown = (e)=>{ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openLink(); } };
+    }
+    if (thumbEl){
+      thumbEl.onclick = openLink;
+      thumbEl.setAttribute("role","link");
+      thumbEl.setAttribute("tabindex","0");
+      thumbEl.onkeydown = (e)=>{ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openLink(); } };
+    }
+  });
+}
+
+// Inicializace widgetu (po načtení API a iframe)
+function initScWidgetOnce(){
+  return new Promise((resolve)=>{
+    const iframe = document.getElementById('scIframe');
+    if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
+    if (scWidget) return resolve(scWidget);
+
+    scWidget = window.SC.Widget(iframe);
+
+    scWidget.bind(window.SC.Widget.Events.READY, ()=>{
+      scReady = true;
+
+      // Úvodní hlasitost
+      const barVol = document.getElementById('barVol');
+      const vol = Math.max(0, Math.min(100, +(barVol?.value || 80)));
+      scWidget.setVolume(vol);
+
+      // Načti aktuální meta (titul/cover/délka)
+      scUpdateMeta();
+
+      // Při startu (vč. přeskoku) znovu načti meta
+      scWidget.bind(window.SC.Widget.Events.PLAY, scUpdateMeta);
+
+      // Plynulý progress + korektní 'duration' Z EVENTU pro každý track
+      scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e)=>{
+        if (e && typeof e.duration === "number") scDuration = e.duration; // ms aktuální skladby
+        const cur = e?.currentPosition || 0;
+        const rel = e?.relativePosition || (scDuration ? cur / scDuration : 0);
+        scUpdateTime(cur, scDuration);
+        scUpdateProgress(rel);
       });
+
+      // Volitelné: při STOP/FINISH můžeš progress dorovnat na 100 %, ale nechávám na tobě
+      // scWidget.bind(window.SC.Widget.Events.FINISH, ()=>{ scUpdateTime(scDuration, scDuration); scUpdateProgress(1); });
+
+      scWidget.bind(window.SC.Widget.Events.ERROR, (err)=> console.error("[SC] widget error:", err));
+      resolve(scWidget);
+    });
+  });
+}
+
+// Lazy-load a start po kliknutí (desktop only – SC_ENABLED řešíš výš)
+async function ensureScReadyAndPlay(){
+  if (scLoading) return;
+  scLoading = true;
+  try{
+    await loadScApiOnce();
+    await mountScIframeOnce();        // v tvojí verzi stačí (iframe je mimo viewport, ale není display:none)
+    const w = await initScWidgetOnce();
+    if (w) w.play();                  // voláno v rámci uživatelského gesta
+  }catch(e){
+    console.warn("SC lazy-load failed:", e);
+  }finally{
+    scLoading = false;
+  }
+}
+
+// Ovládací prvky v dolním baru
+function bindBarControls(){
+  const pPrev  = document.getElementById("barPrev");
+  const pPlay  = document.getElementById("barPlay");
+  const pPause = document.getElementById("barPause");
+  const pNext  = document.getElementById("barNext");
+  const vol    = document.getElementById("barVol");
+  const mute   = document.getElementById("barMute");
+  const seek   = document.getElementById("scSeek");
+
+  // Play = lazy-load + play
+  if (pPlay){
+    pPlay.addEventListener('click', () => ensureScReadyAndPlay());
+    pPlay.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); ensureScReadyAndPlay(); }
     });
   }
 
-  async function ensureScReadyAndPlay(){
-    if (scLoading) return;
-    scLoading = true;
+  // Pause
+  if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
+
+  // Prev/Next – vždy se ujisti, že widget existuje; po přeskoku znovu 'play'
+  const jump = (dir)=> async ()=>{
+    await ensureScReadyAndPlay();
+    if (!scReady || !scWidget) return;
     try{
-      await loadScApiOnce();
-      await mountScIframeOnce();
-      const w = await initScWidgetOnce();
-      if (w) w.play(); // v rámci uživatelského gesta → povoleno
-    }catch(e){
-      console.warn("SC lazy-load failed:", e);
-    }finally{
-      scLoading = false;
-    }
-  }
+      if (dir < 0) scWidget.prev(); else scWidget.next();
+      // Po interním přeskoku občas zůstane pauza → jemné popostrčení
+      setTimeout(()=>{ try{ scWidget.play(); }catch(_){} }, 120);
+    }catch(e){ console.warn("[SC] jump failed", e); }
+  };
+  if (pPrev) pPrev.addEventListener('click', jump(-1));
+  if (pNext) pNext.addEventListener('click', jump(+1));
 
-  function bindBarControls(){
-    const pPrev = document.getElementById("barPrev");
-    const pPlay = document.getElementById("barPlay");
-    const pPause= document.getElementById("barPause");
-    const vol   = document.getElementById("barVol");
-    const mute  = document.getElementById("barMute");
-    const seek  = document.getElementById("scSeek");
+  // Volume
+  if (vol) vol.addEventListener('input', e =>{
+    const v = Math.min(100, Math.max(0, +e.target.value || 75));
+    if (scReady && scWidget) scWidget.setVolume(v);
+  });
 
-    if (pPlay)  pPlay.addEventListener('click', () => ensureScReadyAndPlay());
-    if (pPause) pPause.addEventListener('click', () => scReady && scWidget && scWidget.pause());
-    if (pPrev)  pPrev.addEventListener('click', () => scReady ? (scWidget && scWidget.prev()) : ensureScReadyAndPlay());
-
-    if (vol) vol.addEventListener('input', e =>{
-      const v = Math.min(100, Math.max(0, +e.target.value || 75));
-      if (scReady && scWidget) scWidget.setVolume(v);
+  // Mute
+  if (mute) mute.addEventListener('click', () =>{
+    if (!scReady || !scWidget) return;
+    scWidget.getVolume(v =>{
+      const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
+      scWidget.setVolume(newV);
     });
-    if (mute) mute.addEventListener('click', ()=>{
-      if (!scReady || !scWidget) return;
-      scWidget.getVolume(v=>{
-        const newV = v > 0 ? 0 : (document.getElementById('barVol')?.value|0) || 75;
-        scWidget.setVolume(newV);
-      });
+  });
+
+  // Seek
+  if (seek){
+    const doSeek = (px) => {
+      if (!scReady || !scWidget || !scDuration) return;
+      const rect = seek.getBoundingClientRect();
+      const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
+      scWidget.seekTo(rel * scDuration);
+    };
+    seek.addEventListener("click", e => doSeek(e.clientX));
+    seek.addEventListener("keydown", e=>{
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+        e.preventDefault();
+        const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
+        const step = 0.02;
+        const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
+        if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
+      }
     });
-
-    if (seek){
-      const doSeek = (px) => {
-        if (!scReady || !scWidget || !scDuration) return;
-        const rect = seek.getBoundingClientRect();
-        const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width ));
-        scWidget.seekTo(rel * scDuration);
-      };
-      seek.addEventListener("click", e => doSeek(e.clientX));
-      seek.addEventListener("keydown", e=>{
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
-          e.preventDefault();
-          const cur = parseFloat((document.getElementById('scSeekFill')?.style.width || "0").replace("%",""))/100;
-          const step = 0.02;
-          const rel = Math.min(1, Math.max(0, cur + (e.key==='ArrowRight'? step : -step)));
-          if (scReady && scWidget && scDuration) scWidget.seekTo(rel * scDuration);
-        }
-      });
-    }
   }
-
+}
 
 
 /* ========= BOOT ========= */
