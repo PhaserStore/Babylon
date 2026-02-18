@@ -204,9 +204,14 @@
   "use strict";
 
   /* ========= Helpers & flags ========= */
-  const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) <= 900;
-  const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
-  const SC_ENABLED = !IS_MOBILE; // mobil: SoundCloud zcela vypnutý
+  // Původní a správná logika:
+// SoundCloud povolený jen na desktopu (žádné touch zařízení)
+const IS_MOBILE =
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+  || navigator.maxTouchPoints > 0
+  || window.matchMedia('(pointer:coarse)').matches;
+
+const SC_ENABLED = !IS_MOBILE;   // jen desktop
 
   const fmtTime = (ms)=> {
     const sec = Math.max(0, Math.floor((ms||0)/1000));
