@@ -2014,7 +2014,10 @@ engine.runRenderLoop(()=>{
 });
 
 /* ========= Resize & UI ========= */
-function handleResize(){ applyHardwareScale(); engine.resize(true); }
+function handleResize(){ 
+  applyHardwareScale(); 
+  engine.resize(true); 
+}
 window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
 document.addEventListener('gesturestart', e => { if (IS_IOS) { e.preventDefault(); } }, { passive:false });
@@ -2024,9 +2027,17 @@ const resetCamIcon = document.getElementById('resetCamIcon');
 if (resetCamIcon){
   resetCamIcon.addEventListener('dragstart', e => e.preventDefault());
   resetCamIcon.addEventListener('click', () => resetCamera({animate:true}));
-  resetCamIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetCamera({animate:true}); } });
+  resetCamIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      resetCamera({animate:true});
+    }
+  });
 }
-window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
+
+window.addEventListener('keydown', (e)=>{
+  if ((e.key || '').toLowerCase() === 'r') resetCamera({animate:true});
+});
 
 const fullscreenIcon = document.getElementById('fullscreenIcon');
 if (fullscreenIcon) {
@@ -2039,12 +2050,10 @@ if (fullscreenIcon) {
     }
   });
 
-  document.addEventListener('fullscreenchange', syncFsButton);
-  document.addEventListener('webkitfullscreenchange', syncFsButton);
-}  // správné uzavření IF  ← ✅ použij JS komentář, NE HTML
+  document.addEventListener('fullscreenchange',        syncFsButton);
+  document.addEventListener('webkitfullscreenchange',  syncFsButton);
+}  // správné uzavření IF
 
 </script>
-
 </body>
 </html>
-
