@@ -1943,57 +1943,53 @@ createScene();
   try{
     await document.fonts?.load?.('400 16px Poppins');
     await document.fonts?.load?.('600 16px Poppins');
-    
- // ✅ Důležité pro Canvas: načti Doto v cílové velikosti (TW_FONT_PX)
-    await document.fonts?.load?.(`600 ${TW_FONT_PX}px Doto`);
-await document.fonts?.load?.(`400 ${TW_FONT_PX}px Doto`);
-await document.fonts?.load?.(`400 ${TW_FONT_PX}px Doto`);
 
-                                        
-  }catch(e){}
+    // ✅ Důležité pro Canvas: načti Doto v cílové velikosti (TW_FONT_PX)
+    await document.fonts?.load?.(`600 ${TW_FONT_PX}px Doto`);
+    await document.fonts?.load?.(`400 ${TW_FONT_PX}px Doto`);
+  }catch(e){/* ignore font load errors */ }
 
   applyFixedLayout();
   buildGalleryLogo();      // <- teď už máme FRAME_CENTER_Y připravené
-    
-   
-    
+
   bindBarControls?.();
 
   // pevné natočení na přední stěnu
   resetCamera({animate:false});
 
   // jemná „oživující“ animace 1 frame po startu (volitelné)
-  requestAnimationFrame(() => animateCameraTo({
-    alpha: normAlpha(FRONT_ALPHA),
-    beta:  camera.beta,
-    radius: camera.radius,
-    target: camera.target.clone()
-  }, 320));
+  requestAnimationFrame(() =>
+    animateCameraTo({
+      alpha : normAlpha(FRONT_ALPHA),
+      beta  : camera.beta,
+      radius: camera.radius,
+      target: camera.target.clone()
+    }, 320)
+  );
 
   startShootingStars(); // jednou za čas jedna hvězda
 })();
 
-
 /* ========= Render loop ========= */
-engine.runRenderLoop(()=>{
+engine.runRenderLoop(() => {
   if (!scene) return;
+
   // Kamera uvnitř místnosti
   constrainTarget?.();
   constrainCameraRadius?.();
 
   scene.render();
 
-  
-    
-
   // AutoScale
   if (AutoScale.enabled){
     const now = performance.now();
     AutoScale.accMs += engine.getDeltaTime();
     AutoScale.frames++;
+
     if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
       const avgMs = AutoScale.accMs / AutoScale.frames;
       let changed = false;
+
       if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
         currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
         changed = true;
@@ -2001,22 +1997,28 @@ engine.runRenderLoop(()=>{
         currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
         changed = true;
       }
+
       if (changed){
         applyHardwareScale(currentScaleLevel);
         if (glow){
           const base = IS_MOBILE ? 36 : 96;
-          glow.blurKernelSize = Math.round( base * (0.9 + 0.2*(1 - (currentScaleLevel-0.33)/(1-0.33))) );
+          glow.blurKernelSize = Math.round(
+            base * (0.9 + 0.2 * (1 - (currentScaleLevel - 0.33) / (1 - 0.33)))
+          );
         }
       }
-      AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
+
+      AutoScale.accMs = 0;
+      AutoScale.frames = 0;
+      AutoScale.lastEval = now;
     }
   }
 });
 
 /* ========= Resize & UI ========= */
-function handleResize(){ 
-  applyHardwareScale(); 
-  engine.resize(true); 
+function handleResize(){
+  applyHardwareScale();
+  engine.resize(true);
 }
 window.addEventListener("resize", handleResize, { passive:true });
 window.addEventListener("orientationchange", handleResize);
@@ -2050,8 +2052,8 @@ if (fullscreenIcon) {
     }
   });
 
-  document.addEventListener('fullscreenchange',        syncFsButton);
-  document.addEventListener('webkitfullscreenchange',  syncFsButton);
+  document.addEventListener('fullscreenchange',       syncFsButton);
+  document.addEventListener('webkitfullscreenchange', syncFsButton);
 }  // správné uzavření IF
 
 </script>
