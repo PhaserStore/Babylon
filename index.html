@@ -1879,17 +1879,23 @@ function onCameraResetForStars(){
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
-  /* ========= SoundCloud (desktop only) ========= */
-// Playlist / set (můžeš změnit na cokoliv ze SoundCloudu)
+  <script>
+// ========= SoundCloud (desktop only) =========
+
+// 1) Desktop-only detekce (stejně jako ve „staré funkční“ verzi)
+const IS_MOBILE =
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+  Math.min(window.innerWidth, window.innerHeight) <= 900;
+const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+const SC_ENABLED = !IS_MOBILE;  // jen desktop
+
+// 2) URL playlistu
 const SC_PLAYLIST_URL = "https://soundcloud.com/vertigo01/sets/detroit-techno";
 
-// Stav
-let scWidget = null;
-let scReady = false;
-let scLoading = false;
-let scDuration = 0;
+// 3) Stav
+let scWidget = null, scReady = false, scLoading = false, scDuration = 0;
 
-// 1) Načti API jednou (jen když SC_ENABLED)
+// 4) Loader API
 function loadScApiOnce(){
   return new Promise((resolve, reject)=>{
     if (!SC_ENABLED) return resolve();
@@ -1903,41 +1909,55 @@ function loadScApiOnce(){
   });
 }
 
-// 2) Přimontuj iframe, pokud ještě neexistuje
-function mountScIframeOnce(){
+// 5) Vytvoř iframe a počkej, až se NACTE (NE &amp; v URL, ale &)
+function mountScIframeAndWait(){
   return new Promise((resolve)=>{
     if (!SC_ENABLED) return resolve(null);
     const host = document.getElementById('scIframeHost');
     if (!host) return resolve(null);
+
     let iframe = host.querySelector('#scIframe');
-    if (iframe) return resolve(iframe);
-    const url = "https://w.soundcloud.com/player/?"
-      + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
-      + "&auto_play=false&hide_related=false&show_comments=false"
-      + "&show_user=true&show_reposts=false&show_teaser=false&visual=false";
-    const iframeEl = document.createElement('iframe');
-    iframeEl.id = "scIframe";
-    iframeEl.title = "SoundCloud Player";
-    iframeEl.setAttribute("allow", "autoplay; encrypted-media; clipboard-write");
-    iframeEl.setAttribute("scrolling","no");
-    iframeEl.setAttribute("frameborder","no");
-    // Mimo viewport, ale ne display:none (kvůli inicializaci)
-    iframeEl.style.width = "1px";
-    iframeEl.style.height = "1px";
-    iframeEl.style.border = "0";
-    iframeEl.src = url;
-    host.appendChild(iframeEl);
-    resolve(iframeEl);
+    if (iframe && iframe.contentWindow) {
+      // už existuje – nemusíme čekat
+      return resolve(iframe);
+    }
+    if (!iframe){
+      const url = "https://w.soundcloud.com/player/?" +
+        "url=" + encodeURIComponent(SC_PLAYLIST_URL) +
+        "&auto_play=false&hide_related=false&show_comments=false" +
+        "&show_user=true&show_reposts=false&show_teaser=false&visual=false";
+
+      iframe = document.createElement('iframe');
+      iframe.id = "scIframe";
+      iframe.title = "SoundCloud Player";
+      iframe.setAttribute("allow", "autoplay; encrypted-media; clipboard-write");
+      iframe.setAttribute("scrolling","no");
+      iframe.setAttribute("frameborder","no");
+      // host je mimo viewport (ne display:none!), takže iframe musí mít rozměr > 0
+      iframe.style.width  = "1px";
+      iframe.style.height = "1px";
+      iframe.style.border = "0";
+      iframe.src = url;
+      host.appendChild(iframe);
+    }
+
+    // Počkej na load dokumentu iframu
+    if (iframe.complete) {
+      resolve(iframe);
+    } else {
+      iframe.addEventListener('load', () => resolve(iframe), { once:true });
+    }
   });
 }
 
-// 3) Inicializace widgetu (po načtení API a iframu)
+// 6) Inicializuj widget (čeká na READY)
 function initScWidgetOnce(){
   return new Promise((resolve)=>{
     if (!SC_ENABLED) return resolve(null);
     const iframe = document.getElementById('scIframe');
     if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
     if (scWidget) return resolve(scWidget);
+
     scWidget = window.SC.Widget(iframe);
 
     scWidget.bind(window.SC.Widget.Events.READY, ()=>{
@@ -1950,9 +1970,10 @@ function initScWidgetOnce(){
       scWidget.getCurrentSound((s)=>{ scUpdateTitle(s); scUpdateThumb(s); });
       scWidget.getDuration((d)=>{ scDuration = d || 0; scUpdateTime(0, scDuration); });
 
-      scWidget.bind(window.SC.Widget.Events.PLAY, ()=>{
+      scWidget.bind(window.SC.Widget.Events.PLAY, () => {
         scWidget.getCurrentSound((s)=>{ scUpdateTitle(s); scUpdateThumb(s); });
       });
+
       scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e)=>{
         scDuration = Math.max(scDuration, e?.duration || scDuration || 0);
         const cur = e.currentPosition || 0;
@@ -1960,13 +1981,14 @@ function initScWidgetOnce(){
         scUpdateTime(cur, scDuration);
         scUpdateProgress(rel);
       });
+
       scWidget.bind(window.SC.Widget.Events.ERROR, (err)=> console.error("[SC] widget error:", err));
       resolve(scWidget);
     });
   });
 }
 
-// Pomocné UI funkce
+// 7) UI helpery (beze změny)
 function scUpdateTime(cur, dur){
   const curEl = document.getElementById("scTimeCur");
   const durEl = document.getElementById("scTimeDur");
@@ -1988,18 +2010,17 @@ function scUpdateProgress(rel){
   fill.style.width = (Math.max(0, Math.min(1, rel)) * 100).toFixed(2) + "%";
 }
 
-// 4) Jediné veřejné „SPUSTI“ – volá se POUZE po kliknutí na Play
+// 8) Jediný veřejný vstup – spouštíme POUZE po kliknutí na Play
 async function ensureScReadyAndPlay(){
-  if (!SC_ENABLED || scLoading) {
-    if (!SC_ENABLED) console.log("[SC] Disabled (mobile/small).");
-    return;
-  }
+  if (!SC_ENABLED) { console.log("[SC] Disabled (mobile/small viewport)."); return; }
+  if (scLoading) { console.log("[SC] Already loading…"); return; }
   scLoading = true;
   try{
     await loadScApiOnce();
-    await mountScIframeOnce();
+    const iframe = await mountScIframeAndWait();
+    if (!iframe) return;
     const w = await initScWidgetOnce();
-    if (w) w.play();
+    if (w) w.play(); // v rámci uživatelského gesta → povoleno
   }catch(e){
     console.warn("[SC] Lazy-load failed:", e);
   }finally{
@@ -2007,9 +2028,9 @@ async function ensureScReadyAndPlay(){
   }
 }
 
-// 5) Ovládací prvky v bottom baru (jen desktop)
+// 9) Ovládací prvky
 function bindBarControls(){
-  if (!SC_ENABLED) return; // na mobilech nic nevazat
+  if (!SC_ENABLED) return; // nepřivazovat nic na mobilech
 
   const pPrev  = document.getElementById("barPrev");
   const pPlay  = document.getElementById("barPlay");
@@ -2061,6 +2082,7 @@ function bindBarControls(){
     });
   }
 }
+
 
 /* ========= BOOT ========= */
 createScene();
