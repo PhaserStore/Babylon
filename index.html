@@ -327,6 +327,46 @@ function drawTypeLine(dt, { text, progress, texW, texH, showCursor = true }) {
   ctx.fillText(out, texW / 2, texH / 2);
   dt.update(false);
 }
+    /* ======================================================================
+   rAF animátor pro typewriter – s blikáním kurzoru a loopingem
+   ====================================================================== */
+function runTypewriterToDT(
+  dt,
+  {
+    text    = TW_TEXT,
+    speedMs = TW_SPEED_MS,
+    pauseMs = TW_PAUSE_MS,
+    texW,
+    texH
+  } = {}
+){
+  let start = performance.now();
+  let rafId = 0;
+
+  function tick(now){
+    const elapsed  = now - start;
+    const chars    = Math.floor(elapsed / Math.max(1, speedMs));
+    const progress = Math.min(text.length, Math.max(0, chars));
+
+    // kurzor bliká nezávisle na průběhu psaní
+    const showCursor = ((now / TW_CURSOR_BLINK_MS) | 0) % 2 === 0;
+
+    drawTypeLine(dt, { text, progress, texW, texH, showCursor });
+
+    // po dopsání necháme pauzu a zacyklíme
+    if (progress >= text.length && elapsed >= text.length * speedMs + pauseMs){
+      start = now;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+  return rafId;
+}
+
+// 🔓 Zpřístupni animátor i pro asynchronní onload handlery
+window.runTypewriterToDT = runTypewriterToDT;
+    
   /* ========= Scene setup ========= */
   let scene, camera, glow;
   const ROOM = { W:16, D:30, H:13 };
