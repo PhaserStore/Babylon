@@ -204,14 +204,13 @@
   "use strict";
 
   /* ========= Helpers & flags ========= */
-  // Původní a správná logika:
-// SoundCloud povolený jen na desktopu (žádné touch zařízení)
+// Desktop-only: vypnuto na mobilech a také když je okno malé (min rozměr <= 900px)
 const IS_MOBILE =
-  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-  || navigator.maxTouchPoints > 0
-  || window.matchMedia('(pointer:coarse)').matches;
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+  Math.min(window.innerWidth, window.innerHeight) <= 900;
 
-const SC_ENABLED = !IS_MOBILE;   // jen desktop
+const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+const SC_ENABLED = !IS_MOBILE; // jen desktop + větší okno
 
   const fmtTime = (ms)=> {
     const sec = Math.max(0, Math.floor((ms||0)/1000));
@@ -2041,7 +2040,7 @@ await document.fonts?.load?.(`400 ${TW_FONT_PX}px Doto`);
     
    
     
-  bindBarControls?.();
+  bindBarControls();
 
   // pevné natočení na přední stěnu
   resetCamera({animate:false});
