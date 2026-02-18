@@ -1265,7 +1265,7 @@ function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
  * Reset kamery – target Y se VŽDY bere z getWallCenterY()
  * (tedy z aktuální hodnoty ROOM.H v okamžiku volání).
  */
-function resetCamera({animate=true} = {}){
+function resetCamera({ animate = true } = {}) {
   if (!camera) return;
 
   const pose = {
@@ -1275,7 +1275,7 @@ function resetCamera({animate=true} = {}){
     target: new BABYLON.Vector3(0, getWallCenterY(), 0)
   };
 
-  if (animate){
+  if (animate) {
     animateCameraTo(pose, 420);
   } else {
     camera.alpha  = pose.alpha;
@@ -1285,36 +1285,65 @@ function resetCamera({animate=true} = {}){
   }
 
   // případná obsluha tvých hvězd apod.
-onCameraResetForStars?.();
+  onCameraResetForStars?.();
+} // ← resetCamera je teď korektně ukončená
 
-// krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
-onCameraResetForStars?.();
 
-  function isFullscreen(){
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-  }
-  function requestFs(el){
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (req) req.call(el);
-  }
-  function exitFs(){
-    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    if (ex) ex.call(document);
-  }
-  function toggleFullscreen(){ if (isFullscreen()) exitFs(); else requestFs(document.documentElement); }
-  function syncFsButton(){
-    const btn = document.getElementById('fullscreenIcon'); if (!btn) return;
-    const on = isFullscreen();
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno';
-  }
+/* ========= Fullscreen helpers (globální) ========= */
+function isFullscreen() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+}
 
-  /* ========= Scene creation ========= */
-function createScene(){
+function requestFs(el) {
+  const req =
+    el.requestFullscreen ||
+    el.webkitRequestFullscreen ||
+    el.mozRequestFullScreen ||
+    el.msRequestFullscreen;
+  if (req) req.call(el);
+}
+
+function exitFs() {
+  const ex =
+    document.exitFullscreen ||
+    document.webkitExitFullscreen ||
+    document.mozCancelFullScreen ||
+    document.msExitFullscreen;
+  if (ex) ex.call(document);
+}
+
+function toggleFullscreen() {
+  if (isFullscreen()) exitFs();
+  else requestFs(document.documentElement);
+}
+
+function syncFsButton() {
+  const btn = document.getElementById('fullscreenIcon');
+  if (!btn) return;
+  const on = isFullscreen();
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno';
+}
+
+
+/* ========= Scene creation ========= */
+function createScene() {
   scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0,0,0,1);
+  scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
-  camera = new BABYLON.ArcRotateCamera("cam", RESET_POSE.alpha, RESET_POSE.beta, RESET_POSE.radius, RESET_POSE.target.clone(), scene);
+  camera = new BABYLON.ArcRotateCamera(
+    "cam",
+    RESET_POSE.alpha,
+    RESET_POSE.beta,
+    RESET_POSE.radius,
+    RESET_POSE.target.clone(),
+    scene
+  );
   camera.attachControl(canvas, true);
 
   camera.minZ = 0.05;
@@ -1324,7 +1353,7 @@ function createScene(){
   camera.lowerBetaLimit = 0.05;
   camera.upperBetaLimit = Math.PI - 0.05;
 
-  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
+  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene);
 
   glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
   glow.intensity = IS_MOBILE ? 0.45 : 0.65;
@@ -1338,7 +1367,7 @@ function createScene(){
 
   buildRoom();
   buildLED();
- buildGalleryLogo();    // ✔ MUSÍ SE SPUSTIT
+  buildGalleryLogo(); // ✔ MUSÍ SE SPUSTIT
   buildMySkybox();
   buildCeilingWithAperture({ inw: 0.1 });
 
@@ -1346,6 +1375,7 @@ function createScene(){
   setupZoomUX();
   return scene;
 }
+
 /* ========= Falling stars (billboard points, no trails; depth-occluded; above ceiling only) ========= */
 
 /** Geometrie otvoru ve stropě (musí sedět s buildCeilingWithAperture({ inw: 0.1 })) */
