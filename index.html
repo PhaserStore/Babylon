@@ -943,44 +943,50 @@ const frameTop    = frameTopY;          // horní hrana rámu
 
 // — přesná vertikální poloha textu mezi rámem a logem —
 
-const marginFrame = 0.10;  // pevná mezera NAD rámem (m)
-const marginLogo  = 0.15;  // pevná mezera POD logem (m)
+// pevné bezpečné mezery
+const marginFrame = 0.10;   // mezera nad rámem (m)
+const marginLogo  = 0.15;   // mezera pod logem (m)
 
-// bezpečné hranice pro text
+// bezpečné výškové hranice
 const yMin = frameTop    + marginFrame;
 const yMax = logoBottomY - marginLogo;
 
-// STŘED mezi nimi
-const yText = (yMin + yMax) / 2;
+// střed mezi nimi
+const yText = (yMin + yMax) * 0.50;
 
-// šířka panelu napříč stěnou s rezervou u rohů
-const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2; // (m)
+// šířka panelu
+const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2;
 const panelW = Math.max(1.0, wallInnerWidth);
-    
-// výška panelu = ~72 % volné mezery mezi rámem a logem (bezpečné minimum)
+
+// výška panelu = 72 % dostupné výšky
 const gapH   = Math.max(0.06, yMax - yMin);
 const panelH = Math.max(0.18, Math.min(gapH * 0.72, gapH));
 
-// cleanup případných starých typewriter panelů/animací
+// cleanup starých animací a panelů
 try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
 try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
 try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
 try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
-// PŘEDNÍ – musí koukat DO místnosti → rotY = Math.PI (stejně jako „front“ stěna)
+// PŘEDNÍ – musí koukat DO místnosti → rotY = Math.PI
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_front",
     y:     yText,
     z:     zFront - 0.004,
-    rotY:  Math.PI,        // ✅ správně: normála směřuje do místnosti
+    rotY:  Math.PI,     // správně: otočeno čelem do místnosti
     width: panelW,
     height: panelH
   });
+
   __twFrontPlane = plane;
   __twFrontDT = dt;
   __twFrontRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS, texW, texH
+    text: TW_TEXT,
+    speedMs: TW_SPEED_MS,
+    pauseMs: TW_PAUSE_MS,
+    texW,
+    texH
   });
 }
 
@@ -990,14 +996,19 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
     name:  "tw_back",
     y:     yText,
     z:     zBack + 0.004,
-    rotY:  0,              // ✅ správně
+    rotY:  0,          // správně: otočeno čelem do místnosti
     width: panelW,
     height: panelH
   });
+
   __twBackPlane = plane;
   __twBackDT = dt;
   __twBackRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS, texW, texH
+    text: TW_TEXT,
+    speedMs: TW_SPEED_MS,
+    pauseMs: TW_PAUSE_MS,
+    texW,
+    texH
   });
 }
 
