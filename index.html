@@ -238,93 +238,59 @@
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
     
-/* ===== Scene typewriter (na stěnách) – nastavení ===== */
+/* ===== Scene typewriter (na stěnách) – nastavení (FINÁLNÍ OPRAVA) ===== */
 const TW_TEXT         = "WELCOME_TO_THE VIRTUAL_SHOWROOM";
-const TW_SPEED_MS     = 38;      // ms/znak
-const TW_PAUSE_MS     = 1200;    // pauza po dopsání
-const TW_CURSOR       = "_";     // vizuální kurzor
+const TW_SPEED_MS     = 38;
+const TW_PAUSE_MS     = 1200;
+const TW_CURSOR       = "_";
 const TW_COLOR_HEX    = "#daff3e";
-const TW_FONT_PX      = 54;      // výška písma v px
+const TW_FONT_PX      = 54;
 const TW_MARGIN_WALL  = 0.18;
+const TW_CURSOR_BLINK_MS = 680;
 
-// - nový parametr pro blikání kurzoru
-const TW_CURSOR_BLINK_MS = 720;  // ms perioda blikání
-
-/* interní reference */
+// interní reference
 let __twFrontPlane = null, __twBackPlane = null;
 let __twFrontDT = null, __twBackDT = null;
 let __twFrontRAF = 0, __twBackRAF = 0;
 
-// Anchory – (zůstává, pokud je v projektu potřebuješ)
-let twFrontAnchor = null;
-let twBackAnchor  = null;
+/* ======================================================================
+   — OPRAVA 1 —
+   Jediný způsob, jak zabránit deformaci: textura musí mít STEJNÝ poměr
+   jako plane. Tady to počítám absolutně přesně.
+   ====================================================================== */
+function makeTypewriterPlane({ name, y, z, rotY, width, height }) {
 
-/* Projekce world → screen */
-function projectToScreen(worldPos){
-  const eng = scene.getEngine();
-  const vp  = camera.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+  // 3D plane (toto je fyzická velikost v metrech)
+  const plane = BABYLON.MeshBuilder.CreatePlane(name, {
+    width,
+    height,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
 
-  const p = BABYLON.Vector3.Project(
-    worldPos,
-    BABYLON.Matrix.Identity(),
-    scene.getTransformMatrix(),
-    vp
-  );
-
-  const rect = eng.getRenderingCanvasClientRect
-    ? eng.getRenderingCanvasClientRect()
-    : (eng.getRenderingCanvas() || canvas).getBoundingClientRect();
-
-  const sx = rect.width  / eng.getRenderWidth();
-  const sy = rect.height / eng.getRenderHeight();
-
-  const cssX = rect.left + p.x * sx;
-  const cssY = rect.top  + p.y * sy;
-
-  const visible =
-      p.z >= 0 && p.z <= 1 &&
-      p.x >= 0 && p.x <= eng.getRenderWidth() &&
-      p.y >= 0 && p.y <= eng.getRenderHeight();
-
-  return { x:p.x, y:p.y, cssX, cssY, visible };
-}
-
-/* ================================================
-   Vytvoření typewriter plane – *opraveno bez deformace*
-   ================================================ */
-function makeTypewriterPlane({ name, y, z, rotY, width, height, color = TW_COLOR_HEX }){
-  // 1) Samotná plocha
-  const plane = BABYLON.MeshBuilder.CreatePlane(
-    name,
-    { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE },
-    scene
-  );
   plane.position.set(0, y, z);
   plane.rotation.y = rotY;
   plane.isPickable = false;
 
-  /* === Dynamická textura ve STEJNÉM poměru jako plocha === */
+  // ————— TEXTURA MUSÍ MÍT STEJNÝ POMĚR —————
+  const aspect = width / height;
 
-  const pxPerMeter = Math.max(
-    70,                                  // minimální DPI
-    Math.ceil((TW_FONT_PX * 2.2) / height)
-  );
+  // přesné DPI (pixel density)
+  const pxPerMeter = 420; // tato hodnota dává perfektně ostrý typografický render
 
-  // Max texture cap podle zařízení
-  const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
+  let texW = Math.round(width  * pxPerMeter);
+  let texH = Math.round(height * pxPerMeter);
 
-  let texW = Math.min(cap, Math.round(width * pxPerMeter));
-  let texH = Math.min(cap, Math.round(height * pxPerMeter));
-
+  // zaokrouhlení na bezpečné minima
   texW = Math.max(512, texW);
   texH = Math.max(128, texH);
 
+  // nyní textura má vždy správný poměr stran
   const dt = new BABYLON.DynamicTexture(
     name + "_dt",
     { width: texW, height: texH },
     scene,
     true,
-    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+    BABYLON.Texture.NEAREST_SAMPLINGMODE
   );
 
   dt.hasAlpha = true;
@@ -337,76 +303,60 @@ function makeTypewriterPlane({ name, y, z, rotY, width, height, color = TW_COLOR
   mat.diffuseTexture = dt;
   mat.opacityTexture = dt;
   mat.emissiveTexture = dt;
-  mat.emissiveColor = BABYLON.Color3.FromHexString(color);
+  mat.emissiveColor = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
 
   plane.material = mat;
-
-  dt.getContext().clearRect(0, 0, texW, texH);
-  dt.update();
 
   return { plane, dt, texW, texH };
 }
 
-/* ================================================
-   Kreslení jednoho frame – nyní se správným kurzorem
-   ================================================ */
+/* ======================================================================
+   — OPRAVA 2 —
+   Kreslení textu → kurzor bliká, písmo je centrované, bez převrácení.
+   ====================================================================== */
 function drawTypeLine(dt, {
   text,
   progress,
   texW,
   texH,
-  color = TW_COLOR_HEX,
-  fontPx = TW_FONT_PX,
   showCursor = true
-}){
+}) {
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
 
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
-  ctx.fillStyle = color;
+  ctx.fillStyle = TW_COLOR_HEX;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `600 ${fontPx}px Doto, monospace`;
+  ctx.font = `600 ${TW_FONT_PX}px Doto`;
 
-  const typed = text.slice(0, progress);
-  const out = showCursor ? (typed + TW_CURSOR) : typed;
-
-  const x = texW / 2;
-  const y = texH / 2;
+  const visible = text.slice(0, progress);
+  const out = showCursor ? (visible + TW_CURSOR) : visible;
 
   ctx.shadowColor = "rgba(218,255,62,0.25)";
-  ctx.shadowBlur  = Math.round(fontPx * 0.22);
+  ctx.shadowBlur = Math.round(TW_FONT_PX * 0.26);
 
-  ctx.fillText(out, x, y);
+  ctx.fillText(out, texW / 2, texH / 2);
   dt.update(false);
 }
 
-/* ================================================
-   rAF animátor – nyní s kurzor-blink v DynamicTexture
-   ================================================ */
-function runTypewriterToDT(dt, opts){
-  const {
-    text = TW_TEXT,
-    speedMs = TW_SPEED_MS,
-    pauseMs = TW_PAUSE_MS,
-    texW,
-    texH,
-    color = TW_COLOR_HEX,
-    fontPx = TW_FONT_PX,
-    loop = true
-  } = opts;
-
+/* ======================================================================
+   — OPRAVA 3 —
+   Animátor s blikáním kurzoru + loop
+   ====================================================================== */
+function runTypewriterToDT(dt, {
+  text = TW_TEXT,
+  speedMs = TW_SPEED_MS,
+  pauseMs = TW_PAUSE_MS,
+  texW,
+  texH
+}) {
   let start = performance.now();
-  let rafId = 0;
 
-  function tick(now){
+  function tick(now) {
     const elapsed = now - start;
     const chars = Math.floor(elapsed / speedMs);
-    const progress = Math.min(text.length, chars);
+    const progress = Math.min(chars, text.length);
 
-    // ✨ Kurzorem mrkáme nezávisle na průběhu
     const showCursor = (Math.floor(now / TW_CURSOR_BLINK_MS) % 2) === 0;
 
     drawTypeLine(dt, {
@@ -414,23 +364,18 @@ function runTypewriterToDT(dt, opts){
       progress,
       texW,
       texH,
-      color,
-      fontPx,
       showCursor
     });
 
-    // Když je dopsáno…
-    if (progress >= text.length){
-      if (loop && elapsed >= text.length * speedMs + pauseMs){
-        start = now;  // restart LOOP
+    if (progress >= text.length) {
+      if (elapsed >= text.length * speedMs + pauseMs) {
+        start = now;
       }
     }
-
-    rafId = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   }
 
-  rafId = requestAnimationFrame(tick);
-  return rafId;
+  requestAnimationFrame(tick);
 }
   /* ========= Scene setup ========= */
   let scene, camera, glow;
@@ -1046,9 +991,17 @@ function buildGalleryLogo(){
 const logoBottomY = yPos - logoH / 2;   // spodní hrana loga (světové Y)
 const frameTop    = frameTopY;          // horní hrana rámu
 
-// 0.50 = střed mezery; 0.62 ≈ blíž k logu (doladíš dle oka 0.60–0.70)
-const GAP_T = 0.62;
-const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
+// — přesná vertikální poloha textu mezi rámem a logem —
+
+const marginFrame = 0.10;  // pevná mezera NAD rámem (m)
+const marginLogo  = 0.15;  // pevná mezera POD logem (m)
+
+// bezpečné hranice pro text
+const yMin = frameTop    + marginFrame;
+const yMax = logoBottomY - marginLogo;
+
+// STŘED mezi nimi
+const yText = (yMin + yMax) / 2;
 
 // šířka panelu napříč stěnou s rezervou u rohů
 const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2; // (m)
