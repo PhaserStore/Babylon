@@ -302,126 +302,55 @@ function makeTypewriterPlane({ name, y, z, rotY, width, height }) {
   return { plane, dt, texW, texH };
 }
 
-function drawTypeLine(dt, { text, progress, texW, texH, showCursor = true }) {
+/* Kreslení jednoho snímku typewriteru do DT – VĚTŠÍ a VERTIKÁLNĚ PŘEVRÁCENÉ PÍSMO */
+function drawTypeLine(
+  dt,
+  {
+    text,
+    progress,
+    texW,
+    texH,
+    color = TW_COLOR_HEX,
+    // >>> volitelné doladění velikosti (0.70–0.85 je obvykle ideál)
+    fontScale = 0.78
+  }
+){
   const ctx = dt.getContext();
+
+  // vyčistit plátno
   ctx.clearRect(0, 0, texW, texH);
 
-  // font ~ 68 % výšky textury → pěkně čitelné, bez přetékaní
-  const fontPx = Math.max(24, Math.floor(texH * 0.68));
+  // plynulé vyhlazování
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
-  ctx.fillStyle = TW_COLOR_HEX;
-  ctx.textAlign = "center";
+  // VELKOST PÍSMA: úměrná výšce textury (větší než dřív)
+  const fontPx = Math.max(28, Math.floor(texH * fontScale));
+
+  // složený výstup: dopsaný text + kurzor
+  const out = text.slice(0, Math.max(0, progress)) + TW_CURSOR;
+
+  // nastavení kreslení
+  ctx.fillStyle    = color;
+  ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `600 ${fontPx}px Doto, monospace`;
+  ctx.font         = `600 ${fontPx}px Doto, monospace`;
 
-  const typed = text.slice(0, progress);
-  const out   = showCursor ? (typed + TW_CURSOR) : typed;
-
+  // jemná záře jako dřív
   ctx.shadowColor = "rgba(218,255,62,0.25)";
   ctx.shadowBlur  = Math.round(fontPx * 0.24);
 
-  ctx.fillText(out, texW / 2, texH / 2);
+  // === KLÍČ: VERTIKÁLNÍ PŘEVRÁCENÍ KRESBY ===
+  // Přeneseme střed souřadnic do středu textury a invertneme Y osou.
+  ctx.save();
+  ctx.translate(texW / 2, texH / 2);
+  ctx.scale(1, -1);
+  ctx.fillText(out, 0, 0);
+  ctx.restore();
+
+  // bez full‑update (lepší výkon)
   dt.update(false);
 }
-    /* ======================================================================
-   rAF animátor pro typewriter – s blikáním kurzoru a loopingem
-   ====================================================================== */
-function runTypewriterToDT(
-  dt,
-  {
-    text    = TW_TEXT,
-    speedMs = TW_SPEED_MS,
-    pauseMs = TW_PAUSE_MS,
-    texW,
-    texH
-  } = {}
-){
-  let start = performance.now();
-  let rafId = 0;
-
-  function tick(now){
-    const elapsed  = now - start;
-    const chars    = Math.floor(elapsed / Math.max(1, speedMs));
-    const progress = Math.min(text.length, Math.max(0, chars));
-
-    // kurzor bliká nezávisle na průběhu psaní
-    const showCursor = ((now / TW_CURSOR_BLINK_MS) | 0) % 2 === 0;
-
-    drawTypeLine(dt, { text, progress, texW, texH, showCursor });
-
-    // po dopsání necháme pauzu a zacyklíme
-    if (progress >= text.length && elapsed >= text.length * speedMs + pauseMs){
-      start = now;
-    }
-    rafId = requestAnimationFrame(tick);
-  }
-
-  rafId = requestAnimationFrame(tick);
-  return rafId;
-}
-
-// 🔓 Zpřístupni animátor i pro asynchronní onload handlery
-window.runTypewriterToDT = runTypewriterToDT;
-    
-  /* ========= Scene setup ========= */
-  let scene, camera, glow;
-  const ROOM = { W:16, D:30, H:13 };
-  const MIN_RADIUS = 0.28;
-
-  const BASE_LEVEL = Math.max(0.33, Math.min(1 / DPR, 1));
-  let currentScaleLevel = Math.round(BASE_LEVEL * 100) / 100;
-  function applyHardwareScale(levelOverride){
-    const lvl = typeof levelOverride === "number" ? levelOverride : currentScaleLevel;
-    engine.setHardwareScalingLevel(Math.round(lvl * 100) / 100);
-  }
-  applyHardwareScale();
-
-  const AutoScale = {
-    enabled: IS_MOBILE, windowMs: 1200, warmupMs: 1500, lowFpsMs: 30, highFpsMs: 17,
-    step: 0.05, minLevel: 0.33, maxLevel: 1.00, accMs: 0, frames: 0, lastEval: performance.now()
-  };
-
-  function unlit(hex){
-    const m = new BABYLON.StandardMaterial("m", scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString(hex);
-    m.disableLighting = true;
-    m.backFaceCulling = false;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    return m;
-  }
- // === PŮVODNÍ FUNKČNÍ ŘETĚZEC + ZESVĚTLENÍ (gain) ===
-function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
-  const m = new BABYLON.StandardMaterial("mt", scene);
-  m.disableLighting = true;
-
-  // PONECHÁME původní kreslení přes diffuse (a klidně i emissive),
-  // jen přidáme "bílé" emissive, aby se nic tlumením nestratilo.
-  m.diffuseTexture  = tex;
-  m.emissiveTexture = tex;
-  m.emissiveColor   = new BABYLON.Color3(1, 1, 1);
-
-  m.backFaceCulling = !doubleSided;
-  m.specularColor   = new BABYLON.Color3(0, 0, 0);
-
-  if (tex) {
-    // sRGB vstup pro věrné barvy + mírné ZESVĚTLENÍ
-    tex.gammaSpace = true;
-    tex.level      = gain; // ← zvýší jas (např. 1.15–1.25)
-
-    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    tex.anisotropicFilteringLevel = MAX_ANISO;
-  }
-  return m;
-}
-  function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO;
-    return dt;
-  }
-
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
     skybox.isPickable = false; skybox.infiniteDistance = true; skybox.applyFog = false;
