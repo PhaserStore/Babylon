@@ -2029,13 +2029,20 @@ if (resetCamIcon){
 window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase() === 'r') resetCamera({animate:true}); });
 
 const fullscreenIcon = document.getElementById('fullscreenIcon');
-if (fullscreenIcon){
+if (fullscreenIcon) {
   fullscreenIcon.addEventListener('dragstart', e => e.preventDefault());
   fullscreenIcon.addEventListener('click', toggleFullscreen);
-  fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
+  fullscreenIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
   document.addEventListener('fullscreenchange', syncFsButton);
   document.addEventListener('webkitfullscreenchange', syncFsButton);
-}
+}  // ← Tohle je skutečné uzavření IF
+
 </script>
   
 </body>
