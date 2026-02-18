@@ -259,123 +259,73 @@ let __twFrontRAF = 0, __twBackRAF = 0;
    jako plane. Tady to počítám absolutně přesně.
    ====================================================================== */
 function makeTypewriterPlane({ name, y, z, rotY, width, height }) {
-
-  // 3D plane (toto je fyzická velikost v metrech)
+  // 3D plocha
   const plane = BABYLON.MeshBuilder.CreatePlane(name, {
-    width,
-    height,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
+    width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE
   }, scene);
-
   plane.position.set(0, y, z);
   plane.rotation.y = rotY;
   plane.isPickable = false;
 
-  // ————— TEXTURA MUSÍ MÍT STEJNÝ POMĚR —————
-  const aspect = width / height;
+  // === Textura ve STEJNÉM poměru jako plocha ===
+  const ratio = Math.max(0.01, width / Math.max(0.001, height));
+  const cap   = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
 
-  // přesné DPI (pixel density)
-  const pxPerMeter = 420; // tato hodnota dává perfektně ostrý typografický render
+  let texW, texH;
+  if (ratio >= 1) {
+    // široká plocha → držíme šířku u capu, dopočítáme výšku
+    texW = Math.min(cap, 4096);
+    texH = Math.max(128, Math.round(texW / ratio));
+  } else {
+    // vysoká plocha
+    texH = Math.min(cap, 1024);
+    texW = Math.max(256, Math.round(texH * ratio));
+  }
 
-  let texW = Math.round(width  * pxPerMeter);
-  let texH = Math.round(height * pxPerMeter);
-
-  // zaokrouhlení na bezpečné minima
-  texW = Math.max(512, texW);
-  texH = Math.max(128, texH);
-
-  // nyní textura má vždy správný poměr stran
   const dt = new BABYLON.DynamicTexture(
     name + "_dt",
     { width: texW, height: texH },
     scene,
     true,
-    BABYLON.Texture.NEAREST_SAMPLINGMODE
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
   );
-
   dt.hasAlpha = true;
   dt.gammaSpace = true;
   dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
   const mat = new BABYLON.StandardMaterial(name + "_mat", scene);
   mat.disableLighting = true;
-  mat.backFaceCulling = false;
-  mat.diffuseTexture = dt;
-  mat.opacityTexture = dt;
+  mat.backFaceCulling = true; // ✅ nechceme vidět zadní stranu (zrcadlení)
+  mat.diffuseTexture  = dt;
+  mat.opacityTexture  = dt;
   mat.emissiveTexture = dt;
-  mat.emissiveColor = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
+  mat.emissiveColor   = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
 
   plane.material = mat;
 
   return { plane, dt, texW, texH };
 }
 
-/* ======================================================================
-   — OPRAVA 2 —
-   Kreslení textu → kurzor bliká, písmo je centrované, bez převrácení.
-   ====================================================================== */
-function drawTypeLine(dt, {
-  text,
-  progress,
-  texW,
-  texH,
-  showCursor = true
-}) {
+function drawTypeLine(dt, { text, progress, texW, texH, showCursor = true }) {
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
+
+  // font ~ 68 % výšky textury → pěkně čitelné, bez přetékaní
+  const fontPx = Math.max(24, Math.floor(texH * 0.68));
 
   ctx.fillStyle = TW_COLOR_HEX;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `600 ${TW_FONT_PX}px Doto`;
+  ctx.font = `600 ${fontPx}px Doto, monospace`;
 
-  const visible = text.slice(0, progress);
-  const out = showCursor ? (visible + TW_CURSOR) : visible;
+  const typed = text.slice(0, progress);
+  const out   = showCursor ? (typed + TW_CURSOR) : typed;
 
   ctx.shadowColor = "rgba(218,255,62,0.25)";
-  ctx.shadowBlur = Math.round(TW_FONT_PX * 0.26);
+  ctx.shadowBlur  = Math.round(fontPx * 0.24);
 
   ctx.fillText(out, texW / 2, texH / 2);
   dt.update(false);
-}
-
-/* ======================================================================
-   — OPRAVA 3 —
-   Animátor s blikáním kurzoru + loop
-   ====================================================================== */
-function runTypewriterToDT(dt, {
-  text = TW_TEXT,
-  speedMs = TW_SPEED_MS,
-  pauseMs = TW_PAUSE_MS,
-  texW,
-  texH
-}) {
-  let start = performance.now();
-
-  function tick(now) {
-    const elapsed = now - start;
-    const chars = Math.floor(elapsed / speedMs);
-    const progress = Math.min(chars, text.length);
-
-    const showCursor = (Math.floor(now / TW_CURSOR_BLINK_MS) % 2) === 0;
-
-    drawTypeLine(dt, {
-      text,
-      progress,
-      texW,
-      texH,
-      showCursor
-    });
-
-    if (progress >= text.length) {
-      if (elapsed >= text.length * speedMs + pauseMs) {
-        start = now;
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-
-  requestAnimationFrame(tick);
 }
   /* ========= Scene setup ========= */
   let scene, camera, glow;
@@ -1006,7 +956,10 @@ const yText = (yMin + yMax) / 2;
 // šířka panelu napříč stěnou s rezervou u rohů
 const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2; // (m)
 const panelW = Math.max(1.0, wallInnerWidth);
-const panelH = Math.max(0.20, TW_FONT_PX / 100);    // např. 54px ~ 0.54 m
+    
+// výška panelu = ~72 % volné mezery mezi rámem a logem (bezpečné minimum)
+const gapH   = Math.max(0.06, yMax - yMin);
+const panelH = Math.max(0.18, Math.min(gapH * 0.72, gapH));
 
 // cleanup případných starých typewriter panelů/animací
 try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
@@ -1014,41 +967,37 @@ try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
 try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
 try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
-// PŘEDNÍ – mírně „před“ stěnu (do místnosti)
+// PŘEDNÍ – musí koukat DO místnosti → rotY = Math.PI (stejně jako „front“ stěna)
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_front",
     y:     yText,
     z:     zFront - 0.004,
-    rotY:  0,
+    rotY:  Math.PI,        // ✅ správně: normála směřuje do místnosti
     width: panelW,
-    height: panelH,
-    color: TW_COLOR_HEX
+    height: panelH
   });
   __twFrontPlane = plane;
   __twFrontDT = dt;
   __twFrontRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS, texW, texH
   });
 }
 
-// ZADNÍ – otočeno do místnosti
+// ZADNÍ – musí koukat DO místnosti → rotY = 0
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_back",
     y:     yText,
     z:     zBack + 0.004,
-    rotY:  Math.PI,
+    rotY:  0,              // ✅ správně
     width: panelW,
-    height: panelH,
-    color: TW_COLOR_HEX
+    height: panelH
   });
   __twBackPlane = plane;
   __twBackDT = dt;
   __twBackRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS, texW, texH
   });
 }
 
