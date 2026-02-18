@@ -1038,7 +1038,7 @@ function buildGalleryLogo(){
 
 
 const GAP_T = 0.66; // přibliž text k logu
-const GAP_T = 0.66; // přibliž text k logu (jedna deklarace!)
+
 
  const TW_Y_SHIFT_M = 0.10; // +10 cm nahoru
 
@@ -1048,8 +1048,8 @@ const GAP_T = 0.66; // přibliž text k logu (jedna deklarace!)
  // PŘEDNÍ panel
  const { plane, dt, texW, texH } = makeTypewriterPlane({
    name:  "tw_front",
--  y:     yText,
-+  y:     yText + TW_Y_SHIFT_M,   // použij světový posun
+y:     yText,
+ y:     yText + TW_Y_SHIFT_M,   // použij světový posun
    z:     zFront - 0.004,
    rotY:  0,
    width: panelW,
@@ -1060,8 +1060,8 @@ const GAP_T = 0.66; // přibliž text k logu (jedna deklarace!)
  // ZADNÍ panel
  const { plane, dt, texW, texH } = makeTypewriterPlane({
    name:  "tw_back",
--  y:     yText,
-+  y:     yText + TW_Y_SHIFT_M,   // použij světový posun
+ y:     yText,
+  y:     yText + TW_Y_SHIFT_M,   // použij světový posun
    z:     zBack + 0.004,
    rotY:  Math.PI,
    width: panelW,
