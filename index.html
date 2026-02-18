@@ -1032,67 +1032,42 @@ function buildGalleryLogo(){
     __logoBack.material   = matBack;
 
     
-// === SCÉNOVÝ TYPEWRITER TEXT mezi horní hranou rámu a SPODKEM loga (přední + zadní) ===
-const logoBottomY = yPos - logoH / 2;   // spodní hrana loga (světové Y)
-const frameTop    = frameTopY;          // horní hrana rámu
+// === SCÉNOVÝ TYPEWRITER TEXT mezi horní hranu rámu a SPODKEM loga ===
+ const logoBottomY = yPos - logoH / 2;
+ const frameTop    = frameTopY;
 
-// 0.50 = střed mezery; 0.62 ≈ blíž k logu (doladíš dle oka 0.60–0.70)
+-const GAP_T = 0.50;
+-const GAP_T = 0.66; // přibliž text k logu
++const GAP_T = 0.66; // přibliž text k logu (jedna deklarace!)
 
-const GAP_T = 0.66; // přibliž text k logu
-const TW_Y_SHIFT_M = 0.10; // +10 cm nahoru
+ const TW_Y_SHIFT_M = 0.10; // +10 cm nahoru
 
-const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
+ const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
 
-// šířka panelu napříč stěnou s rezervou u rohů
-const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2; // (m)
-const panelW = Math.max(1.0, wallInnerWidth);
-const panelH = Math.max(0.20, TW_FONT_PX / 100);    // např. 54px ~ 0.54 m
+ // ...
+ // PŘEDNÍ panel
+ const { plane, dt, texW, texH } = makeTypewriterPlane({
+   name:  "tw_front",
+-  y:     yText,
++  y:     yText + TW_Y_SHIFT_M,   // použij světový posun
+   z:     zFront - 0.004,
+   rotY:  0,
+   width: panelW,
+   height: panelH,
+   color: TW_COLOR_HEX
+ });
 
-// cleanup případných starých typewriter panelů/animací
-try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
-try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
-try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
-try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
-
-// PŘEDNÍ – mírně „před“ stěnu (do místnosti)
-{
-  const { plane, dt, texW, texH } = makeTypewriterPlane({
-    name:  "tw_front",
--   y:     yText,
-+   y:     yText + TW_Y_SHIFT_M,
-    z:     zFront - 0.004,
-    rotY:  0,
-    width: panelW,
-    height: panelH,
-    color: TW_COLOR_HEX
-  });
-  __twFrontPlane = plane;
-  __twFrontDT = dt;
-  __twFrontRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-  });
-}
-
-// ZADNÍ – otočeno do místnosti
-{
-  const { plane, dt, texW, texH } = makeTypewriterPlane({
-    name:  "tw_back",
--   y:     yText,
-+   y:     yText + TW_Y_SHIFT_M,
-    z:     zBack + 0.004,
-    rotY:  Math.PI,
-    width: panelW,
-    height: panelH,
-    color: TW_COLOR_HEX
-  });
-  __twBackPlane = plane;
-  __twBackDT = dt;
-  __twBackRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-  });
-}
+ // ZADNÍ panel
+ const { plane, dt, texW, texH } = makeTypewriterPlane({
+   name:  "tw_back",
+-  y:     yText,
++  y:     yText + TW_Y_SHIFT_M,   // použij světový posun
+   z:     zBack + 0.004,
+   rotY:  Math.PI,
+   width: panelW,
+   height: panelH,
+   color: TW_COLOR_HEX
+ });
 
 hint("Logo zobrazeno (front + back) + 3D typewriter panely připraveny ✔");
 
