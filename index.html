@@ -1285,12 +1285,10 @@ function resetCamera({animate=true} = {}){
   }
 
   // případná obsluha tvých hvězd apod.
-  onCameraResetForStars?.();
-}
+onCameraResetForStars?.();
 
-  // krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
-  onCameraResetForStars?.();
-}
+// krátká pauza pro padající hvězdy, aby se neswaply uprostřed letu
+onCameraResetForStars?.();
 
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
