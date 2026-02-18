@@ -2040,10 +2040,10 @@ if (fullscreenIcon) {
   });
 
   document.addEventListener('fullscreenchange', syncFsButton);
-  document.addEventListener('webkitfullscreenchange', syncFsButton);
-}  // ← Tohle je skutečné uzavření IF
+document.addEventListener('webkitfullscreenchange', syncFsButton);
+}  <!-- správné uzavření IF -->
 
-</script>
-  
+</script>   <!-- 🔥 OPRAVENO: bylo tam omylem “k</script>” -->
 </body>
 </html>
+``
