@@ -129,12 +129,27 @@
 
 /* === Mobilní fallback === */
 @media (max-width: 560px) {
-  .typewriterText {
-    font-size: 28pt;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 8px rgba(218,255,62,0.2);
-  }
-}
+      .typewriterText {
+        font-size: 28pt;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(218,255,62,0.2);
+      }
+    }
+  </style>  <!-- ✅ UZAVŘENO -->
+
+  <!-- Babylon.js -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+</head>
+
+<body>
+  <!-- Canvas -->
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- HTML overlay pro typewriter text (přední + zadní stěna) -->
+  <div id="typewriterLayer" aria-hidden="true">
+    <div id="twFront" class="typewriterText"></div>
+    <div id="twBack"  class="typewriterText"></div>
+  </div>
 
   <!-- Fullscreen (vlevo), Reset (vpravo) -->
   <img
@@ -158,7 +173,7 @@
     tabindex="0"
     aria-label="Reset kamery"
   />
-
+  …
   <!-- Desktop: SoundCloud bar -->
   <div id="scBar" aria-label="SoundCloud Bar">
     <div class="sc-left">
