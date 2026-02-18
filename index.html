@@ -1037,7 +1037,7 @@ const logoBottomY = yPos - logoH / 2;   // spodní hrana loga (světové Y)
 const frameTop    = frameTopY;          // horní hrana rámu
 
 // 0.50 = střed mezery; 0.62 ≈ blíž k logu (doladíš dle oka 0.60–0.70)
-const GAP_T = 0.50;
+
 const GAP_T = 0.66; // přibliž text k logu
 const TW_Y_SHIFT_M = 0.10; // +10 cm nahoru
 
@@ -1058,7 +1058,8 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_front",
-    y:     yText,
+-   y:     yText,
++   y:     yText + TW_Y_SHIFT_M,
     z:     zFront - 0.004,
     rotY:  0,
     width: panelW,
@@ -1077,7 +1078,8 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_back",
-    y:     yText,
+-   y:     yText,
++   y:     yText + TW_Y_SHIFT_M,
     z:     zBack + 0.004,
     rotY:  Math.PI,
     width: panelW,
