@@ -85,60 +85,56 @@
       #scBar, #scIframeHost{ display:none !important; }
     }
     
-    /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
-#typewriterLayer{
+   /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
+#typewriterLayer {
   position: fixed;
   inset: 0;
-  pointer-events: none;      /* overlay je neklikací */
-  z-index: 10001;            /* nad HUD a scénou */
+  pointer-events: none;               /* overlay je neklikací */
+  z-index: 10001;                     /* nad HUD a scénou */
   font-family: 'Doto', monospace;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* = Text (front/back) – barva jako logo (#daff3e), 40pt = */
-.typewriterText{
+/* === Text (front/back) === */
+.typewriterText {
   position: absolute;
+  left: 0; top: 0;
   transform: translate(-50%, -50%);
-  color: #daff3e;            /* stejná barva jako logo */
-  font-size: 40pt;
+  color: #daff3e;
+  font-size: 40pt;                    /* přepíše se JS podle mezery */
+  font-weight: 600;
   letter-spacing: 1px;
-  white-space: pre;          /* zachovat podtržítka a mezery */
-  text-shadow: 0 0 10px rgba(218,255,62,0.25);
-  opacity: 0;                /* zobrazuje se jen pokud je anchor vidět */
-  will-change: transform, opacity;
+  white-space: pre;
+  text-shadow: 0 0 12px rgba(218,255,62,0.28),
+               0 0 22px rgba(218,255,62,0.15);
+  opacity: 0;                          /* zobrazí se jen pokud anchor vidět */
+  will-change: transform, opacity, font-size;
+  pointer-events: none;
+  line-height: 1.05;
 }
 
-/* Blikající kurzor */
-.typewriterText .cursor{
+/* === Kurzorem bliká === */
+.typewriterText .cursor {
   display: inline-block;
-  margin-left: 2px;
-  animation: tw-blink 0.9s steps(1, end) infinite;
-  color: #daff3e;            /* stejné jako text/logo */
-  opacity: 1;
-}
-@keyframes tw-blink{
-  0%, 50%      { opacity: 1; }
-  50.01%, 100% { opacity: 0; }
+  margin-left: 3px;
+  animation: tw-blink 0.75s steps(1, end) infinite;
+  color: inherit;
 }
 
-/* Mobilní fallback */
-@media (max-width: 560px){
-  .typewriterText{ font-size: 28pt; }
+@keyframes tw-blink {
+  0%, 50%   { opacity: 1; }
+  50.01%,100% { opacity: 0; }
 }
-    </style>
-  
-  <!-- Babylon.js -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-</head>
 
-<body>
-  <!-- Canvas -->
-  <canvas id="renderCanvas"></canvas>
-
-  <!-- HTML overlay pro typewriter text (přední + zadní stěna) -->
-<div id="typewriterLayer" aria-hidden="true">
-  <div id="twFront" class="typewriterText"></div>
-  <div id="twBack"  class="typewriterText"></div>
-</div>
+/* === Mobilní fallback === */
+@media (max-width: 560px) {
+  .typewriterText {
+    font-size: 28pt;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 8px rgba(218,255,62,0.2);
+  }
+}
 
   <!-- Fullscreen (vlevo), Reset (vpravo) -->
   <img
