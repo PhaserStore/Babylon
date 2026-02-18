@@ -941,8 +941,6 @@ function buildGalleryLogo(){
 const logoBottomY = yPos - logoH / 2;   // spodní hrana loga (světové Y)
 const frameTop    = frameTopY;          // horní hrana rámu
 
-// — přesná vertikální poloha textu mezi rámem a logem —
-
 // pevné bezpečné mezery
 const marginFrame = 0.10;   // mezera nad rámem (m)
 const marginLogo  = 0.15;   // mezera pod logem (m)
@@ -968,26 +966,35 @@ try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
 try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
 try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
+// 🔒 Bezpečné získání odkazu na animátor (funguje i když je v jiném scope)
+const runTW = (typeof window !== 'undefined' && window.runTypewriterToDT)
+  ? window.runTypewriterToDT
+  : (typeof runTypewriterToDT !== 'undefined' ? runTypewriterToDT : null);
+
 // PŘEDNÍ – musí koukat DO místnosti → rotY = Math.PI
 {
   const { plane, dt, texW, texH } = makeTypewriterPlane({
     name:  "tw_front",
     y:     yText,
     z:     zFront - 0.004,
-    rotY:  Math.PI,     // správně: otočeno čelem do místnosti
+    rotY:  Math.PI,     // čelem do místnosti
     width: panelW,
     height: panelH
   });
 
   __twFrontPlane = plane;
   __twFrontDT = dt;
-  __twFrontRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT,
-    speedMs: TW_SPEED_MS,
-    pauseMs: TW_PAUSE_MS,
-    texW,
-    texH
-  });
+  if (runTW) {
+    __twFrontRAF = runTW(dt, {
+      text: TW_TEXT,
+      speedMs: TW_SPEED_MS,
+      pauseMs: TW_PAUSE_MS,
+      texW,
+      texH
+    });
+  } else {
+    console.error("runTypewriterToDT není dostupný (ani přes window).");
+  }
 }
 
 // ZADNÍ – musí koukat DO místnosti → rotY = 0
@@ -996,22 +1003,25 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
     name:  "tw_back",
     y:     yText,
     z:     zBack + 0.004,
-    rotY:  0,          // správně: otočeno čelem do místnosti
+    rotY:  0,          // čelem do místnosti
     width: panelW,
     height: panelH
   });
 
   __twBackPlane = plane;
   __twBackDT = dt;
-  __twBackRAF = runTypewriterToDT(dt, {
-    text: TW_TEXT,
-    speedMs: TW_SPEED_MS,
-    pauseMs: TW_PAUSE_MS,
-    texW,
-    texH
-  });
+  if (runTW) {
+    __twBackRAF = runTW(dt, {
+      text: TW_TEXT,
+      speedMs: TW_SPEED_MS,
+      pauseMs: TW_PAUSE_MS,
+      texW,
+      texH
+    });
+  } else {
+    console.error("runTypewriterToDT není dostupný (ani přes window).");
+  }
 }
-
 hint("Logo zobrazeno (front + back) + 3D typewriter panely připraveny ✔");
 
   };
