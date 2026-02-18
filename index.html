@@ -243,7 +243,12 @@ const SC_ENABLED = !IS_MOBILE; // jen desktop
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
     
 /* ===== Scene typewriter (na stěnách) – nastavení ===== */
-const TW_TEXT         = "WELCOME_TO_THE VIRTUAL_SHOWROOM";
+// Více vět – budou se točit dokola v daném pořadí
+const TW_TEXTS = [
+  "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
+  "EXPLORE_NEW_COLLECTIONS",
+  "DROP_LAUNCHES_THIS_WEEK"
+];
 const TW_SPEED_MS     = 75;     // ms/znak
 const TW_PAUSE_MS     = 1900;   // pauza po dopsání
 const TW_CURSOR       = "_";    // vizuální kurzor
