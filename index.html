@@ -380,12 +380,25 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   ctx.font = `600 ${fontPx}px Doto, monospace`;
 
   const out = text.slice(0, progress) + TW_CURSOR;
+
+  // Střed kreslení + jemný posun
   const x = Math.round(texW / 2);
-  const y = Math.round(texH / 2);
+  const y = Math.round(texH / 2) + (TW_OFFSET_PX|0); // posun nahoru/dolů
+
+  ctx.save();
+  if (TW_FLIP_VERTICAL){
+    // Překlopíme celý canvas vertikálně kolem dolního okraje
+    // (translate + scale). Pozn.: měníme souřadný systém, proto draw až po scale.
+    ctx.translate(0, texH);
+    ctx.scale(1, -1);
+    // po flipu je střed stále (x,y) – ale „y“ je nyní měřené ze spodního okraje
+  }
 
   ctx.shadowColor = "rgba(218,255,62,0.20)";
   ctx.shadowBlur = Math.max(2, Math.round(fontPx * 0.22));
   ctx.fillText(out, x, y);
+
+  ctx.restore();
 
   dt.update(false);
 }
