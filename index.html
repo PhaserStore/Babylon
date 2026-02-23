@@ -364,7 +364,8 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
 
   // 🔥 FUNKČNÍ BLIKÁNÍ V CANVASU
   const now = performance.now();
-  const blinkOn = Math.floor(now / 900) % 2 === 0;
+  const period = Math.max(120, TW_CURSOR_BLINK_MS || 900); // bezpečné minimum
+const blinkOn = Math.floor(now / period) % 2 === 0;
   const out = text.slice(0, progress) + (blinkOn ? TW_CURSOR : "");
 
   const x = Math.round(texW / 2);
