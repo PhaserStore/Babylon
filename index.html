@@ -242,15 +242,10 @@ const SC_ENABLED = !IS_MOBILE; // jen desktop
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
     
+/* ===== Scene typewriter (na stěnách) – nastavení ===== */
+// Více vět – budou se točit dokola v daném pořadí
 
-// === NOVÉ: playlisty textů pro stěny (točí se dokola) ===
-const TW_TEXTS = {
-  front: ["WELCOME_TO_THE_VIRTUAL_SHOWROOM", "EXPLORE_THE_COLLECTION"],
-  back:  ["THANK_YOU_FOR_VISITING", "FOLLOW_US_ON_INSTAGRAM"],
-  left:  ["DESIGN_DROP_01", "LIMITED_EDITION_OUT_NOW"],
-  right: ["SCAN_QR_FOR_DETAILS", "CLICK_LABELS_TO_OPEN_LINKS"]
-};
-
+const TW_TEXT         = "WELCOME_TO_THE_VIRTUAL_SHOWROOM";
 
 const TW_SPEED_MS     = 75;     // ms/znak
 const TW_PAUSE_MS     = 1900;   // pauza po dopsání
@@ -265,39 +260,6 @@ const TW_OFFSET_PX = -190; // jemné dohnání o ~92 px nahoru
 let __twFrontPlane = null, __twBackPlane = null;
 let __twFrontDT = null, __twBackDT = null;
 let __twFrontRAF = 0, __twBackRAF = 0;
-    
-    // NOVÉ: levá/pravá stěna
-let __twLeftPlane = null, __twRightPlane = null;
-let __twLeftDT = null, __twRightDT = null;
-let __twLeftRAF = 0, __twRightRAF = 0;
-
-    function facingScore(normalXZ){ // normalXZ = {x,z} směrem do místnosti
-  const f = camera.getDirection(BABYLON.Axis.Z);
-  const len = Math.hypot(f.x, f.z) || 1e-6;
-  return (f.x * normalXZ.x + f.z * normalXZ.z) / len; // -1..1
-}
-function detectActiveWall(){
-  const scores = {
-    front: facingScore({x: 0,  z:-1}), // přední zed směřuje do místnosti -Z
-    back:  facingScore({x: 0,  z: 1}),
-    left:  facingScore({x: 1,  z: 0}),
-    right: facingScore({x:-1,  z: 0})
-  };
-  let best = 'front', v = -999;
-  for (const k in scores){ if (scores[k] > v){ v = scores[k]; best = k; } }
-  return best;
-}
-function showOnly(side){
-  const vis = (s)=> s===side ? 1 : 0;
-  if (__twFrontPlane) __twFrontPlane.visibility = vis('front');
-  if (__twBackPlane)  __twBackPlane.visibility  = vis('back');
-  if (__twLeftPlane)  __twLeftPlane.visibility  = vis('left');
-  if (__twRightPlane) __twRightPlane.visibility = vis('right');
-}
-
-
-// která stěna je aktivní pro zobrazení
-let ACTIVE_WALL = 'front';
 
 // Anchory se vytvoří v buildGalleryLogo()
 let twFrontAnchor = null;
@@ -449,37 +411,25 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   dt.update(false);
 }
 
+/* rAF typewriter (loop) */
 function runTypewriterToDT(dt, opts){
-  const {
-    text = TW_TEXT,
-    nextText,                 // <- NOVÉ: funkce, která vrátí další text
-    speedMs = TW_SPEED_MS,
-    pauseMs = TW_PAUSE_MS,
-    texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX
-  } = opts;
-
-  let currentText = text;
+  const { text=TW_TEXT, speedMs=TW_SPEED_MS, pauseMs=TW_PAUSE_MS, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX } = opts;
   let start = performance.now();
   let rafId = 0;
 
   function tick(now){
     const chars = Math.floor((now - start) / speedMs);
-    if (chars <= currentText.length){
-      drawTypeLine(dt, { text: currentText, progress: Math.max(0, chars), texW, texH, color, fontPx });
+    if (chars <= text.length){
+      drawTypeLine(dt, { text, progress: Math.max(0, chars), texW, texH, color, fontPx });
       rafId = requestAnimationFrame(tick);
     } else {
-      setTimeout(() => {
-        // když je k dispozici zdroj další věty, vezmeme ji; jinak opakujeme tu samou
-        currentText = typeof nextText === 'function' ? (nextText(currentText) || currentText) : currentText;
-        start = performance.now();
-        rafId = requestAnimationFrame(tick);
-      }, pauseMs);
+      setTimeout(() => { start = performance.now(); rafId = requestAnimationFrame(tick); }, pauseMs);
     }
   }
-
   rafId = requestAnimationFrame(tick);
   return rafId;
 }
+
   /* ========= Scene setup ========= */
   let scene, camera, glow;
   const ROOM = { W:16, D:30, H:13 };
@@ -1161,69 +1111,6 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
     texW: twBackTexW, texH: twBackTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
   });
 }
-    // === LEFT / RIGHT typewriter panely ===
-const sideOffset = 0.25;                         // malé odtlačení od zdi jako u front/back
-const xLeft  = -ROOM.W/2 + sideOffset;
-const xRight =  ROOM.W/2 - sideOffset;
-
-// LEFT (rotace do místnosti = směr +X => rotY = -PI/2)
-{
-  const { plane: twLeftPlane, dt: twLeftDT, texW: twLeftTexW, texH: twLeftTexH } =
-    makeTypewriterPlane({
-      name:  "tw_left",
-      y:     yText + TW_Y_SHIFT_M,
-      z:     0,                   // z-ově uprostřed
-      rotY:  -Math.PI / 2,
-      width: panelW,
-      height: panelH,
-      color: TW_COLOR_HEX
-    });
-
-  twLeftPlane.position.x = xLeft;
-  __twLeftPlane = twLeftPlane;
-  __twLeftDT    = twLeftDT;
-
-  const leftList = TW_TEXTS.left && TW_TEXTS.left.length ? TW_TEXTS.left : [TW_TEXT];
-  let li = 0;
-  __twLeftRAF = runTypewriterToDT(twLeftDT, {
-    text: leftList[0],
-    nextText: (prev) => { li = (li + 1) % leftList.length; return leftList[li]; },
-    speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW: twLeftTexW, texH: twLeftTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-  });
-}
-
-// RIGHT (rotace do místnosti = směr -X => rotY = +PI/2)
-{
-  const { plane: twRightPlane, dt: twRightDT, texW: twRightTexW, texH: twRightTexH } =
-    makeTypewriterPlane({
-      name:  "tw_right",
-      y:     yText + TW_Y_SHIFT_M,
-      z:     0,
-      rotY:  Math.PI / 2,
-      width: panelW,
-      height: panelH,
-      color: TW_COLOR_HEX
-    });
-
-  twRightPlane.position.x = xRight;
-  __twRightPlane = twRightPlane;
-  __twRightDT    = twRightDT;
-
-  const rightList = TW_TEXTS.right && TW_TEXTS.right.length ? TW_TEXTS.right : [TW_TEXT];
-  let ri = 0;
-  __twRightRAF = runTypewriterToDT(twRightDT, {
-    text: rightList[0],
-    nextText: (prev) => { ri = (ri + 1) % rightList.length; return rightList[ri]; },
-    speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW: twRightTexW, texH: twRightTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-  });
-}
-
-// ► defaultně zobraz jen 'front', ostatní schovej (ale animace mohou běžet)
-if (__twBackPlane)  __twBackPlane.visibility  = 0;
-if (__twLeftPlane)  __twLeftPlane.visibility  = 0;
-if (__twRightPlane) __twRightPlane.visibility = 0;
 
 hint("Logo zobrazeno (front + back) + 3D typewriter panely připraveny ✔");
 
@@ -2284,18 +2171,6 @@ engine.runRenderLoop(()=>{
   constrainCameraRadius?.();
 
   scene.render();
-
-  // --- NOVÉ: každých ~220 ms přepni aktivní stěnu podle směru pohledu
-  if (!window.__lastWallCheck) window.__lastWallCheck = 0;
-  const _now = performance.now();
-  if (_now - window.__lastWallCheck > 220){
-    window.__lastWallCheck = _now;
-    const side = detectActiveWall();
-    if (side !== ACTIVE_WALL){
-      ACTIVE_WALL = side;
-      showOnly(side);
-    }
-  }
 
   
     
