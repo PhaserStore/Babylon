@@ -357,7 +357,7 @@ function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_
 
   return { plane, dt, texW, texH };
 }
-/* Kreslení jednoho snímku typewriteru do DT (text + jemně „dýchající“ podtržítko) */
+/* Kreslení jednoho snímku typewriteru do DT (text + jemně „dýchající“ podtržítko jako glyph "_") */
 function drawTypeLine(dt, {
   text,
   progress,
@@ -396,49 +396,44 @@ function drawTypeLine(dt, {
   // 1) Text
   ctx.fillText(content, x, y);
 
-  // 2) Kurzor jako „underscore“ — samostatná dýchající linka
-  //    Kreslíme ho jen pokud už máme nějaký znak (ať není linka na prázdno).
+  // 2) Kurzor jako skutečný glyph "_" – dýchající alfa, přesně stejná šířka jako ostatní podtržítka
   if (progress > 0){
-    // Změříme šířku už napsaného textu, abychom věděli, kde kurzor začíná (pravý okraj)
-    const m         = ctx.measureText(content);
-    const textWidth = m?.width || 0;
-    const endX      = x + textWidth / 2; // textAlign="center" → pravý okraj je střed + půlka šířky
+    // Pravý okraj napsaného textu (protože máme textAlign="center")
+    const metrics   = ctx.measureText(content);
+    const textWidth = metrics?.width || 0;
+    const endX      = x + textWidth / 2; // pravý kraj textu
 
-    // Dýchání pomocí trojúhelníkového průběhu 0..1..0
+    // Dýchání (trojúhelníkový průběh 0..1..0)
     const now     = performance.now();
     const period  = Math.max(120, TW_CURSOR_BLINK_MS || 900);
-    const tRel    = (now % period) / period; // 0..1
+    const tRel    = (now % period) / period;                // 0..1
     const tri     = tRel < 0.5 ? (tRel * 2) : (1 - (tRel - 0.5) * 2); // 0..1..0
     const alpha   = (TW_CURSOR_ALPHA_MIN ?? 0.25) + tri * ((TW_CURSOR_ALPHA_MAX ?? 1.0) - (TW_CURSOR_ALPHA_MIN ?? 0.25));
 
-    // Parametry linky (šířka, tloušťka, svislé umístění)
-    const underlineW   = Math.max(6, Math.round(fontPx * 0.12));   // délka linky
-    const underlineH   = Math.max(2, Math.round(fontPx * 0.08));   // tloušťka linky
-    const underlineTop = Math.round(y + fontPx * 0.46);            // pod baseline (empiricky laděno)
-
-    // Kresba podtržítka bez stínu → je čistší
+    // Kreslíme kurzor jako glyph "_" přesně na navazující pozici
     const prevShadow = ctx.shadowColor;
     const prevAlpha  = ctx.globalAlpha;
     const prevFill   = ctx.fillStyle;
+    const prevAlign  = ctx.textAlign;
 
-    ctx.shadowColor  = "rgba(0,0,0,0)";
-    ctx.globalAlpha  = Math.max(0, Math.min(1, alpha));
+    ctx.shadowColor  = "rgba(0,0,0,0)";                          // kurzor bez soft stínu → čistá hrana
+    ctx.globalAlpha  = Math.max(0, Math.min(1, alpha));          // dýchání
     ctx.fillStyle    = TW_CURSOR_COLOR || color;
+    ctx.textAlign    = "left";
 
-    // Krátká linka těsně za textem (mírný offset vpravo)
-    const ux = Math.round(endX + 2);
-    ctx.fillRect(ux, underlineTop, underlineW, underlineH);
+    // Mírný posun vpravo, aby glyph navázal vizuálně těsně (doladění 1–2 px dle vkusu / kerningu)
+    ctx.fillText("_", Math.round(endX + 2), y);
 
-    // restore
-    ctx.shadowColor = prevShadow;
-    ctx.globalAlpha = prevAlpha;
+    // Revert
+    ctx.textAlign   = prevAlign;
     ctx.fillStyle   = prevFill;
+    ctx.globalAlpha = prevAlpha;
+    ctx.shadowColor = prevShadow;
   }
 
   ctx.restore();
   dt.update(false);
 }
-
 /* rAF typewriter (playlist textů, loop) — Náhrada za původní runTypewriterToDT */
 function runTypewriterToDT(dt, opts = {}){
   const {
