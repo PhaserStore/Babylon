@@ -567,7 +567,20 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
 
   function buildRoom() {
     const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
-    floor.material = unlit("#151515");
+
+const floorMat = unlit("#151515");       // tvoje utilita "unlit" vrací StandardMaterial
+floorMat.alpha = 0.55;                   // 0.0 = úplně průhledná, 1.0 = neprůhledná
+floorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+// doporučení pro transparentní mesh:
+floorMat.backFaceCulling = false;
+floorMat.forceDepthWrite = false;        // transparentní se typicky do depth bufferu nepíšou
+floorMat.needDepthPrePass = false;       // ať se zbytečně nekomplikuje řazení
+floor.material = floorMat;
+
+// Volitelně: lepší řazení transparentních meshů
+scene.useOrderIndependentTransparency = true; // pokud tvoje verze Babylonu podporuje (většinou ano)
+floor.alphaIndex = 0;                    // pořadí mezi transparentními (nižší = dřív)
+    
 
     const LED_TOP = ROOM.H - 0.04;
     const LIP = 0.005;
