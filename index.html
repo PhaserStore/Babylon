@@ -384,8 +384,8 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
 /* rAF typewriter (playlist textů, loop) — Náhrada za původní runTypewriterToDT */
 function runTypewriterToDT(dt, opts = {}){
   const {
-    texts: _texts,      // playlist, pokud existuje
-    text: _text,        // single-text fallback
+    texts: _texts,
+    text: _text,
     speedMs = TW_SPEED_MS,
     pauseMs = TW_PAUSE_MS,
     texW,
@@ -394,11 +394,7 @@ function runTypewriterToDT(dt, opts = {}){
     fontPx = TW_FONT_PX
   } = opts;
 
-  // Playlist má prioritu; jinak vytvoř playlist z jednoho textu
-  const texts = Array.isArray(_texts) && _texts.length
-    ? _texts
-    : [(_text || "")];
-
+  const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
   if (!texts.length) return 0;
 
   let idx = 0;
@@ -406,32 +402,37 @@ function runTypewriterToDT(dt, opts = {}){
   let rafId = 0;
 
   function tick(now){
-    const t = texts[idx] || "";
-    const chars = Math.floor((now - start) / speedMs);
+    const t = texts[idx];
+    const lenMs = t.length * speedMs;
+    const elapsed = now - start;
 
-    if (chars <= t.length){
-      drawTypeLine(dt, {
-        text: t,
-        progress: Math.max(0, chars),
-        texW,
-        texH,
-        color,
-        fontPx
-      });
-      rafId = requestAnimationFrame(tick);
+    let chars;
 
+    if (elapsed <= lenMs) {
+      // píšeme
+      chars = Math.floor(elapsed / speedMs);
     } else {
-      // Po dopsání → pauza → další text
-      setTimeout(() => {
+      // pauza: držíme celý text — ale stále kreslíme → kurzor bliká!
+      chars = t.length;
+      if (elapsed >= lenMs + pauseMs) {
         idx = (idx + 1) % texts.length;
-        start = performance.now();
-        rafId = requestAnimationFrame(tick);
-      }, pauseMs);
+        start = now;
+      }
     }
+
+    drawTypeLine(dt, {
+      text: t,
+      progress: chars,
+      texW,
+      texH,
+      color,
+      fontPx
+    });
+
+    rafId = requestAnimationFrame(tick);
   }
 
-  rafId = requestAnimationFrame(tick);
-  return rafId;
+  return (rafId = requestAnimationFrame(tick));
 }
   /* ========= Scene setup ========= */
   let scene, camera, glow;
