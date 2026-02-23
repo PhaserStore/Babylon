@@ -84,46 +84,7 @@
       #fullscreenIcon{ display:none !important; }
       #scBar, #scIframeHost{ display:none !important; }
     }
-    /* === HTML overlay vrstva pro typewriter text na obou stěnách === */
-#typewriterLayer{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;      /* overlay je neklikací */
-  z-index: 10001;            /* nad HUD a scénou */
-  font-family: 'Doto', monospace;
-}
 
-/* = Text (front/back) – barva jako logo (#daff3e), 40pt = */
-.typewriterText{
-  position: absolute;
-  transform: translate(-50%, -50%);
-  color: #daff3e;            /* stejná barva jako logo */
-  font-size: 100pt;
-  letter-spacing: 1px;
-  white-space: pre;          /* zachovat podtržítka a mezery */
-  text-shadow: 0 0 10px rgba(218,255,62,0.25);
-  opacity: 0;                /* zobrazuje se jen pokud je anchor vidět */
-  will-change: transform, opacity;
-}
-
-/* Blikající kurzor */
-.typewriterText .cursor{
-  display: inline-block;
-  margin-left: 2px;
-  animation: tw-blink 0.9s steps(1, end) infinite;
-  color: #daff3e;            /* stejné jako text/logo */
-  opacity: 1;
-}
-@keyframes tw-blink{
-  0%, 50%      { opacity: 1; }
-  50.01%, 100% { opacity: 0; }
-}
-
-/* Mobilní fallback */
-@media (max-width: 560px){
-  .typewriterText{ font-size: 28pt; }
-}
-    </style>
   
   <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -132,12 +93,6 @@
 <body>
   <!-- Canvas -->
   <canvas id="renderCanvas"></canvas>
-
-  <!-- HTML overlay pro typewriter text (přední + zadní stěna) -->
-<div id="typewriterLayer" aria-hidden="true">
-  <div id="twFront" class="typewriterText"></div>
-  <div id="twBack"  class="typewriterText"></div>
-</div>
 
   <!-- Fullscreen (vlevo), Reset (vpravo) -->
   <img
@@ -404,19 +359,18 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   ctx.textBaseline = "middle";
   ctx.font = `600 ${fontPx}px Doto, monospace`;
 
-  const out = text.slice(0, progress) + TW_CURSOR;
+  // 🔥 FUNKČNÍ BLIKÁNÍ V CANVASU
+  const now = performance.now();
+  const blinkOn = Math.floor(now / 900) % 2 === 0;
+  const out = text.slice(0, progress) + (blinkOn ? TW_CURSOR : "");
 
-  // Střed kreslení + jemný posun
   const x = Math.round(texW / 2);
-  const y = Math.round(texH / 2) + (TW_OFFSET_PX|0); // posun nahoru/dolů
+  const y = Math.round(texH / 2) + (TW_OFFSET_PX|0);
 
   ctx.save();
   if (TW_FLIP_VERTICAL){
-    // Překlopíme celý canvas vertikálně kolem dolního okraje
-    // (translate + scale). Pozn.: měníme souřadný systém, proto draw až po scale.
     ctx.translate(0, texH);
     ctx.scale(1, -1);
-    // po flipu je střed stále (x,y) – ale „y“ je nyní měřené ze spodního okraje
   }
 
   ctx.shadowColor = "rgba(218,255,62,0.20)";
@@ -424,7 +378,6 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   ctx.fillText(out, x, y);
 
   ctx.restore();
-
   dt.update(false);
 }
 
