@@ -245,7 +245,29 @@ const SC_ENABLED = !IS_MOBILE; // jen desktop
 /* ===== Scene typewriter (na stěnách) – nastavení ===== */
 // Více vět – budou se točit dokola v daném pořadí
 
-const TW_TEXT         = "WELCOME_TO_THE_VIRTUAL_SHOWROOM";
+/* ===== Variabilní typewriter texty pro každou stěnu ===== */
+const TW_STRINGS = {
+  front: [
+    "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
+    "EXPLORE_THE_COLLECTIONS",
+    "FOLLOW_US_ON_INSTAGRAM"
+  ],
+  back: [
+    "THANK_YOU_FOR_VISITING",
+    "NEW_DROPS_THIS_MONTH",
+    "LIMITED_EDITION_OUT_NOW"
+  ],
+  left: [
+    "CLICK_LABELS_TO_OPEN_LINKS",
+    "SUSTAINABLE_MATERIALS",
+    "SHIPPED_WORLDWIDE"
+  ],
+  right: [
+    "CONTEMPORARY_DESIGN",
+    "LIMITED_EDITION",
+    "CUSTOM_REQUESTS"
+  ]
+};
 
 const TW_SPEED_MS     = 75;     // ms/znak
 const TW_PAUSE_MS     = 1900;   // pauza po dopsání
@@ -333,23 +355,19 @@ function runTypewriter(el, text, { loop=TYPEWRITER_LOOP, pauseEndMs=TYPEWRITER_P
   textSpan.textContent = '';
   requestAnimationFrame(tick);
 }
-   /* Vytvoří {plane, dt, texW, texH} – textový panel na stěně */
-function makeTypewriterPlane({ name, y, z, rotY, width, height, color=TW_COLOR_HEX }){
+  /* Vytvoří {plane, dt, texW, texH} – textový panel na stěně */
+function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_COLOR_HEX }){
   const plane = BABYLON.MeshBuilder.CreatePlane(name, { width, height, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
-  plane.position.set(0, y, z);
+  plane.position.set(x, y, z);
   plane.rotation.y = rotY;
   plane.isPickable = false;
 
+  // ⚙️ bezpečný výpočet nejbližší power‑of‑two
+  const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
 
-
- // ⚙️ bezpečný výpočet nejbližší power‑of‑two
-const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-
-// ⚙️ velikosti textur pro typewriter DynamicTexture
-const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4))));
-const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
-
-
+  // ⚙️ velikosti textur pro typewriter DynamicTexture
+  const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4))));
+  const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
 
   const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
   dt.hasAlpha = true;
@@ -373,7 +391,6 @@ const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
 
   return { plane, dt, texW, texH };
 }
-
 /* Kreslení jednoho snímku typewriteru do DT */
 function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
   const ctx = dt.getContext();
@@ -411,25 +428,58 @@ function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, font
   dt.update(false);
 }
 
-/* rAF typewriter (loop) */
-function runTypewriterToDT(dt, opts){
-  const { text=TW_TEXT, speedMs=TW_SPEED_MS, pauseMs=TW_PAUSE_MS, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX } = opts;
+/* rAF typewriter (playlist textů, loop) — Náhrada za původní runTypewriterToDT */
+function runTypewriterToDT(dt, opts = {}){
+  const {
+    texts: _texts,      // playlist, pokud existuje
+    text: _text,        // single-text fallback
+    speedMs = TW_SPEED_MS,
+    pauseMs = TW_PAUSE_MS,
+    texW,
+    texH,
+    color = TW_COLOR_HEX,
+    fontPx = TW_FONT_PX
+  } = opts;
+
+  // Playlist má prioritu; jinak vytvoř playlist z jednoho textu
+  const texts = Array.isArray(_texts) && _texts.length
+    ? _texts
+    : [(_text || "")];
+
+  if (!texts.length) return 0;
+
+  let idx = 0;
   let start = performance.now();
   let rafId = 0;
 
   function tick(now){
+    const t = texts[idx] || "";
     const chars = Math.floor((now - start) / speedMs);
-    if (chars <= text.length){
-      drawTypeLine(dt, { text, progress: Math.max(0, chars), texW, texH, color, fontPx });
+
+    if (chars <= t.length){
+      drawTypeLine(dt, {
+        text: t,
+        progress: Math.max(0, chars),
+        texW,
+        texH,
+        color,
+        fontPx
+      });
       rafId = requestAnimationFrame(tick);
+
     } else {
-      setTimeout(() => { start = performance.now(); rafId = requestAnimationFrame(tick); }, pauseMs);
+      // Po dopsání → pauza → další text
+      setTimeout(() => {
+        idx = (idx + 1) % texts.length;
+        start = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }, pauseMs);
     }
   }
+
   rafId = requestAnimationFrame(tick);
   return rafId;
 }
-
   /* ========= Scene setup ========= */
   let scene, camera, glow;
   const ROOM = { W:16, D:30, H:13 };
@@ -1050,8 +1100,8 @@ const TW_Y_SHIFT_M = 0.80; // +80 cm nahoru
 
 const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
 
-// šířka panelu napříč stěnou s rezervou u rohů  ✅ DOPLNĚNO
-const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2;  // (m)
+// šířka panelu pro přední/zadní stěnu
+const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2;
 const panelW = Math.max(1.0, wallInnerWidth);
 const panelH = Math.max(0.20, TW_FONT_PX / 100);
 
@@ -1063,7 +1113,6 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
 // PŘEDNÍ – mírně „před“ stěnu (do místnosti)
 {
-  // ⚠️ Aliasujeme položky, abychom nekolidovali s `const dt` od loga
   const {
     plane: twFrontPlane,
     dt:    twFrontDT,
@@ -1071,6 +1120,7 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
     texH:  twFrontTexH
   } = makeTypewriterPlane({
     name:  "tw_front",
+    x:     0,
     y:     yText + TW_Y_SHIFT_M,
     z:     zFront - 0.004,
     rotY:  0,
@@ -1081,11 +1131,11 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
   __twFrontPlane = twFrontPlane;
   __twFrontDT    = twFrontDT;
-  __twFrontRAF   = runTypewriterToDT(twFrontDT, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW: twFrontTexW, texH: twFrontTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-  });
-}
+ __twFrontRAF = runTypewriterToDT(twFrontDT, {
+  texts: TW_STRINGS.front,
+  speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+  texW: twFrontTexW, texH: twFrontTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+});
 
 // ZADNÍ – otočeno do místnosti
 {
@@ -1096,6 +1146,7 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
     texH:  twBackTexH
   } = makeTypewriterPlane({
     name:  "tw_back",
+    x:     0,
     y:     yText + TW_Y_SHIFT_M,
     z:     zBack + 0.004,
     rotY:  Math.PI,
@@ -1106,13 +1157,16 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
   __twBackPlane = twBackPlane;
   __twBackDT    = twBackDT;
-  __twBackRAF   = runTypewriterToDT(twBackDT, {
-    text: TW_TEXT, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-    texW: twBackTexW, texH: twBackTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+ 
+__twBackRAF = runTypewriterToDT(twBackDT, {
+  texts: TW_STRINGS.back,
+  speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+  texW: twBackTexW, texH: twBackTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+
   });
 }
 
-hint("Logo zobrazeno (front + back) + 3D typewriter panely připraveny ✔");
+hint("Logo zobrazeno (front + back) + variabilní typewriter pro obě stěny ✔");
 
 
 
