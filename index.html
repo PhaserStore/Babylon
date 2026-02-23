@@ -233,8 +233,16 @@ const TW_MARGIN_WALL  = 0.18;   // kolik (m) od vnitřní hrany stěny (aby netr
 const TW_FLIP_VERTICAL = true;        // překlápí text vertikálně
 const TW_OFFSET_PX = -190; // jemné dohnání o ~92 px nahoru
     
-    // Rychlost blikání kurzoru (nižší = rychlejší blink)
-const TW_CURSOR_BLINK_MS = 250;   // např. 450 ms; zkus 400–600 podle pocitu
+   
+// === Blink/dýchání kurzoru (underscore) ===
+// Perioda cyklu (nižší = rychlejší); 450–700 ms je obvykle nejpříjemnější
+const TW_CURSOR_BLINK_MS   = 450;
+// Rozsah „dýchání“ – 0.25 až 1.0 je jemné; můžeš si doladit
+const TW_CURSOR_ALPHA_MIN  = 0.25;
+const TW_CURSOR_ALPHA_MAX  = 1.00;
+// Barva kurzoru (může být stejná jako text, nebo lehce jiná)
+const TW_CURSOR_COLOR      = TW_COLOR_HEX;
+
 
 /* interní reference – ať je můžeme uklízet při opakovaném buildu */
 let __twFrontPlane = null, __twBackPlane = null;
@@ -349,27 +357,31 @@ function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_
 
   return { plane, dt, texW, texH };
 }
-/* Kreslení jednoho snímku typewriteru do DT */
-function drawTypeLine(dt, { text, progress, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
+/* Kreslení jednoho snímku typewriteru do DT (text + jemně „dýchající“ podtržítko) */
+function drawTypeLine(dt, {
+  text,
+  progress,
+  texW,
+  texH,
+  color = TW_COLOR_HEX,
+  fontPx = TW_FONT_PX
+}){
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
 
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingEnabled  = true;
+  ctx.imageSmoothingQuality  = "high";
+  ctx.fillStyle              = color;
+  ctx.textAlign              = "center";
+  ctx.textBaseline           = "middle";
+  ctx.font                   = `600 ${fontPx}px Doto, monospace`;
 
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `600 ${fontPx}px Doto, monospace`;
-
-  // 🔥 FUNKČNÍ BLIKÁNÍ V CANVASU
-  const now = performance.now();
-  const period = Math.max(120, TW_CURSOR_BLINK_MS || 900); // bezpečné minimum
-const blinkOn = Math.floor(now / period) % 2 === 0;
-  const out = text.slice(0, progress) + (blinkOn ? TW_CURSOR : "");
-
+  // Střed kreslení + jemný vertikální posun
   const x = Math.round(texW / 2);
-  const y = Math.round(texH / 2) + (TW_OFFSET_PX|0);
+  const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
+
+  // Vykreslit pouze dopsanou část textu (bez kurzoru jako znaku)
+  const content = text.slice(0, progress);
 
   ctx.save();
   if (TW_FLIP_VERTICAL){
@@ -377,9 +389,51 @@ const blinkOn = Math.floor(now / period) % 2 === 0;
     ctx.scale(1, -1);
   }
 
+  // Mírný „glow“ stín pro text
   ctx.shadowColor = "rgba(218,255,62,0.20)";
-  ctx.shadowBlur = Math.max(2, Math.round(fontPx * 0.22));
-  ctx.fillText(out, x, y);
+  ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
+
+  // 1) Text
+  ctx.fillText(content, x, y);
+
+  // 2) Kurzor jako „underscore“ — samostatná dýchající linka
+  //    Kreslíme ho jen pokud už máme nějaký znak (ať není linka na prázdno).
+  if (progress > 0){
+    // Změříme šířku už napsaného textu, abychom věděli, kde kurzor začíná (pravý okraj)
+    const m         = ctx.measureText(content);
+    const textWidth = m?.width || 0;
+    const endX      = x + textWidth / 2; // textAlign="center" → pravý okraj je střed + půlka šířky
+
+    // Dýchání pomocí trojúhelníkového průběhu 0..1..0
+    const now     = performance.now();
+    const period  = Math.max(120, TW_CURSOR_BLINK_MS || 900);
+    const tRel    = (now % period) / period; // 0..1
+    const tri     = tRel < 0.5 ? (tRel * 2) : (1 - (tRel - 0.5) * 2); // 0..1..0
+    const alpha   = (TW_CURSOR_ALPHA_MIN ?? 0.25) + tri * ((TW_CURSOR_ALPHA_MAX ?? 1.0) - (TW_CURSOR_ALPHA_MIN ?? 0.25));
+
+    // Parametry linky (šířka, tloušťka, svislé umístění)
+    const underlineW   = Math.max(6, Math.round(fontPx * 0.12));   // délka linky
+    const underlineH   = Math.max(2, Math.round(fontPx * 0.08));   // tloušťka linky
+    const underlineTop = Math.round(y + fontPx * 0.46);            // pod baseline (empiricky laděno)
+
+    // Kresba podtržítka bez stínu → je čistší
+    const prevShadow = ctx.shadowColor;
+    const prevAlpha  = ctx.globalAlpha;
+    const prevFill   = ctx.fillStyle;
+
+    ctx.shadowColor  = "rgba(0,0,0,0)";
+    ctx.globalAlpha  = Math.max(0, Math.min(1, alpha));
+    ctx.fillStyle    = TW_CURSOR_COLOR || color;
+
+    // Krátká linka těsně za textem (mírný offset vpravo)
+    const ux = Math.round(endX + 2);
+    ctx.fillRect(ux, underlineTop, underlineW, underlineH);
+
+    // restore
+    ctx.shadowColor = prevShadow;
+    ctx.globalAlpha = prevAlpha;
+    ctx.fillStyle   = prevFill;
+  }
 
   ctx.restore();
   dt.update(false);
