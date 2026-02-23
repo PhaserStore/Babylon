@@ -1131,11 +1131,13 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
   __twFrontPlane = twFrontPlane;
   __twFrontDT    = twFrontDT;
- __twFrontRAF = runTypewriterToDT(twFrontDT, {
-  texts: TW_STRINGS.front,
-  speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-  texW: twFrontTexW, texH: twFrontTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-});
+
+  __twFrontRAF = runTypewriterToDT(twFrontDT, {
+    texts: TW_STRINGS.front,
+    speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+    texW: twFrontTexW, texH: twFrontTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+  });
+} // ←←← TATO ZÁVORKA CHYBĚLA
 
 // ZADNÍ – otočeno do místnosti
 {
@@ -1157,12 +1159,11 @@ try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
 
   __twBackPlane = twBackPlane;
   __twBackDT    = twBackDT;
- 
-__twBackRAF = runTypewriterToDT(twBackDT, {
-  texts: TW_STRINGS.back,
-  speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-  texW: twBackTexW, texH: twBackTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
 
+  __twBackRAF = runTypewriterToDT(twBackDT, {
+    texts: TW_STRINGS.back,
+    speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+    texW: twBackTexW, texH: twBackTexH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
   });
 }
 
