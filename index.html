@@ -82,10 +82,6 @@
 /* Share posuň o šířku tlačítka + mezeru (stejně jako fullscreen vpravo) */
 #shareIcon{ left:calc(12px + var(--safe-left) + 56px + 8px); }
 
-/* (Volitelné) Mobile: schovat i levé ikony stejně jako fullscreen a SC bar */
-@media (pointer:coarse), (max-width: 900px){
-  #instaIcon, #shareIcon{ display:none !important; }
-}
 
     /* Desktop bar shrink */
     @media (max-width: 560px){
@@ -112,7 +108,7 @@
     left: calc(12px + var(--safe-left) + 56px + 8px);
   }
 }
-
+</style>
   <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
@@ -143,7 +139,7 @@
     tabindex="0"
     aria-label="Reset kamery"
 
-    <!-- Levé: Instagram a Share -->
+    /> <!-- Levé: Instagram a Share -->
   <img
     id="instaIcon"
     class="hudIconLeft"
