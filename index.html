@@ -95,7 +95,8 @@
       .time{ display:none; }
     }
 
-    /* MOBILE: schovat fullscreen + SC bar, ale Instagram & Share NECHAT viditelné */
+    /* MOBILE: schovat fullscreen + SC bar, ale Instagram & Share NECHAT viditelné
+   (bez změny výšky — zůstane stejná jako u focus/reset ikony) */
 @media (pointer:coarse), (max-width: 900px){
   #fullscreenIcon{ display:none !important; }
   #scBar, #scIframeHost{ display:none !important; }
@@ -103,21 +104,15 @@
   /* Ikony vlevo: zůstanou viditelné */
   #instaIcon, #shareIcon{ display:block !important; }
 
-  /* Na mobilech není SC bar, posuňme je trochu výš jen podle safe-bottom */
-  .hudIconLeft{
-    bottom: calc(12px + var(--safe-bottom));
-  }
+  /* Necháváme původní velikost 56×56 a stejný spodní offset jako focus,
+     takže NEMĚNÍME bottom u .hudIconLeft */
 
-  /* Volitelné: větší tap target na touch (můžeš klidně vypustit) */
-  .hudIconLeft{
-    width:64px; height:64px;
-  }
+  /* Rozestup mezi Insta a Share (odpovídá 56px šířce + 8px mezera) */
   #shareIcon{
-    left: calc(12px + var(--safe-left) + 64px + 10px); /* upravený offset podle nové šířky */
+    left: calc(12px + var(--safe-left) + 56px + 8px);
   }
 }
-  </style>
-  
+
   <!-- Babylon.js -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
