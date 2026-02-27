@@ -1420,6 +1420,10 @@ const RESET_POSE = {
   beta:   Math.PI / 1.88
 };
 
+    /* 📱 Mobilní offset cíle kamery: zvedne kompozici, aby HUD ikony nepřekrývaly přední stěnu */
+const MOBILE_TARGET_Y_OFFSET = 0.45; // v metrech; doladíš mezi 0.35–0.60 podle vkusu
+
+
 function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
   if (!camera) return;
 
