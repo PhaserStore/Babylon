@@ -71,6 +71,22 @@
     /* fullscreen ikonu posuneme o šířku tlačítka + mezeru */
     #fullscreenIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
 
+    /* === Levé HUD ikony (stejná výška, zrcadlově od pravého okraje) === */
+.hudIconLeft{
+  position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); opacity:.96; transition: transform .12s ease, opacity .12s ease;
+  left:calc(12px + var(--safe-left)); bottom:calc(12px + var(--bar-h) + var(--safe-bottom));
+}
+.hudIconLeft:hover{ transform:translateY(-1px); opacity:1; }
+
+/* Share posuň o šířku tlačítka + mezeru (stejně jako fullscreen vpravo) */
+#shareIcon{ left:calc(12px + var(--safe-left) + 56px + 8px); }
+
+/* (Volitelné) Mobile: schovat i levé ikony stejně jako fullscreen a SC bar */
+@media (pointer:coarse), (max-width: 900px){
+  #instaIcon, #shareIcon{ display:none !important; }
+}
+
     /* Desktop bar shrink */
     @media (max-width: 560px){
       #scBar{ gap:12px; padding:0 10px; }
@@ -115,6 +131,28 @@
     role="button"
     tabindex="0"
     aria-label="Reset kamery"
+
+    <!-- Levé: Instagram a Share -->
+  <img
+    id="instaIcon"
+    class="hudIconLeft"
+    src="./assets/Insta.svg"
+    alt="Instagram"
+    title="Otevřít Instagram @__phaser__"
+    role="button"
+    tabindex="0"
+    aria-label="Otevřít Instagram profil"
+  />
+  <img
+    id="shareIcon"
+    class="hudIconLeft"
+    src="./assets/Share.svg"
+    alt="Sdílet"
+    title="Sdílet tyto stránky"
+    role="button"
+    tabindex="0"
+    aria-label="Sdílet odkaz na tuto stránku"
+  
   />
 
   <!-- Desktop: SoundCloud bar -->
@@ -2286,6 +2324,49 @@ if (fullscreenIcon){
   fullscreenIcon.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleFullscreen(); } });
   document.addEventListener('fullscreenchange', syncFsButton);
   document.addEventListener('webkitfullscreenchange', syncFsButton);
+}
+    /* UI: Instagram + Share (levé ikony) */
+const instaIcon = document.getElementById('instaIcon');
+const shareIcon = document.getElementById('shareIcon');
+
+function openInsta(){
+  const url = "https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr";
+  window.open(url, "_blank", "noopener");
+}
+
+async function sharePage(){
+  const shareData = {
+    title: document.title || "Virtual Gallery — Clean View",
+    text: "Podívej se na Virtual Gallery",
+    url: window.location.href
+  };
+
+  try{
+    if (navigator.share){
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard?.writeText?.(shareData.url);
+      alert("Odkaz byl zkopírován do schránky.");
+    }
+  }catch(e){
+    // uživatel mohl sdílení zrušit — ticho
+  }
+}
+
+if (instaIcon){
+  instaIcon.addEventListener('dragstart', e => e.preventDefault());
+  instaIcon.addEventListener('click', openInsta);
+  instaIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openInsta(); }
+  });
+}
+
+if (shareIcon){
+  shareIcon.addEventListener('dragstart', e => e.preventDefault());
+  shareIcon.addEventListener('click', sharePage);
+  shareIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); sharePage(); }
+  });
 }
 </script>
   
