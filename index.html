@@ -95,11 +95,27 @@
       .time{ display:none; }
     }
 
-    /* MOBILE: schovat fullscreen ikonu i celý SC bar + host */
-    @media (pointer:coarse), (max-width: 900px){
-      #fullscreenIcon{ display:none !important; }
-      #scBar, #scIframeHost{ display:none !important; }
-    }
+    /* MOBILE: schovat fullscreen + SC bar, ale Instagram & Share NECHAT viditelné */
+@media (pointer:coarse), (max-width: 900px){
+  #fullscreenIcon{ display:none !important; }
+  #scBar, #scIframeHost{ display:none !important; }
+
+  /* Ikony vlevo: zůstanou viditelné */
+  #instaIcon, #shareIcon{ display:block !important; }
+
+  /* Na mobilech není SC bar, posuňme je trochu výš jen podle safe-bottom */
+  .hudIconLeft{
+    bottom: calc(12px + var(--safe-bottom));
+  }
+
+  /* Volitelné: větší tap target na touch (můžeš klidně vypustit) */
+  .hudIconLeft{
+    width:64px; height:64px;
+  }
+  #shareIcon{
+    left: calc(12px + var(--safe-left) + 64px + 10px); /* upravený offset podle nové šířky */
+  }
+}
   </style>
   
   <!-- Babylon.js -->
