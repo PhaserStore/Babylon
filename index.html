@@ -1537,8 +1537,18 @@ function createScene(){
   glow = new BABYLON.GlowLayer("gl", scene, {
   blurKernelSize: IS_MOBILE ? 18 : 56  // desktop: výraznější rozptyl
 });
-// Jemně vyšší intenzita na desktopu
-glow.intensity = IS_MOBILE ? 0.48 : 0.95;
+
+
+  
+// PŘIDEJ:
+if (!IS_MOBILE) {
+  glow.intensity = 1.35;       // desktop boost (bylo 0.95)
+  glow.blurKernelSize = 112;   // širší rozptyl na desktopu (bylo 56)
+} else {
+  glow.intensity = 0.48;       // mobil nech stejné
+  glow.blurKernelSize = 18;
+}
+
 
 
   // Vypnout image processing
