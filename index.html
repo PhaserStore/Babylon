@@ -1061,6 +1061,11 @@ const FRONT_BACK_OFFSET = 0.25;
 const LOGO_HEIGHT_M = 6.30;
 const GLOW_BLUR_PX = 18;
 
+    /* 📏 Proporční multiplikátor velikosti loga (šířka i výška stejně)
+   – můžeš jemně doladit, např. 1.10 až 1.25 */
+const LOGO_SIZE_MULT_DESKTOP = 1.18; // ~ +18 % na desktopu
+const LOGO_SIZE_MULT_MOBILE  = 1.10; // ~ +10 % na mobilech
+
 // --- Umístění loga ---
 let FRAME_CENTER_Y = 0;          // nastaví se v applyFixedLayout()
 const LOGO_EXTRA_UP = 2.5;       // ↑ doladění výšky (můžeš upravit; typicky 0.7–1.2 pro jemné ladění)
@@ -1097,9 +1102,14 @@ function buildGalleryLogo(){
     ctx.drawImage(img, x, y, w, h);
     dt.update();
 
-    // 2) Rozměry a výška
-    const logoW = ROOM.W * LOGO_SCALE;
-    const logoH = LOGO_HEIGHT_M;
+    // 2) Rozměry a výška — proporční zvětšení (stejný poměr W/H)
+const mul = IS_MOBILE ? LOGO_SIZE_MULT_MOBILE : LOGO_SIZE_MULT_DESKTOP;
+const logoW_base = ROOM.W * LOGO_SCALE;
+const logoH_base = LOGO_HEIGHT_M;
+
+// Proporční zvětšení obou rozměrů stejným multiplikátorem
+const logoW = logoW_base * mul;
+const logoH = logoH_base * mul;
 
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
@@ -1524,8 +1534,12 @@ function createScene(){
 
   new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
-  glow = new BABYLON.GlowLayer("gl", scene, { blurKernelSize: IS_MOBILE ? 16 : 28 });
-  glow.intensity = IS_MOBILE ? 0.45 : 0.65;
+  glow = new BABYLON.GlowLayer("gl", scene, {
+  blurKernelSize: IS_MOBILE ? 18 : 56  // desktop: výraznější rozptyl
+});
+// Jemně vyšší intenzita na desktopu
+glow.intensity = IS_MOBILE ? 0.48 : 0.95;
+
 
   // Vypnout image processing
   scene.imageProcessingConfiguration.isEnabled = false;
