@@ -91,19 +91,33 @@
       .time{ display:none; }
     }
 
-    /* MOBILE: schovat fullscreen + SC bar, ale Instagram & Share NECHAT viditelné
-   (bez změny výšky — zůstane stejná jako u focus/reset ikony) */
+   /* MOBILE: snížit všechny HUD ikony o 1 výšku ikony */
 @media (pointer:coarse), (max-width: 900px){
+  :root{
+    --icon-size: 56px;             /* aktuální rozměr ikony */
+    --mobile-shift: var(--icon-size);
+  }
+
+  /* vpravo (fullscreen je i tak schovaný) */
+  .hudIcon{
+    bottom: max(6px, calc(12px + var(--safe-bottom) - var(--mobile-shift)));
+  }
+
+  /* vlevo (Instagram + Share) */
+  .hudIconLeft{
+    bottom: max(6px, calc(12px + var(--safe-bottom) - var(--mobile-shift)));
+  }
+
+  /* fullscreen zůstává schovaný na mobilu */
   #fullscreenIcon{ display:none !important; }
+
+  /* SC bar schovaný */
   #scBar, #scIframeHost{ display:none !important; }
 
-  /* Ikony vlevo: zůstanou viditelné */
+  /* Insta a Share necháme viditelné */
   #instaIcon, #shareIcon{ display:block !important; }
 
-  /* Necháváme původní velikost 56×56 a stejný spodní offset jako focus,
-     takže NEMĚNÍME bottom u .hudIconLeft */
-
-  /* Rozestup mezi Insta a Share (odpovídá 56px šířce + 8px mezera) */
+  /* Rozestup (beze změny) */
   #shareIcon{
     left: calc(12px + var(--safe-left) + 56px + 8px);
   }
