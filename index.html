@@ -598,37 +598,47 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   return m;
 }
   function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO;
-    return dt;
-  }
-// SVG -> průhledná "ink overlay" textura (pattern tmavý, zbytek transparentní)
-// mode: "auto" se pokusí odhadnout, jestli je SVG černá nebo bílá na transparentu
-const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
-  maxSize: IS_MOBILE ? 1024 : 2048,
-  targetAspect: ROOM.W / ROOM.D,
+  const dt = new BABYLON.DynamicTexture(
+    name,
+    { width: w, height: h },
+    scene,
+    genMipmaps,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.hasAlpha = false;
+  dt.anisotropicFilteringLevel = MAX_ANISO;
+  return dt;
+}
 
-  // ✅ bílé „ink“
-  ink: { r: 255, g: 255, b: 255 },
+/**
+ * SVG -> průhledná "ink overlay" textura:
+ * - RGB = ink (např. bílé)
+ * - alpha = maska (tam kde SVG "kreslí", jinde průhledné)
+ */
+async function svgToInkOverlayTexture(svgUrl, {
+  maxSize = 2048,
+  targetAspect = 1.0,                 // ROOM.W / ROOM.D
+  ink = { r: 255, g: 255, b: 255 },    // barva overlay
+  alphaGain = 1.8,                     // zesílení masky
+  alphaMax = 1.0,                      // max alfa (1 = plná)
+  sampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+  mode = "auto",                       // "auto" | "blackOnTransparent" | "whiteOnTransparent"
 
-  // ✅ silnější viditelnost
-  alphaGain: 1.8,
-  alphaMax: 0.95,
-
-  mode: "auto"
-});
+  // volitelné: tvrdá alpha (bez poloprůhlednosti uvnitř tvaru)
+  binaryAlpha = false,
+  threshold = 0.10
+} = {}) {
 
   const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
   const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
 
-  // 1) fetch SVG (musí běžet přes server, ne file://)
+  // 1) fetch SVG
   const res = await fetch(svgUrl, { cache: "no-cache" });
   if (!res.ok) throw new Error(`SVG fetch failed: ${res.status} ${res.statusText}`);
   const svgText = await res.text();
 
-  // 2) blob url pro spolehlivé dekódování
+  // 2) Blob URL pro spolehlivé načtení do <img>
   const blob = new Blob([svgText], { type: "image/svg+xml" });
   const blobUrl = URL.createObjectURL(blob);
 
@@ -650,7 +660,8 @@ const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
 
   // 5) render SVG do temp canvas
   const tmp = document.createElement("canvas");
-  tmp.width = w; tmp.height = h;
+  tmp.width = w;
+  tmp.height = h;
   const tctx = tmp.getContext("2d", { willReadFrequently: true });
 
   tctx.clearRect(0, 0, w, h);
@@ -679,16 +690,18 @@ const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
   else if (mode === "blackOnTransparent") useWhiteAsInk = false;
   else useWhiteAsInk = avgLum > 0.55; // auto
 
-  // 6) přepiš na "ink overlay": RGB = ink, A = coverage
+  // 6) přepiš na overlay: RGB = ink, alpha = coverage
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i], g = d[i + 1], b = d[i + 2];
     const a = d[i + 3] / 255;
 
     const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
-    // coverage podle režimu (bílá vs černá)
     let cov = useWhiteAsInk ? (lum * a) : ((1 - lum) * a);
     cov = Math.max(0, Math.min(1, cov * alphaGain));
+
+    // tvrdá alpha (bez poloprůhlednosti)
+    if (binaryAlpha) cov = (cov >= threshold) ? 1 : 0;
 
     d[i]     = ink.r;
     d[i + 1] = ink.g;
@@ -697,25 +710,25 @@ const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
   }
 
   // 7) DynamicTexture
-  const dt = new BABYLON.DynamicTexture("floorInkDT", { width: w, height: h }, scene, true, sampling);
-  dt.hasAlpha = true;
-  dt.gammaSpace = true;
+  const out = new BABYLON.DynamicTexture("floorInkDT", { width: w, height: h }, scene, true, sampling);
+  out.hasAlpha = true;
+  out.gammaSpace = true;
 
-  const ctx = dt.getContext();
+  const ctx = out.getContext();
   ctx.putImageData(imgData, 0, 0);
-  dt.update();
+  out.update();
 
-  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.uScale = 1;
-  dt.vScale = 1;
-  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+  out.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  out.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  out.uScale = 1;
+  out.vScale = 1;
+  out.anisotropicFilteringLevel = MAX_ANISO || 4;
 
   URL.revokeObjectURL(blobUrl);
 
   console.log("[floor] avgLum:", avgLum.toFixed(3), "mode:", useWhiteAsInk ? "whiteAsInk" : "blackAsInk", "size:", w, "x", h);
 
-  return dt;
+  return out;
 }
     
   function buildMySkybox() {
