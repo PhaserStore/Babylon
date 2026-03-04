@@ -606,15 +606,19 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   }
 // SVG -> průhledná "ink overlay" textura (pattern tmavý, zbytek transparentní)
 // mode: "auto" se pokusí odhadnout, jestli je SVG černá nebo bílá na transparentu
-async function svgToInkOverlayTexture(svgUrl, {
-  maxSize = 2048,
-  targetAspect = 1.0,            // ROOM.W / ROOM.D
-  ink = { r: 0, g: 0, b: 0 },    // barva ink vrstvy
-  alphaGain = 1.35,              // zesílení alfy
-  alphaMax = 0.55,               // max průhlednost ink vrstvy
-  sampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-  mode = "auto"                  // "auto" | "blackOnTransparent" | "whiteOnTransparent"
-} = {}) {
+const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
+  maxSize: IS_MOBILE ? 1024 : 2048,
+  targetAspect: ROOM.W / ROOM.D,
+
+  // ✅ bílé „ink“
+  ink: { r: 255, g: 255, b: 255 },
+
+  // ✅ silnější viditelnost
+  alphaGain: 1.8,
+  alphaMax: 0.95,
+
+  mode: "auto"
+});
 
   const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
   const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
