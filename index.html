@@ -625,40 +625,43 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   }
 
   function buildRoom() {
-    const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
+const floor = BABYLON.MeshBuilder.CreateGround(
+  "floor",
+  { width: ROOM.W, height: ROOM.D },
+  scene
+);
 
-// Materiál pro podlahu
-const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
-floorMat.disableLighting = true;
-floorMat.backFaceCulling = false;
-floorMat.specularColor = new BABYLON.Color3(0,0,0);
+// fallback barva (kdyby se SVG nepovedlo)
+floor.material = unlit("#151515");
 
-// Načtení SVG jako textura
-const floorTex = new BABYLON.Texture("./assets/floor.svg", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+// načíst SVG a dát ji na floor
+(async () => {
+  try {
+    const dt = await svgToDynamicTexture("./assets/floor.svg", {
+      size: 2048,  // zkus 1024 pokud by to bylo těžké
+      level: 1.25  // boost aby černobílá byla čitelná
+    });
 
-// DŮLEŽITÉ: žádné opakování
-floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    const m = new BABYLON.StandardMaterial("floorMat", scene);
+    m.disableLighting = true;
+    m.backFaceCulling = true;
+    m.specularColor = new BABYLON.Color3(0,0,0);
 
-// Natáhnout jen 1× přes UV (default je 1)
-floorTex.uScale = 1;
-floorTex.vScale = 1;
+    // důležité pro "unlit" vzhled (aby to nebylo šedé/tmavé)
+    m.diffuseTexture  = dt;
+    m.emissiveTexture = dt;
+    m.emissiveColor   = new BABYLON.Color3(1,1,1);
 
-// Jemné vylepšení kvality při šikmém pohledu
-floorTex.anisotropicFilteringLevel = MAX_ANISO || 4;
+    // pokud by byla podlaha moc světlá/tmavá, dolaď:
+    // dt.level = 1.0 .. 1.4
 
-// Zachovat barvy (u tebe už to tak děláš i jinde)
-floorTex.gammaSpace = true;
+    floor.material = m;
 
-// Pokud chceš trochu zesvětlit, můžeš:
-floorTex.level = 1.08;
-
-// Unlit look (jako v celém projektu)
-floorMat.diffuseTexture  = floorTex;
-floorMat.emissiveTexture = floorTex;
-floorMat.emissiveColor   = new BABYLON.Color3(1,1,1);
-
-floor.material = floorMat;
+    console.log("[floor] SVG applied OK");
+  } catch (e) {
+    console.warn("[floor] SVG load failed -> fallback color", e);
+  }
+})();
     
 
     const LED_TOP = ROOM.H - 0.04;
