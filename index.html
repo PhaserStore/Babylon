@@ -740,7 +740,7 @@ const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
   function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
 
-  // fallback, kdyby SVG selhalo
+  // fallback
   floor.material = unlit("#151515");
 
   (async () => {
@@ -748,32 +748,46 @@ const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
       const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
         maxSize: IS_MOBILE ? 1024 : 2048,
         targetAspect: ROOM.W / ROOM.D,
-        ink: { r: 0, g: 0, b: 0 },
+
+        // Bílé "ink"
+        ink: { r: 255, g: 255, b: 255 },
+
+        // Viditelnost
         alphaGain: 1.6,
-        alphaMax: 0.65,
-        mode: "auto" // když by to bylo špatně, zkus "blackOnTransparent" nebo "whiteOnTransparent"
+        alphaMax: 1.0,
+
+        // Pokud chceš tvrdé bez poloprůhlednosti:
+        binaryAlpha: true,
+        threshold: 0.10,
+
+        mode: "auto"
       });
 
       const m = new BABYLON.StandardMaterial("floorMatInk", scene);
       m.disableLighting = true;
       m.specularColor = new BABYLON.Color3(0,0,0);
 
-      // Transparentní overlay
       m.diffuseTexture = dt;
       m.opacityTexture = dt;
       m.useAlphaFromDiffuseTexture = true;
+
+      // aby bílá "svítila" a byla čitelná
+      m.emissiveTexture = dt;
+      m.emissiveColor = new BABYLON.Color3(1,1,1);
 
       m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
       m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
       m.needDepthPrePass = true;
 
       floor.material = m;
-      console.log("[floor] Ink overlay applied OK");
+      console.log("[floor] overlay OK");
     } catch (e) {
-      console.warn("[floor] Ink overlay failed -> fallback", e);
+      console.warn("[floor] overlay failed -> fallback", e);
     }
   })();
 
+  // ... stěny ... (tvoje beze změny)
+}
   // --- stěny ---
   const LED_TOP = ROOM.H - 0.04;
   const LIP = 0.005;
