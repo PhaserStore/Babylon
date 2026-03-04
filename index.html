@@ -627,104 +627,74 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   function buildRoom() {
   const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
 
-  // fallback (když SVG selže)
+  // fallback, kdyby SVG selhalo
   floor.material = unlit("#151515");
 
   (async () => {
     try {
       const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
         maxSize: IS_MOBILE ? 1024 : 2048,
-        targetAspect: ROOM.W / ROOM.D,  // 16/30
-        ink: { r: 0, g: 0, b: 0 },       // můžeš zkusit i {10,10,10} pro viditelnost
-        alphaGain: 1.35,                // zesílí viditelnost patternu
-        alphaMax: 0.45                  // max průhlednost ink vrstvy
+        targetAspect: ROOM.W / ROOM.D,
+        ink: { r: 0, g: 0, b: 0 },
+        alphaGain: 1.6,
+        alphaMax: 0.65,
+        mode: "auto" // když by to bylo špatně, zkus "blackOnTransparent" nebo "whiteOnTransparent"
       });
 
       const m = new BABYLON.StandardMaterial("floorMatInk", scene);
       m.disableLighting = true;
-      m.backFaceCulling = true;
       m.specularColor = new BABYLON.Color3(0,0,0);
 
-      // DŮLEŽITÉ: transparentní blend
+      // Transparentní overlay
       m.diffuseTexture = dt;
       m.opacityTexture = dt;
       m.useAlphaFromDiffuseTexture = true;
 
       m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
       m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
-
-      // zlepší třídění transparentu
       m.needDepthPrePass = true;
 
       floor.material = m;
-
-      console.log("[floor] Ink SVG overlay applied OK");
+      console.log("[floor] Ink overlay applied OK");
     } catch (e) {
-      console.warn("[floor] Ink SVG overlay failed -> fallback", e);
+      console.warn("[floor] Ink overlay failed -> fallback", e);
     }
   })();
 
-  // ... zbytek buildRoom (stěny) nech beze změn ...
+  // --- stěny ---
   const LED_TOP = ROOM.H - 0.04;
   const LIP = 0.005;
   const WALL_H = LED_TOP - LIP;
   const wallY  = WALL_H / 2;
   const OVER = 0.04;
 
-  const back = BABYLON.MeshBuilder.CreatePlane("back", { width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+  const back = BABYLON.MeshBuilder.CreatePlane("back", {
+    width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
   back.position.set(0, wallY, -ROOM.D/2);
   back.material = unlit("#2b2b2b");
 
-  const front = BABYLON.MeshBuilder.CreatePlane("front", { width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+  const front = BABYLON.MeshBuilder.CreatePlane("front", {
+    width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
   front.position.set(0, wallY, ROOM.D/2);
   front.rotation.y = Math.PI;
   front.material = unlit("#2b2b2b");
 
-  const left = BABYLON.MeshBuilder.CreatePlane("leftWall", { width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+  const left = BABYLON.MeshBuilder.CreatePlane("leftWall", {
+    width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
   left.position.set(-ROOM.W/2, wallY, 0);
   left.rotation.y = -Math.PI/2;
   left.material = unlit("#242424");
 
-  const right = BABYLON.MeshBuilder.CreatePlane("rightWall", { width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE }, scene);
+  const right = BABYLON.MeshBuilder.CreatePlane("rightWall", {
+    width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
   right.position.set(ROOM.W/2, wallY, 0);
   right.rotation.y = Math.PI/2;
   right.material = unlit("#242424");
 }
-    
-
-    const LED_TOP = ROOM.H - 0.04;
-    const LIP = 0.005;
-    const WALL_H = LED_TOP - LIP;
-    const wallY  = WALL_H / 2;
-    const OVER = 0.04;
-
-    const back = BABYLON.MeshBuilder.CreatePlane("back", {
-      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    back.position.set(0, wallY, -ROOM.D/2);
-    back.material = unlit("#2b2b2b");
-
-    const front = BABYLON.MeshBuilder.CreatePlane("front", {
-      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    front.position.set(0, wallY, ROOM.D/2);
-    front.rotation.y = Math.PI;
-    front.material = unlit("#2b2b2b");
-
-    const left = BABYLON.MeshBuilder.CreatePlane("leftWall", {
-      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    left.position.set(-ROOM.W/2, wallY, 0);
-    left.rotation.y = -Math.PI/2;
-    left.material = unlit("#242424");
-
-    const right = BABYLON.MeshBuilder.CreatePlane("rightWall", {
-      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    right.position.set(ROOM.W/2, wallY, 0);
-    right.rotation.y = Math.PI/2;
-    right.material = unlit("#242424");
-  }
 
   function buildCeilingWithAperture({ inw = 0.1 } = {}) {
     const y1 = ROOM.H - 0.04;
