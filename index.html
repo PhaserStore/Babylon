@@ -626,7 +626,40 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
 
   function buildRoom() {
     const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
-    floor.material = unlit("#151515");
+
+// Materiál pro podlahu
+const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+floorMat.disableLighting = true;
+floorMat.backFaceCulling = false;
+floorMat.specularColor = new BABYLON.Color3(0,0,0);
+
+// Načtení SVG jako textura
+const floorTex = new BABYLON.Texture("./assets/floor.svg", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+
+// DŮLEŽITÉ: žádné opakování
+floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+// Natáhnout jen 1× přes UV (default je 1)
+floorTex.uScale = 1;
+floorTex.vScale = 1;
+
+// Jemné vylepšení kvality při šikmém pohledu
+floorTex.anisotropicFilteringLevel = MAX_ANISO || 4;
+
+// Zachovat barvy (u tebe už to tak děláš i jinde)
+floorTex.gammaSpace = true;
+
+// Pokud chceš trochu zesvětlit, můžeš:
+floorTex.level = 1.08;
+
+// Unlit look (jako v celém projektu)
+floorMat.diffuseTexture  = floorTex;
+floorMat.emissiveTexture = floorTex;
+floorMat.emissiveColor   = new BABYLON.Color3(1,1,1);
+
+floor.material = floorMat;
+    
 
     const LED_TOP = ROOM.H - 0.04;
     const LIP = 0.005;
