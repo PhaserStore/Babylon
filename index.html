@@ -604,7 +604,116 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
     dt.anisotropicFilteringLevel = MAX_ANISO;
     return dt;
   }
+// SVG -> průhledná "ink overlay" textura (pattern tmavý, zbytek transparentní)
+// mode: "auto" se pokusí odhadnout, jestli je SVG černá nebo bílá na transparentu
+async function svgToInkOverlayTexture(svgUrl, {
+  maxSize = 2048,
+  targetAspect = 1.0,            // ROOM.W / ROOM.D
+  ink = { r: 0, g: 0, b: 0 },    // barva ink vrstvy
+  alphaGain = 1.35,              // zesílení alfy
+  alphaMax = 0.55,               // max průhlednost ink vrstvy
+  sampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+  mode = "auto"                  // "auto" | "blackOnTransparent" | "whiteOnTransparent"
+} = {}) {
 
+  const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
+  const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
+
+  // 1) fetch SVG (musí běžet přes server, ne file://)
+  const res = await fetch(svgUrl, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`SVG fetch failed: ${res.status} ${res.statusText}`);
+  const svgText = await res.text();
+
+  // 2) blob url pro spolehlivé dekódování
+  const blob = new Blob([svgText], { type: "image/svg+xml" });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // 3) decode Image
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.decoding = "async";
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = blobUrl;
+  });
+
+  // 4) velikost textury podle poměru podlahy
+  let w = Math.min(cap, maxSize);
+  let h = Math.round(w / Math.max(1e-6, targetAspect));
+  if (h > cap) { h = cap; w = Math.round(h * targetAspect); }
+  w = Math.min(nextPOT(w), cap);
+  h = Math.min(nextPOT(h), cap);
+
+  // 5) render SVG do temp canvas
+  const tmp = document.createElement("canvas");
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext("2d", { willReadFrequently: true });
+
+  tctx.clearRect(0, 0, w, h);
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = "high";
+  tctx.drawImage(img, 0, 0, w, h);
+
+  const imgData = tctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  // Auto detekce: průměrná luminance neprůhledných pixelů
+  let sumLum = 0, count = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3];
+    if (a > 10) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      sumLum += lum;
+      count++;
+    }
+  }
+  const avgLum = count ? (sumLum / count) : 0;
+
+  let useWhiteAsInk;
+  if (mode === "whiteOnTransparent") useWhiteAsInk = true;
+  else if (mode === "blackOnTransparent") useWhiteAsInk = false;
+  else useWhiteAsInk = avgLum > 0.55; // auto
+
+  // 6) přepiš na "ink overlay": RGB = ink, A = coverage
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const a = d[i + 3] / 255;
+
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+
+    // coverage podle režimu (bílá vs černá)
+    let cov = useWhiteAsInk ? (lum * a) : ((1 - lum) * a);
+    cov = Math.max(0, Math.min(1, cov * alphaGain));
+
+    d[i]     = ink.r;
+    d[i + 1] = ink.g;
+    d[i + 2] = ink.b;
+    d[i + 3] = Math.round(cov * alphaMax * 255);
+  }
+
+  // 7) DynamicTexture
+  const dt = new BABYLON.DynamicTexture("floorInkDT", { width: w, height: h }, scene, true, sampling);
+  dt.hasAlpha = true;
+  dt.gammaSpace = true;
+
+  const ctx = dt.getContext();
+  ctx.putImageData(imgData, 0, 0);
+  dt.update();
+
+  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.uScale = 1;
+  dt.vScale = 1;
+  dt.anisotropicFilteringLevel = MAX_ANISO || 4;
+
+  URL.revokeObjectURL(blobUrl);
+
+  console.log("[floor] avgLum:", avgLum.toFixed(3), "mode:", useWhiteAsInk ? "whiteAsInk" : "blackAsInk", "size:", w, "x", h);
+
+  return dt;
+}
+    
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
     skybox.isPickable = false; skybox.infiniteDistance = true; skybox.applyFog = false;
