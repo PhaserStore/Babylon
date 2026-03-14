@@ -936,7 +936,18 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
 const PLACARD_HEIGHT_MULT = 2.5;   // požadované zvětšení výšky (nahoru)
 const PLACARD_BG = "#6b6b6b";
 
-/* === Cedulka: 2 řádky (collection bold + product regular), výška dle planeH === */
+/* Převod interního názvu stěny -> label (Front/Back/Left/Right) */
+function wallLabel(wall){
+  switch ((wall || "").toLowerCase()){
+    case "front": return "Front";
+    case "back":  return "Back";
+    case "left":  return "Left";
+    case "right": return "Right";
+    default:      return "Wall";
+  }
+}
+
+/* === Cedulka: 2 řádky (wall+index bold + product regular) === */
 function drawPlacard(plac, data, rotY, planeW, planeH){
   const texWFull = TEX_SIZE;
   const texWTarget = IS_MOBILE
@@ -956,9 +967,14 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   const pad  = Math.round(texH * 0.14);
   const maxW = texW - pad * 2;
 
-  // texty: přesně 2 řádky
-  const collection = (data.collection || data.title || "(bez názvu)").trim();
-  const product    = (data.product || "").trim();
+  // 1. řádek: "Back 1" apod. (bold)
+  // (fallback: použije data.collection nebo data.title)
+  const title = (data.collection || data.title || "(bez názvu)").trim();
+
+  // 2. řádek: product (regular)
+  // (fallbacky: product / productType / type)
+  const product =
+    (data.product || data.productType || data.type || "").trim();
 
   // helper: 1 řádek + ellipsis, když je to dlouhé
   const fitSingleLine = (text, font, maxWidth) => {
@@ -967,7 +983,6 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
     if (!t) return "";
     if (c.measureText(t).width <= maxWidth) return t;
 
-    // zkracuj a přidej …
     const ell = "…";
     while (t.length > 0 && c.measureText(t + ell).width > maxWidth){
       t = t.slice(0, -1);
@@ -976,34 +991,31 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   };
 
   // sizing (poměrově k texH) – doladěno pro 2 řádky
-  const titleSize = Math.max(18, Math.round(texH * 0.30)); // kolekce (bold)
-  const subSize   = Math.max(14, Math.round(texH * 0.20)); // produkt (regular)
+  const titleSize = Math.max(18, Math.round(texH * 0.30)); // bold
+  const subSize   = Math.max(14, Math.round(texH * 0.20)); // regular
 
   const titleFont = `600 ${titleSize}px Poppins`;
   const subFont   = `400 ${subSize}px Poppins`;
 
-  const line1 = fitSingleLine(collection, titleFont, maxW);
-  const line2 = fitSingleLine(product,    subFont,   maxW);
+  const line1 = fitSingleLine(title,   titleFont, maxW);
+  const line2 = fitSingleLine(product, subFont,   maxW);
 
   const titleLineH = Math.round(titleSize * 1.10);
   const subLineH   = Math.round(subSize   * 1.15);
-  const gap        = Math.round(texH * 0.07); // mezera mezi řádky
+  const gap        = Math.round(texH * 0.07);
 
-  // celkový blok: vždy 2 řádky (i když je product prázdný, necháme layout stabilní)
   const blockH = titleLineH + gap + subLineH;
-
-  // vertikální vycentrování bloku + padding
   const startY = Math.max(pad, Math.round((texH - blockH) / 2));
 
   c.fillStyle = "#fff";
   c.textAlign = "center";
   c.textBaseline = "top";
 
-  // 1) kolekce (bold)
+  // 1) Wall+index (bold)
   c.font = titleFont;
   c.fillText(line1, texW / 2, startY);
 
-  // 2) typ produktu (regular) – pokud není, může zůstat prázdný řádek (layout drží)
+  // 2) product (regular)
   c.font = subFont;
   c.fillText(line2, texW / 2, startY + titleLineH + gap);
 
@@ -1021,7 +1033,7 @@ function normalOffset(rotY, dist){
 }
 
 /* === Frame konstrukce — placeholder 9:16! === */
-function addFrame(pos, rotY=0, wall='front'){
+function addFrame(pos, rotY=0, wall='front', indexOnWall=1){
   const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
     width: FRAME_SIZE.W + FRAME_BOX_BORDER,
     height: FRAME_SIZE.H + FRAME_BOX_BORDER,
@@ -1084,8 +1096,7 @@ function addFrame(pos, rotY=0, wall='front'){
   // původní pozice středu (jak to bylo před zvětšením)
   const baseCenter = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0));
 
-  // aby spodní hrana zůstala stejná:
-  // když se výška zvětší o deltaH, střed posuň nahoru o deltaH/2
+  // když je plane vyšší, jeho střed musí jít nahoru o (ΔH / 2)
   const deltaH = placH - basePlacH;
 
   plac.position = baseCenter
@@ -1095,8 +1106,16 @@ function addFrame(pos, rotY=0, wall='front'){
   plac.rotation.y = rotY + Math.PI;
   plac.isPickable = true;
 
-  // data rozšíříme o collection + product
-  const data = { collection: "(bez názvu)", product: "", url: "", src: "" };
+  // === DATA pro cedulku ===
+  // line1: Back 1 / Front 3 / Left 6 ...
+  // line2: product (přijde z assignDataAllWalls, nebo zůstane prázdné)
+  const data = {
+    collection: `${wallLabel(wall)} ${indexOnWall}`, // <- tohle je ten "Back 1"
+    product: "",
+    url: "",
+    src: ""
+  };
+
   drawPlacard(plac, data, rotY, placW, placH);
 
   return { frame:f, box, placard:plac, data, wall, rotY, pos };
