@@ -935,47 +935,99 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
 /* === Cedulka zůstává stejná === */
 function drawPlacard(plac, data, rotY, planeW, planeH){
   const texWFull = TEX_SIZE;
-  const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
+  const texWTarget = IS_MOBILE
+    ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5)))
+    : texWFull;
+
   const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
-  const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
+  const texH = nearestPOT(Math.max(96, Math.round(texW * (planeH / planeW))), texW);
 
   const dt = makeDT("pl", texW, texH, !IS_MOBILE);
   const c = dt.getContext();
-  c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
 
-  const pad = Math.round(texH * 0.12);
-  const maxW = texW - pad*2;
+  // pozadí
+  c.fillStyle = PLACARD_BG;
+  c.fillRect(0, 0, texW, texH);
 
-  c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "top";
-  const lineH = Math.round(texH * 0.34);
-  const fontSize = Math.max(18, Math.round(lineH * 0.78));
-  c.font = `600 ${fontSize}px Poppins`;
+  const pad  = Math.round(texH * 0.12);
+  const maxW = texW - pad * 2;
 
-  const text = (data.title || "(bez názvu)").trim();
-  const words = text.split(/\s+/);
-  const lines = [];
-  let buf = "";
-  for (let w of words){
-    const test = buf ? (buf + " " + w) : w;
-    if (c.measureText(test).width <= maxW) buf = test;
-    else { if (buf) lines.push(buf); buf = w; }
+  // texty
+  const collection = (data.collection || data.title || "(bez názvu)").trim();
+  const product    = (data.product || "").trim();
+
+  // helper: wrap do N řádků (s ellipsis)
+  const wrapLines = (text, font, maxWidth, maxLines=2) => {
+    c.font = font;
+    const words = (text || "").split(/\s+/).filter(Boolean);
+    if (!words.length) return [""];
+
+    const lines = [];
+    let buf = "";
+
+    for (const w of words){
+      const test = buf ? (buf + " " + w) : w;
+      if (c.measureText(test).width <= maxWidth) buf = test;
+      else {
+        if (buf) lines.push(buf);
+        buf = w;
+      }
+    }
+    if (buf) lines.push(buf);
+
+    if (lines.length > maxLines){
+      const keep = lines.slice(0, maxLines);
+      let last = keep[maxLines - 1];
+      while (c.measureText(last + "…").width > maxWidth && last.length > 0){
+        last = last.slice(0, -1);
+      }
+      keep[maxLines - 1] = (last || "").trim() + "…";
+      return keep;
+    }
+    return lines;
+  };
+
+  // sizing (poměrově k texH)
+  const titleSize = Math.max(18, Math.round(texH * 0.26)); // kolekce (bold)
+  const subSize   = Math.max(14, Math.round(texH * 0.18)); // typ produktu (regular)
+
+  const titleFont = `600 ${titleSize}px Poppins`;
+  const subFont   = `400 ${subSize}px Poppins`;
+
+  // zalamování kolekce max 2 řádky
+  const titleLines = wrapLines(collection, titleFont, maxW, 2);
+
+  // výšky řádků
+  const titleLineH = Math.round(titleSize * 1.15);
+  const subLineH   = Math.round(subSize   * 1.20);
+
+  // celkový blok
+  const blockH =
+    (titleLines.length * titleLineH) +
+    (product ? Math.round(texH * 0.06) + subLineH : 0); // malý gap mezi title a sub
+
+  const startY = Math.max(pad, Math.round((texH - blockH) / 2));
+
+  c.fillStyle = "#fff";
+  c.textAlign = "center";
+  c.textBaseline = "top";
+
+  // 1) kolekce (bold)
+  c.font = titleFont;
+  titleLines.forEach((ln, i) => {
+    c.fillText(ln, texW / 2, startY + i * titleLineH);
+  });
+
+  // 2) typ produktu (regular)
+  if (product){
+    const afterTitleY = startY + titleLines.length * titleLineH + Math.round(texH * 0.06);
+    c.font = subFont;
+    c.fillText(product, texW / 2, afterTitleY);
   }
-  if (buf) lines.push(buf);
-  const maxLines = 2;
-  if (lines.length > maxLines){
-    const keep = lines.slice(0, maxLines);
-    let last = keep[maxLines-1];
-    while (c.measureText(last + "…").width > maxW && last.length>0) last = last.slice(0,-1);
-    keep[maxLines-1] = last + "…";
-    lines.length = 0; Array.prototype.push.apply(lines, keep);
-  }
-
-  const blockH = lines.length * lineH;
-  const startY = Math.max(pad, Math.round((texH - blockH)/2));
-  lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
 
   dt.update();
-  const mat = unlitTex(dt); mat.zOffset = -2;
+  const mat = unlitTex(dt);
+  mat.zOffset = -2;
   plac.material = mat;
 }
 /* === Posun po normále stěny (pro umístění plochy a cedulky) === */
@@ -1028,22 +1080,38 @@ function addFrame(pos, rotY=0, wall='front'){
   fMat.zOffset = -1;
   f.material = fMat;
 
-  // cedulka
-  const placW = FRAME_SIZE.W;
-  const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-    width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
+  // cedulka (vyšší, ale ukotvená spodem)
+const placW = FRAME_SIZE.W;
 
-  plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
-  plac.rotation.y = rotY + Math.PI;
-  plac.isPickable = true;
+const basePlacH = Math.max(0.22, FRAME_SIZE.H * 0.10);   // původní výška
+const placH     = basePlacH * PLACARD_HEIGHT_MULT;       // nová výška ~2.5×
 
-  const data = { title: "(bez názvu)", url: "", src: "" };
-  drawPlacard(plac, data, rotY, placW, placH);
+const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+  width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
+}, scene);
 
-  return { frame:f, box, placard:plac, data, wall, rotY, pos };
-}
+// původní Y (střed) – tak jak to bylo
+const baseCenter = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0));
+
+// aby spodní hrana zůstala stejná:
+// když je plane vyšší, jeho střed musí jít nahoru o (ΔH / 2)
+const deltaH = placH - basePlacH;
+plac.position = baseCenter
+  .add(new BABYLON.Vector3(0, deltaH / 2, 0))
+  .add(normalOffset(rotY, 0.03));
+
+plac.rotation.y = rotY + Math.PI;
+plac.isPickable = true;
+
+// data rozšíříme o collection + product (fallbacky níže)
+const data = { collection: "(bez názvu)", product: "", url: "", src: "" };
+drawPlacard(plac, data, rotY, placW, placH);
+
+return { frame:f, box, placard:plac, data, wall, rotY, pos };
+  
+    // === Placard styling ===
+const PLACARD_HEIGHT_MULT = 2.5;   // požadované zvětšení výšky
+const PLACARD_BG = "#6b6b6b";
 
 /* =========================
      LOGO – inline SVG (ostrý) na ZADNÍ i PŘEDNÍ stěně (1× na každé)
