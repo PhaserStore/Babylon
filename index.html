@@ -954,13 +954,23 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
     ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5)))
     : texWFull;
 
+  // Zachovat poměr stran textury podle plane (to je správně)
   const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
   const texH = nearestPOT(Math.max(128, Math.round(texW * (planeH / planeW))), texW);
 
-  const dt = makeDT("pl", texW, texH, !IS_MOBILE);
+  // ✅ DŮLEŽITÉ: pro text nechceme mipmapy (rozmazání / "zúžení")
+  // makeDT(name, w, h, genMipMaps?) – ty tam dáváš !IS_MOBILE
+  // pro čistý text je lepší vždy false
+  const dt = makeDT("pl", texW, texH, false);
   const c  = dt.getContext();
 
+  // ✅ Canvas rendering nastavení (nezpůsobí deformaci, jen kvalitu)
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = "high";
+
   // pozadí
+  c.setTransform(1, 0, 0, 1, 0, 0); // ✅ reset jakýchkoli transformací
+  c.clearRect(0, 0, texW, texH);
   c.fillStyle = PLACARD_BG;
   c.fillRect(0, 0, texW, texH);
 
@@ -968,13 +978,10 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   const maxW = texW - pad * 2;
 
   // 1. řádek: "Back 1" apod. (bold)
-  // (fallback: použije data.collection nebo data.title)
   const title = (data.collection || data.title || "(bez názvu)").trim();
 
   // 2. řádek: product (regular)
-  // (fallbacky: product / productType / type)
-  const product =
-    (data.product || data.productType || data.type || "").trim();
+  const product = (data.product || data.productType || data.type || "").trim();
 
   // helper: 1 řádek + ellipsis, když je to dlouhé
   const fitSingleLine = (text, font, maxWidth) => {
@@ -994,7 +1001,8 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   const titleSize = Math.max(18, Math.round(texH * 0.30)); // bold
   const subSize   = Math.max(14, Math.round(texH * 0.20)); // regular
 
-  const titleFont = `600 ${titleSize}px Poppins`;
+  // ✅ Poppins Bold / Regular (správné váhy)
+  const titleFont = `700 ${titleSize}px Poppins`;
   const subFont   = `400 ${subSize}px Poppins`;
 
   const line1 = fitSingleLine(title,   titleFont, maxW);
@@ -1011,6 +1019,9 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   c.textAlign = "center";
   c.textBaseline = "top";
 
+  // ✅ žádné transformace => žádná deformace písma
+  c.setTransform(1, 0, 0, 1, 0, 0);
+
   // 1) Wall+index (bold)
   c.font = titleFont;
   c.fillText(line1, texW / 2, startY);
@@ -1020,8 +1031,30 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   c.fillText(line2, texW / 2, startY + titleLineH + gap);
 
   dt.update();
+
+  // ✅ Nastavení textury pro ostrý text a bez "zúžení" vlivem mipmap/samplingu
+  // (funguje na DynamicTexture - dt je textura)
+  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+  // Pro text na malé ploše často vypadá nejlépe NEAREST nebo BILINEAR.
+  // Nearest je nejostřejší (pixel-look), bilinear je jemnější.
+  dt.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+
+  // Omez anisotropic (není nutné pro UI text)
+  dt.anisotropicFilteringLevel = 1;
+
   const mat = unlitTex(dt);
   mat.zOffset = -2;
+
+  // ✅ pokud unlitTex používá nějaké defaulty, přepiš sampling i tam:
+  if (mat.diffuseTexture) {
+    mat.diffuseTexture.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+    mat.diffuseTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    mat.diffuseTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    mat.diffuseTexture.anisotropicFilteringLevel = 1;
+  }
+
   plac.material = mat;
 }
 
@@ -1093,6 +1126,21 @@ function addFrame(pos, rotY=0, wall='front', indexOnWall=1){
     sideOrientation: BABYLON.Mesh.FRONTSIDE
   }, scene);
 
+  // ✅ KRITICKÉ: zajistit, že plane není non-uniform škálovaný
+  plac.scaling.set(1, 1, 1);
+  plac.bakeCurrentTransformIntoVertices?.(); // pokud je k dispozici (některé verze)
+  plac.computeWorldMatrix(true);
+
+  // ✅ A také UV musí být standardní (0..1). U Plane by mělo být default,
+  // ale pokud někde přepisuješ uvs, tak tohle pomůže.
+  if (plac.setVerticesData && plac.getVerticesData) {
+    const uvs = plac.getVerticesData(BABYLON.VertexBuffer.UVKind);
+    if (uvs && uvs.length === 8) {
+      // standard UV pro plane (2 trojúhelníky)
+      plac.setVerticesData(BABYLON.VertexBuffer.UVKind, [0,0, 1,0, 1,1, 0,1], true);
+    }
+  }
+
   // původní pozice středu (jak to bylo před zvětšením)
   const baseCenter = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0));
 
@@ -1107,10 +1155,8 @@ function addFrame(pos, rotY=0, wall='front', indexOnWall=1){
   plac.isPickable = true;
 
   // === DATA pro cedulku ===
-  // line1: Back 1 / Front 3 / Left 6 ...
-  // line2: product (přijde z assignDataAllWalls, nebo zůstane prázdné)
   const data = {
-    collection: `${wallLabel(wall)} ${indexOnWall}`, // <- tohle je ten "Back 1"
+    collection: `${wallLabel(wall)} ${indexOnWall}`,
     product: "",
     url: "",
     src: ""
