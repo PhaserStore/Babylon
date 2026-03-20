@@ -1047,6 +1047,26 @@ function drawPlacard(plac, data, rotY, planeW, planeH){
   const mat = unlitTex(dt);
   mat.zOffset = -2;
 
+  // ✅ Vynutit 1:1 mapování textury (častý zdroj "zúžení")
+  const t = mat.diffuseTexture || mat.emissiveTexture || mat.albedoTexture;
+  if (t) {
+    t.uScale = 1;
+    t.vScale = 1;
+    t.uOffset = 0;
+    t.vOffset = 0;
+    t.wAng = 0;
+
+    t.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    t.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+    // stabilní sampling pro UI text
+    t.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+    t.anisotropicFilteringLevel = 1;
+  }
+
+  plac.material = mat;
+
+
   // ✅ pokud unlitTex používá nějaké defaulty, přepiš sampling i tam:
   if (mat.diffuseTexture) {
     mat.diffuseTexture.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
