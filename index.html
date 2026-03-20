@@ -804,7 +804,7 @@ async function svgToInkOverlayTexture(svgUrl, {
 
       // === UV margin (aby overlay nebyl až na hraně) ===
 const margin = 0.10;              // 6% okraj; zkus 0.03–0.10
-const scale = 1 - margin * 2;     // např. 0.88 při margin 0.06
+const scale = 0.88 - margin * 0.66;     // např. 0.88 při margin 0.06
 
 // CLAMP, aby se nic neopakovalo za hranou
 dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
