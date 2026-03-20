@@ -802,6 +802,21 @@ async function svgToInkOverlayTexture(svgUrl, {
       m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
       m.needDepthPrePass = true;
 
+      // === UV margin (aby overlay nebyl až na hraně) ===
+const margin = 0.06;              // 6% okraj; zkus 0.03–0.10
+const scale = 1 - margin * 2;     // např. 0.88 při margin 0.06
+
+// CLAMP, aby se nic neopakovalo za hranou
+dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+// zmenšit overlay a vycentrovat
+dt.uScale = scale;
+dt.vScale = scale;
+dt.uOffset = margin;
+dt.vOffset = margin;
+      
+
       floor.material = m;
       console.log("[floor] overlay OK");
     } catch (e) {
