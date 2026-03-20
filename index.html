@@ -598,13 +598,139 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   return m;
 }
   function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(name,{ width:w, height:h },scene,genMipmaps,BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO;
-    return dt;
+  const dt = new BABYLON.DynamicTexture(
+    name,
+    { width: w, height: h },
+    scene,
+    genMipmaps,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
+  dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.hasAlpha = false;
+  dt.anisotropicFilteringLevel = MAX_ANISO;
+  return dt;
+}
+
+/**
+ * SVG -> průhledná "ink overlay" textura:
+ * - RGB = ink (např. bílé)
+ * - alpha = maska (tam kde SVG "kreslí", jinde průhledné)
+ */
+async function svgToInkOverlayTexture(svgUrl, {
+  maxSize = 2048,
+  targetAspect = 1.0,                 // ROOM.W / ROOM.D
+  ink = { r: 255, g: 255, b: 255 },    // barva overlay
+  alphaGain = 1.8,                     // zesílení masky
+  alphaMax = 1.0,                      // max alfa (1 = plná)
+  sampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+  mode = "auto",                       // "auto" | "blackOnTransparent" | "whiteOnTransparent"
+
+  // volitelné: tvrdá alpha (bez poloprůhlednosti uvnitř tvaru)
+  binaryAlpha = false,
+  threshold = 0.10
+} = {}) {
+
+  const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
+  const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
+
+  // 1) fetch SVG
+  const res = await fetch(svgUrl, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`SVG fetch failed: ${res.status} ${res.statusText}`);
+  const svgText = await res.text();
+
+  // 2) Blob URL pro spolehlivé načtení do <img>
+  const blob = new Blob([svgText], { type: "image/svg+xml" });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // 3) decode Image
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.decoding = "async";
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = blobUrl;
+  });
+
+  // 4) velikost textury podle poměru podlahy
+  let w = Math.min(cap, maxSize);
+  let h = Math.round(w / Math.max(1e-6, targetAspect));
+  if (h > cap) { h = cap; w = Math.round(h * targetAspect); }
+  w = Math.min(nextPOT(w), cap);
+  h = Math.min(nextPOT(h), cap);
+
+  // 5) render SVG do temp canvas
+  const tmp = document.createElement("canvas");
+  tmp.width = w;
+  tmp.height = h;
+  const tctx = tmp.getContext("2d", { willReadFrequently: true });
+
+  tctx.clearRect(0, 0, w, h);
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = "high";
+  tctx.drawImage(img, 0, 0, w, h);
+
+  const imgData = tctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  // Auto detekce: průměrná luminance neprůhledných pixelů
+  let sumLum = 0, count = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3];
+    if (a > 10) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      sumLum += lum;
+      count++;
+    }
+  }
+  const avgLum = count ? (sumLum / count) : 0;
+
+  let useWhiteAsInk;
+  if (mode === "whiteOnTransparent") useWhiteAsInk = true;
+  else if (mode === "blackOnTransparent") useWhiteAsInk = false;
+  else useWhiteAsInk = avgLum > 0.55; // auto
+
+  // 6) přepiš na overlay: RGB = ink, alpha = coverage
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const a = d[i + 3] / 255;
+
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+
+    let cov = useWhiteAsInk ? (lum * a) : ((1 - lum) * a);
+    cov = Math.max(0, Math.min(1, cov * alphaGain));
+
+    // tvrdá alpha (bez poloprůhlednosti)
+    if (binaryAlpha) cov = (cov >= threshold) ? 1 : 0;
+
+    d[i]     = ink.r;
+    d[i + 1] = ink.g;
+    d[i + 2] = ink.b;
+    d[i + 3] = Math.round(cov * alphaMax * 255);
   }
 
+  // 7) DynamicTexture
+  const out = new BABYLON.DynamicTexture("floorInkDT", { width: w, height: h }, scene, true, sampling);
+  out.hasAlpha = true;
+  out.gammaSpace = true;
+
+  const ctx = out.getContext();
+  ctx.putImageData(imgData, 0, 0);
+  out.update();
+
+  out.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  out.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  out.uScale = 1;
+  out.vScale = 1;
+  out.anisotropicFilteringLevel = MAX_ANISO || 4;
+
+  URL.revokeObjectURL(blobUrl);
+
+  console.log("[floor] avgLum:", avgLum.toFixed(3), "mode:", useWhiteAsInk ? "whiteAsInk" : "blackAsInk", "size:", w, "x", h);
+
+  return out;
+}
+    
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
     skybox.isPickable = false; skybox.infiniteDistance = true; skybox.applyFog = false;
@@ -625,42 +751,118 @@ function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
   }
 
   function buildRoom() {
-    const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM.W, height: ROOM.D }, scene);
-    floor.material = unlit("#151515");
+  // =========================
+  // PODLAHA (Ground)
+  // =========================
+  const floor = BABYLON.MeshBuilder.CreateGround(
+    "floor",
+    { width: ROOM.W, height: ROOM.D },
+    scene
+  );
 
-    const LED_TOP = ROOM.H - 0.04;
-    const LIP = 0.005;
-    const WALL_H = LED_TOP - LIP;
-    const wallY  = WALL_H / 2;
-    const OVER = 0.04;
+  // fallback (když SVG selže)
+  floor.material = unlit("#151515");
 
-    const back = BABYLON.MeshBuilder.CreatePlane("back", {
-      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    back.position.set(0, wallY, -ROOM.D/2);
-    back.material = unlit("#2b2b2b");
+  // SVG overlay (běží asynchronně, stěny se mezitím postaví hned)
+  (async () => {
+    try {
+      const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
+        maxSize: IS_MOBILE ? 1024 : 2048,
+        targetAspect: ROOM.W / ROOM.D,
 
-    const front = BABYLON.MeshBuilder.CreatePlane("front", {
-      width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    front.position.set(0, wallY, ROOM.D/2);
-    front.rotation.y = Math.PI;
-    front.material = unlit("#2b2b2b");
+        // Bílé "ink"
+        ink: { r: 255, g: 255, b: 255 },
 
-    const left = BABYLON.MeshBuilder.CreatePlane("leftWall", {
-      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    left.position.set(-ROOM.W/2, wallY, 0);
-    left.rotation.y = -Math.PI/2;
-    left.material = unlit("#242424");
+        // Viditelnost masky
+        alphaGain: 1.6,
+        alphaMax: 1.0,
 
-    const right = BABYLON.MeshBuilder.CreatePlane("rightWall", {
-      width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    right.position.set(ROOM.W/2, wallY, 0);
-    right.rotation.y = Math.PI/2;
-    right.material = unlit("#242424");
-  }
+        // Tvrdé tvary bez poloprůhlednosti uvnitř (doporučeno)
+        binaryAlpha: true,
+        threshold: 0.10,
+
+        mode: "auto" // případně "whiteOnTransparent" / "blackOnTransparent"
+      });
+
+      const m = new BABYLON.StandardMaterial("floorMatInk", scene);
+      m.disableLighting = true;
+      m.specularColor = new BABYLON.Color3(0, 0, 0);
+
+      // overlay + alpha maska
+      m.diffuseTexture = dt;
+      m.opacityTexture = dt;
+      m.useAlphaFromDiffuseTexture = true;
+
+      // aby bílá byla čitelná
+      m.emissiveTexture = dt;
+      m.emissiveColor = new BABYLON.Color3(1, 1, 1);
+
+      // transparency
+      m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+      m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+      m.needDepthPrePass = true;
+
+      floor.material = m;
+      console.log("[floor] overlay OK");
+    } catch (e) {
+      console.warn("[floor] overlay failed -> fallback", e);
+    }
+  })();
+
+  // =========================
+  // STĚNY (vše uvnitř buildRoom)
+  // =========================
+  const LED_TOP = ROOM.H - 0.04;
+  const LIP = 0.005;
+  const WALL_H = LED_TOP - LIP;
+  const wallY = WALL_H / 2;
+  const OVER = 0.04;
+
+  // Zadní stěna
+  const back = BABYLON.MeshBuilder.CreatePlane(
+    "back",
+    { width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
+  back.position.set(0, wallY, -ROOM.D / 2);
+  back.material = unlit("#2b2b2b");
+
+  // Přední stěna
+  const front = BABYLON.MeshBuilder.CreatePlane(
+    "front",
+    { width: ROOM.W + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
+  front.position.set(0, wallY, ROOM.D / 2);
+  front.rotation.y = Math.PI;
+  front.material = unlit("#2b2b2b");
+
+  // Levá stěna
+  const left = BABYLON.MeshBuilder.CreatePlane(
+    "leftWall",
+    { width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
+  left.position.set(-ROOM.W / 2, wallY, 0);
+  left.rotation.y = -Math.PI / 2;
+  left.material = unlit("#242424");
+
+  // Pravá stěna
+  const right = BABYLON.MeshBuilder.CreatePlane(
+    "rightWall",
+    { width: ROOM.D + OVER, height: WALL_H, sideOrientation: BABYLON.Mesh.FRONTSIDE },
+    scene
+  );
+  right.position.set(ROOM.W / 2, wallY, 0);
+  right.rotation.y = Math.PI / 2;
+  right.material = unlit("#242424");
+
+  // (volitelné) ať se stěny neklikají
+  back.isPickable = front.isPickable = left.isPickable = right.isPickable = false;
+
+  // (volitelné) návrat reference, pokud bys někdy chtěl
+  return { floor, back, front, left, right };
+}
 
   function buildCeilingWithAperture({ inw = 0.1 } = {}) {
     const y1 = ROOM.H - 0.04;
@@ -932,161 +1134,60 @@ function makeShadedFrameBoxMultiMat(baseHex = FRAME_COLOR){
   return mm;
 }
 
-// === Placard styling ===
-const PLACARD_HEIGHT_MULT = 2.5;   // požadované zvětšení výšky (nahoru)
-const PLACARD_BG = "#6b6b6b";
-
-/* Převod interního názvu stěny -> label (Front/Back/Left/Right) */
-function wallLabel(wall){
-  switch ((wall || "").toLowerCase()){
-    case "front": return "Front";
-    case "back":  return "Back";
-    case "left":  return "Left";
-    case "right": return "Right";
-    default:      return "Wall";
-  }
-}
-
-/* === Cedulka: 2 řádky (wall+index bold + product regular) === */
+/* === Cedulka zůstává stejná === */
 function drawPlacard(plac, data, rotY, planeW, planeH){
   const texWFull = TEX_SIZE;
-  const texWTarget = IS_MOBILE
-    ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5)))
-    : texWFull;
-
-  // Zachovat poměr stran textury podle plane (to je správně)
+  const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
   const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
-  const texH = nearestPOT(Math.max(128, Math.round(texW * (planeH / planeW))), texW);
+  const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
 
-  // ✅ DŮLEŽITÉ: pro text nechceme mipmapy (rozmazání / "zúžení")
-  // makeDT(name, w, h, genMipMaps?) – ty tam dáváš !IS_MOBILE
-  // pro čistý text je lepší vždy false
-  const dt = makeDT("pl", texW, texH, false);
-  const c  = dt.getContext();
+  const dt = makeDT("pl", texW, texH, !IS_MOBILE);
+  const c = dt.getContext();
+  c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
 
-  // ✅ Canvas rendering nastavení (nezpůsobí deformaci, jen kvalitu)
-  c.imageSmoothingEnabled = true;
-  c.imageSmoothingQuality = "high";
+  const pad = Math.round(texH * 0.12);
+  const maxW = texW - pad*2;
 
-  // pozadí
-  c.setTransform(1, 0, 0, 1, 0, 0); // ✅ reset jakýchkoli transformací
-  c.clearRect(0, 0, texW, texH);
-  c.fillStyle = PLACARD_BG;
-  c.fillRect(0, 0, texW, texH);
+  c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "top";
+  const lineH = Math.round(texH * 0.34);
+  const fontSize = Math.max(18, Math.round(lineH * 0.78));
+  c.font = `600 ${fontSize}px Poppins`;
 
-  const pad  = Math.round(texH * 0.14);
-  const maxW = texW - pad * 2;
+  const text = (data.title || "(bez názvu)").trim();
+  const words = text.split(/\s+/);
+  const lines = [];
+  let buf = "";
+  for (let w of words){
+    const test = buf ? (buf + " " + w) : w;
+    if (c.measureText(test).width <= maxW) buf = test;
+    else { if (buf) lines.push(buf); buf = w; }
+  }
+  if (buf) lines.push(buf);
+  const maxLines = 2;
+  if (lines.length > maxLines){
+    const keep = lines.slice(0, maxLines);
+    let last = keep[maxLines-1];
+    while (c.measureText(last + "…").width > maxW && last.length>0) last = last.slice(0,-1);
+    keep[maxLines-1] = last + "…";
+    lines.length = 0; Array.prototype.push.apply(lines, keep);
+  }
 
-  // 1. řádek: "Back 1" apod. (bold)
-  const title = (data.collection || data.title || "(bez názvu)").trim();
-
-  // 2. řádek: product (regular)
-  const product = (data.product || data.productType || data.type || "").trim();
-
-  // helper: 1 řádek + ellipsis, když je to dlouhé
-  const fitSingleLine = (text, font, maxWidth) => {
-    c.font = font;
-    let t = (text || "").trim();
-    if (!t) return "";
-    if (c.measureText(t).width <= maxWidth) return t;
-
-    const ell = "…";
-    while (t.length > 0 && c.measureText(t + ell).width > maxWidth){
-      t = t.slice(0, -1);
-    }
-    return (t.trim() ? t.trim() + ell : ell);
-  };
-
-  // sizing (poměrově k texH) – doladěno pro 2 řádky
-  const titleSize = Math.max(18, Math.round(texH * 0.30)); // bold
-  const subSize   = Math.max(14, Math.round(texH * 0.20)); // regular
-
-  // ✅ Poppins Bold / Regular (správné váhy)
-  const titleFont = `700 ${titleSize}px Poppins`;
-  const subFont   = `400 ${subSize}px Poppins`;
-
-  const line1 = fitSingleLine(title,   titleFont, maxW);
-  const line2 = fitSingleLine(product, subFont,   maxW);
-
-  const titleLineH = Math.round(titleSize * 1.10);
-  const subLineH   = Math.round(subSize   * 1.15);
-  const gap        = Math.round(texH * 0.07);
-
-  const blockH = titleLineH + gap + subLineH;
-  const startY = Math.max(pad, Math.round((texH - blockH) / 2));
-
-  c.fillStyle = "#fff";
-  c.textAlign = "center";
-  c.textBaseline = "top";
-
-  // ✅ žádné transformace => žádná deformace písma
-  c.setTransform(1, 0, 0, 1, 0, 0);
-
-  // 1) Wall+index (bold)
-  c.font = titleFont;
-  c.fillText(line1, texW / 2, startY);
-
-  // 2) product (regular)
-  c.font = subFont;
-  c.fillText(line2, texW / 2, startY + titleLineH + gap);
+  const blockH = lines.length * lineH;
+  const startY = Math.max(pad, Math.round((texH - blockH)/2));
+  lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
 
   dt.update();
-
-  // ✅ Nastavení textury pro ostrý text a bez "zúžení" vlivem mipmap/samplingu
-  // (funguje na DynamicTexture - dt je textura)
-  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-
-  // Pro text na malé ploše často vypadá nejlépe NEAREST nebo BILINEAR.
-  // Nearest je nejostřejší (pixel-look), bilinear je jemnější.
-  dt.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
-
-  // Omez anisotropic (není nutné pro UI text)
-  dt.anisotropicFilteringLevel = 1;
-
-  const mat = unlitTex(dt);
-  mat.zOffset = -2;
-
-  // ✅ Vynutit 1:1 mapování textury (častý zdroj "zúžení")
-  const t = mat.diffuseTexture || mat.emissiveTexture || mat.albedoTexture;
-  if (t) {
-    t.uScale = 1;
-    t.vScale = 1;
-    t.uOffset = 0;
-    t.vOffset = 0;
-    t.wAng = 0;
-
-    t.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    t.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-
-    // stabilní sampling pro UI text
-    t.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
-    t.anisotropicFilteringLevel = 1;
-  }
-
-  plac.material = mat;
-
-
-  // ✅ pokud unlitTex používá nějaké defaulty, přepiš sampling i tam:
-  if (mat.diffuseTexture) {
-    mat.diffuseTexture.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
-    mat.diffuseTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    mat.diffuseTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    mat.diffuseTexture.anisotropicFilteringLevel = 1;
-  }
-
+  const mat = unlitTex(dt); mat.zOffset = -2;
   plac.material = mat;
 }
-
 /* === Posun po normále stěny (pro umístění plochy a cedulky) === */
 function normalOffset(rotY, dist){
   const nx = Math.sin(rotY) * dist;
   const nz = Math.cos(rotY) * dist;
   return new BABYLON.Vector3(nx, 0, nz);
 }
-
 /* === Frame konstrukce — placeholder 9:16! === */
-function addFrame(pos, rotY=0, wall='front', indexOnWall=1){
+function addFrame(pos, rotY=0, wall='front'){
   const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
     width: FRAME_SIZE.W + FRAME_BOX_BORDER,
     height: FRAME_SIZE.H + FRAME_BOX_BORDER,
@@ -1129,65 +1230,22 @@ function addFrame(pos, rotY=0, wall='front', indexOnWall=1){
   fMat.zOffset = -1;
   f.material = fMat;
 
-  // =========================
-  // Cedulka: vyšší, ale spodní hrana zůstává na stejném místě
-  // =========================
+  // cedulka
   const placW = FRAME_SIZE.W;
-
-  // původní výška cedulky (baseline)
-  const basePlacH = Math.max(0.22, FRAME_SIZE.H * 0.10);
-
-  // nová výška (cca 2.5×) – roste NAHORU
-  const placH = basePlacH * PLACARD_HEIGHT_MULT;
-
+  const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
   const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-    width: placW,
-    height: placH,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
+    width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
   }, scene);
 
-  // ✅ KRITICKÉ: zajistit, že plane není non-uniform škálovaný
-  plac.scaling.set(1, 1, 1);
-  plac.bakeCurrentTransformIntoVertices?.(); // pokud je k dispozici (některé verze)
-  plac.computeWorldMatrix(true);
-
-  // ✅ A také UV musí být standardní (0..1). U Plane by mělo být default,
-  // ale pokud někde přepisuješ uvs, tak tohle pomůže.
-  if (plac.setVerticesData && plac.getVerticesData) {
-    const uvs = plac.getVerticesData(BABYLON.VertexBuffer.UVKind);
-    if (uvs && uvs.length === 8) {
-      // standard UV pro plane (2 trojúhelníky)
-      plac.setVerticesData(BABYLON.VertexBuffer.UVKind, [0,0, 1,0, 1,1, 0,1], true);
-    }
-  }
-
-  // původní pozice středu (jak to bylo před zvětšením)
-  const baseCenter = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H * 0.83, 0));
-
-  // když je plane vyšší, jeho střed musí jít nahoru o (ΔH / 2)
-  const deltaH = placH - basePlacH;
-
-  plac.position = baseCenter
-    .add(new BABYLON.Vector3(0, deltaH / 2, 0))
-    .add(normalOffset(rotY, 0.03));
-
+  plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
   plac.rotation.y = rotY + Math.PI;
   plac.isPickable = true;
 
-  // === DATA pro cedulku ===
-  const data = {
-    collection: `${wallLabel(wall)} ${indexOnWall}`,
-    product: "",
-    url: "",
-    src: ""
-  };
-
+  const data = { title: "(bez názvu)", url: "", src: "" };
   drawPlacard(plac, data, rotY, placW, placH);
 
   return { frame:f, box, placard:plac, data, wall, rotY, pos };
 }
-
-    
 
 /* =========================
      LOGO – inline SVG (ostrý) na ZADNÍ i PŘEDNÍ stěně (1× na každé)
@@ -1409,7 +1467,7 @@ hint("Logo zobrazeno (front + back) + variabilní typewriter pro obě stěny ✔
   /* UPRAV CESTY NA SVÉ .webp SOUBORY */
   const DATA = {
     front: [
-      { img: "./assets/Acid_T.webp", label: "Acid T", href: "https://everpress.com/acid-house-8-bit-smiley" },
+      { img: "./assets/Acid_T.webp", label: "Acid T", href: "https://everpress.com/the-future-phaser-collection2" },
       { img: "./assets/Acid_T.webp",   label: "Produkt B", href: "https://example.com/b" },
       { img: "./assets/Acid_T.webp", label: "Produkt C", href: "https://example.com/c" },
       { img: "./assets/Acid_T.webp",   label: "Produkt D", href: "https://example.com/d" }
