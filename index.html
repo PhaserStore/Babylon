@@ -752,18 +752,20 @@ async function svgToInkOverlayTexture(svgUrl, {
 
   function buildRoom() {
   // =========================
-  // PODLAHA (Ground)
-  // =========================
-  const floor = BABYLON.MeshBuilder.CreateGround(
-    "floor",
-    { width: ROOM.W, height: ROOM.D },
-    scene
-  );
+// PODLAHA (Ground)
+// =========================
 
-  // fallback (když SVG selže)
-  floor.material = unlit("#151515");
+// Base floor (plná velikost)
+const floor = BABYLON.MeshBuilder.CreateGround(
+  "floor",
+  { width: ROOM.W, height: ROOM.D },
+  scene
+);
 
-    // === Overlay mesh o něco menší (inset) ===
+// fallback (když SVG selže)
+floor.material = unlit("#151515");
+
+// === Overlay mesh o něco menší (inset) ===
 const INSET = 0.25; // v metrech – zkus 0.15 až 0.40 podle velikosti místnosti
 
 const floorOverlay = BABYLON.MeshBuilder.CreateGround(
@@ -775,75 +777,89 @@ const floorOverlay = BABYLON.MeshBuilder.CreateGround(
   scene
 );
 
-// lehce nad base floor, aby nevznikal z-fighting (ta fialová linka může být i tím)
-floorOverlay.position.y = 0.002;
+// lehce nad base floor, aby nevznikal z-fighting
+floorOverlay.position.y = 0.003;
 
-// jistota, že overlay nechyta stíny/zmatky
+// jistota, že overlay nechytá stíny / kliky
 floorOverlay.receiveShadows = false;
 floorOverlay.isPickable = false;
 
-    
+// (volitelné) pokud máš podlahu posunutou mimo (0,0,0), srovnej overlay
+floorOverlay.position.x = floor.position.x;
+floorOverlay.position.z = floor.position.z;
 
-  // SVG overlay (běží asynchronně, stěny se mezitím postaví hned)
-  (async () => {
-    try {
-      const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
-        maxSize: IS_MOBILE ? 1024 : 2048,
-        targetAspect: ROOM.W / ROOM.D,
 
-        // Bílé "ink"
-       ink: { r: 152, g: 32, b: 227 },
+// SVG overlay (běží asynchronně)
+(async () => {
+  try {
+    const dt = await svgToInkOverlayTexture("./assets/floor.svg", {
+      maxSize: IS_MOBILE ? 1024 : 2048,
+      targetAspect: ROOM.W / ROOM.D,
 
-        // Viditelnost masky
-        alphaGain: 1.6,
-        alphaMax: 1,
+      // Ink barva (RGB)
+      ink: { r: 152, g: 32, b: 227 },
 
-        // Tvrdé tvary bez poloprůhlednosti uvnitř (doporučeno)
-        binaryAlpha: true,
-        threshold: 0.10,
+      // Viditelnost masky
+      alphaGain: 1.6,
+      alphaMax: 1,
 
-        mode: "auto" // případně "whiteOnTransparent" / "blackOnTransparent"
-      });
+      // Tvrdé tvary bez poloprůhlednosti uvnitř
+      binaryAlpha: true,
+      threshold: 0.10,
 
-      const m = new BABYLON.StandardMaterial("floorMatInk", scene);
-      m.disableLighting = true;
-      m.specularColor = new BABYLON.Color3(0, 0, 0);
+      mode: "auto"
+    });
 
-      // overlay + alpha maska
-      m.diffuseTexture = dt;
-      m.opacityTexture = dt;
-      m.useAlphaFromDiffuseTexture = true;
+    // ✅ Textura musí mít alpha a nesmí se wrapovat
+    dt.hasAlpha = true;
+    dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+    dt.anisotropicFilteringLevel = 1;
 
-      // aby bílá byla čitelná
-      m.emissiveTexture = dt;
-      m.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    // === UV margin (aby overlay nebyl až na hraně overlay meshe) ===
+    // POZOR: 0.06 = 6% (ty jsi měl 0.6, to je 60% a rozbije to scale do mínusu)
+    const margin = 0.06;              // zkus 0.03–0.10
+    const scale  = 1 - margin * 2;    // např. 0.88 při margin 0.06
 
-      // transparency
-      m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-      m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
-      m.needDepthPrePass = true;
+    dt.uScale  = scale;
+    dt.vScale  = scale;
+    dt.uOffset = margin;
+    dt.vOffset = margin;
 
-      // === UV margin (aby overlay nebyl až na hraně) ===
-const margin = 0.6;              // 6% okraj; zkus 0.03–0.10
-const scale = 1 - margin * 2;     // např. 0.88 při margin 0.06
+    const m = new BABYLON.StandardMaterial("floorMatInk", scene);
+    m.disableLighting = true;
+    m.specularColor = new BABYLON.Color3(0, 0, 0);
 
-// CLAMP, aby se nic neopakovalo za hranou
-dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    // ✅ Klíčová změna: NEpoužívat dt jako diffuseTexture
+    // Jinak se vykreslí i RGB pozadí a vznikne “bílá deska”.
+    m.diffuseTexture = null;
+    m.diffuseColor = new BABYLON.Color3(0, 0, 0);
 
-// zmenšit overlay a vycentrovat
-dt.uScale = scale;
-dt.vScale = scale;
-dt.uOffset = margin;
-dt.vOffset = margin;
-      
+    // ✅ opacityTexture = maska (transparentní mimo ink)
+    m.opacityTexture = dt;
 
-      floor.material = m;
-      console.log("[floor] overlay OK");
-    } catch (e) {
-      console.warn("[floor] overlay failed -> fallback", e);
-    }
-  })();
+    // ✅ emissiveTexture = viditelný ink (svítí, aby byl čitelný)
+    m.emissiveTexture = dt;
+    m.emissiveColor = new BABYLON.Color3(1, 1, 1);
+
+    // transparency
+    m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+    m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+    m.needDepthPrePass = true;
+
+    // Doporučeno pro takové overlaye
+    m.backFaceCulling = true;
+
+    // ✅ Materiál patří na overlay mesh, ne na base floor
+    floorOverlay.material = m;
+
+    console.log("[floor] overlay OK");
+  } catch (e) {
+    console.warn("[floor] overlay failed -> fallback", e);
+    // když overlay selže, zůstane jen tmavý floor
+  }
+})();
 
   // =========================
   // STĚNY (vše uvnitř buildRoom)
