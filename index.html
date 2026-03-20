@@ -763,6 +763,27 @@ async function svgToInkOverlayTexture(svgUrl, {
   // fallback (když SVG selže)
   floor.material = unlit("#151515");
 
+    // === Overlay mesh o něco menší (inset) ===
+const INSET = 0.25; // v metrech – zkus 0.15 až 0.40 podle velikosti místnosti
+
+const floorOverlay = BABYLON.MeshBuilder.CreateGround(
+  "floorOverlay",
+  {
+    width: Math.max(0.1, ROOM.W - INSET * 2),
+    height: Math.max(0.1, ROOM.D - INSET * 2)
+  },
+  scene
+);
+
+// lehce nad base floor, aby nevznikal z-fighting (ta fialová linka může být i tím)
+floorOverlay.position.y = 0.002;
+
+// jistota, že overlay nechyta stíny/zmatky
+floorOverlay.receiveShadows = false;
+floorOverlay.isPickable = false;
+
+    
+
   // SVG overlay (běží asynchronně, stěny se mezitím postaví hned)
   (async () => {
     try {
