@@ -775,7 +775,7 @@ async function svgToInkOverlayTexture(svgUrl, {
 
         // Viditelnost masky
         alphaGain: 1.6,
-        alphaMax: 0.88,
+        alphaMax: 1,
 
         // Tvrdé tvary bez poloprůhlednosti uvnitř (doporučeno)
         binaryAlpha: true,
@@ -803,7 +803,7 @@ async function svgToInkOverlayTexture(svgUrl, {
       m.needDepthPrePass = true;
 
       // === UV margin (aby overlay nebyl až na hraně) ===
-const margin = 0.06;              // 6% okraj; zkus 0.03–0.10
+const margin = 2;              // 6% okraj; zkus 0.03–0.10
 const scale = 1 - margin * 2;     // např. 0.88 při margin 0.06
 
 // CLAMP, aby se nic neopakovalo za hranou
