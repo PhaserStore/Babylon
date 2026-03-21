@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #1a1410;
+      }
+
+      .cls-2 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <g>
+    <rect class="cls-1" x="270" y="990" width="90" height="90" transform="translate(1350 720) rotate(90)"/>
+    <polygon class="cls-2" points="270 1035 315 990 360 1035 315 1080 270 1035"/>
+    <rect class="cls-2" x="270" y="900" width="90" height="90" transform="translate(1260 630) rotate(90)"/>
+    <polygon class="cls-1" points="270 945 315 900 360 945 315 990 270 945"/>
+    <polygon class="cls-1" points="180 900 180 990 270 990 270 900 180 900"/>
+    <polygon class="cls-2" points="180 945 225 990 270 945 225 900 180 945"/>
+    <polygon class="cls-2" points="180 990 180 1080 270 1080 270 990 180 990"/>
+    <polygon class="cls-1" points="180 1035 225 1080 270 1035 225 990 180 1035"/>
+    <rect class="cls-1" x="90" y="990" width="90" height="90" transform="translate(1170 900) rotate(90)"/>
+    <polygon class="cls-2" points="90 1035 135 990 180 1035 135 1080 90 1035"/>
+    <rect class="cls-2" x="90" y="900" width="90" height="90" transform="translate(1080 810) rotate(90)"/>
+    <polygon class="cls-1" points="90 945 135 900 180 945 135 990 90 945"/>
+    <polygon class="cls-1" points="0 900 0 990 90 990 90 900 0 900"/>
+    <polygon class="cls-2" points="0 945 45 990 90 945 45 900 0 945"/>
+    <polygon class="cls-2" points="0 990 0 1080 90 1080 90 990 0 990"/>
+    <polygon class="cls-1" points="0 1035 45 1080 90 1035 45 990 0 1035"/>
+  </g>
+  <polyline class="cls-1" points="720 1080 630 1080 630 990 720 990"/>
+  <polyline class="cls-2" points="720 1035 675 1080 630 1035 675 990 720 1035"/>
+  <polyline class="cls-2" points="720 990 630 990 630 900 720 900"/>
+  <polyline class="cls-1" points="720 945 675 990 630 945 675 900 720 945"/>
+  <polygon class="cls-1" points="540 900 540 990 630 990 630 900 540 900"/>
+  <polygon class="cls-2" points="540 945 585 990 630 945 585 900 540 945"/>
+  <polygon class="cls-2" points="540 990 540 1080 630 1080 630 990 540 990"/>
+  <polygon class="cls-1" points="540 1035 585 1080 630 1035 585 990 540 1035"/>
+  <rect class="cls-1" x="450" y="990" width="90" height="90" transform="translate(1530 540) rotate(90)"/>
+  <polygon class="cls-2" points="450 1035 495 990 540 1035 495 1080 450 1035"/>
+  <rect class="cls-2" x="450" y="900" width="90" height="90" transform="translate(1440 450) rotate(90)"/>
+  <polygon class="cls-1" points="450 945 495 900 540 945 495 990 450 945"/>
+  <polygon class="cls-1" points="360 900 360 990 450 990 450 900 360 900"/>
+  <polygon class="cls-2" points="360 945 405 990 450 945 405 900 360 945"/>
+  <polygon class="cls-2" points="360 990 360 1080 450 1080 450 990 360 990"/>
+  <polygon class="cls-1" points="360 1035 405 1080 450 1035 405 990 360 1035"/>
+  <g>
+    <rect class="cls-1" x="270" y="810" width="90" height="90" transform="translate(1170 540) rotate(90)"/>
+    <polygon class="cls-2" points="270 855 315 810 360 855 315 900 270 855"/>
+    <rect class="cls-2" x="270" y="720" width="90" height="90" transform="translate(1080 450) rotate(90)"/>
+    <polygon class="cls-1" points="270 765 315 720 360 765 315 810 270 765"/>
+    <polygon class="cls-1" points="180 720 180 810 270 810 270 720 180 720"/>
+    <polygon class="cls-2" points="180 765 225 810 270 765 225 720 180 765"/>
+    <polygon class="cls-2" points="180 810 180 900 270 900 270 810 180 810"/>
+    <polygon class="cls-1" points="180 855 225 900 270 855 225 810 180 855"/>
+    <rect class="cls-1" x="90" y="810" width="90" height="90" transform="translate(990 720) rotate(90)"/>
+    <polygon class="cls-2" points="90 855 135 810 180 855 135 900 90 855"/>
+    <rect class="cls-2" x="90" y="720" width="90" height="90" transform="translate(900 630) rotate(90)"/>
+    <polygon class="cls-1" points="90 765 135 720 180 765 135 810 90 765"/>
+    <polygon class="cls-1" points="0 720 0 810 90 810 90 720 0 720"/>
+    <polygon class="cls-2" points="0 765 45 810 90 765 45 720 0 765"/>
+    <polygon class="cls-2" points="0 810 0 900 90 900 90 810 0 810"/>
+    <polygon class="cls-1" points="0 855 45 900 90 855 45 810 0 855"/>
+  </g>
+  <polyline class="cls-1" points="720 900 630 900 630 810 720 810"/>
+  <polyline class="cls-2" points="720 855 675 900 630 855 675 810 720 855"/>
+  <polyline class="cls-2" points="720 810 630 810 630 720 720 720"/>
+  <polyline class="cls-1" points="720 765 675 810 630 765 675 720 720 765"/>
+  <polygon class="cls-1" points="540 720 540 810 630 810 630 720 540 720"/>
+  <polygon class="cls-2" points="540 765 585 810 630 765 585 720 540 765"/>
+  <polygon class="cls-2" points="540 810 540 900 630 900 630 810 540 810"/>
+  <polygon class="cls-1" points="540 855 585 900 630 855 585 810 540 855"/>
+  <rect class="cls-1" x="450" y="810" width="90" height="90" transform="translate(1350 360) rotate(90)"/>
+  <polygon class="cls-2" points="450 855 495 810 540 855 495 900 450 855"/>
+  <rect class="cls-2" x="450" y="720" width="90" height="90" transform="translate(1260 270) rotate(90)"/>
+  <polygon class="cls-1" points="450 765 495 720 540 765 495 810 450 765"/>
+  <polygon class="cls-1" points="360 720 360 810 450 810 450 720 360 720"/>
+  <polygon class="cls-2" points="360 765 405 810 450 765 405 720 360 765"/>
+  <polygon class="cls-2" points="360 810 360 900 450 900 450 810 360 810"/>
+  <polygon class="cls-1" points="360 855 405 900 450 855 405 810 360 855"/>
+  <g>
+    <rect class="cls-1" x="270" y="630" width="90" height="90" transform="translate(990 360) rotate(90)"/>
+    <polygon class="cls-2" points="270 675 315 630 360 675 315 720 270 675"/>
+    <rect class="cls-2" x="270" y="540" width="90" height="90" transform="translate(900 270) rotate(90)"/>
+    <polygon class="cls-1" points="270 585 315 540 360 585 315 630 270 585"/>
+    <polygon class="cls-1" points="180 540 180 630 270 630 270 540 180 540"/>
+    <polygon class="cls-2" points="180 585 225 630 270 585 225 540 180 585"/>
+    <polygon class="cls-2" points="180 630 180 720 270 720 270 630 180 630"/>
+    <polygon class="cls-1" points="180 675 225 720 270 675 225 630 180 675"/>
+    <rect class="cls-1" x="90" y="630" width="90" height="90" transform="translate(810 540) rotate(90)"/>
+    <polygon class="cls-2" points="90 675 135 630 180 675 135 720 90 675"/>
+    <rect class="cls-2" x="90" y="540" width="90" height="90" transform="translate(720 450) rotate(90)"/>
+    <polygon class="cls-1" points="90 585 135 540 180 585 135 630 90 585"/>
+    <polygon class="cls-1" points="0 540 0 630 90 630 90 540 0 540"/>
+    <polygon class="cls-2" points="0 585 45 630 90 585 45 540 0 585"/>
+    <polygon class="cls-2" points="0 630 0 720 90 720 90 630 0 630"/>
+    <polygon class="cls-1" points="0 675 45 720 90 675 45 630 0 675"/>
+  </g>
+  <polyline class="cls-1" points="720 720 630 720 630 630 720 630"/>
+  <polyline class="cls-2" points="720 675 675 720 630 675 675 630 720 675"/>
+  <polyline class="cls-2" points="720 630 630 630 630 540 720 540"/>
+  <polyline class="cls-1" points="720 585 675 630 630 585 675 540 720 585"/>
+  <polygon class="cls-1" points="540 540 540 630 630 630 630 540 540 540"/>
+  <polygon class="cls-2" points="540 585 585 630 630 585 585 540 540 585"/>
+  <polygon class="cls-2" points="540 630 540 720 630 720 630 630 540 630"/>
+  <polygon class="cls-1" points="540 675 585 720 630 675 585 630 540 675"/>
+  <rect class="cls-1" x="450" y="630" width="90" height="90" transform="translate(1170 180) rotate(90)"/>
+  <polygon class="cls-2" points="450 675 495 630 540 675 495 720 450 675"/>
+  <rect class="cls-2" x="450" y="540" width="90" height="90" transform="translate(1080 90) rotate(90)"/>
+  <polygon class="cls-1" points="450 585 495 540 540 585 495 630 450 585"/>
+  <polygon class="cls-1" points="360 540 360 630 450 630 450 540 360 540"/>
+  <polygon class="cls-2" points="360 585 405 630 450 585 405 540 360 585"/>
+  <polygon class="cls-2" points="360 630 360 720 450 720 450 630 360 630"/>
+  <polygon class="cls-1" points="360 675 405 720 450 675 405 630 360 675"/>
+  <g>
+    <rect class="cls-1" x="270" y="450" width="90" height="90" transform="translate(810 180) rotate(90)"/>
+    <polygon class="cls-2" points="270 495 315 450 360 495 315 540 270 495"/>
+    <rect class="cls-2" x="270" y="360" width="90" height="90" transform="translate(720 90) rotate(90)"/>
+    <polygon class="cls-1" points="270 405 315 360 360 405 315 450 270 405"/>
+    <polygon class="cls-1" points="180 360 180 450 270 450 270 360 180 360"/>
+    <polygon class="cls-2" points="180 405 225 450 270 405 225 360 180 405"/>
+    <polygon class="cls-2" points="180 450 180 540 270 540 270 450 180 450"/>
+    <polygon class="cls-1" points="180 495 225 540 270 495 225 450 180 495"/>
+    <rect class="cls-1" x="90" y="450" width="90" height="90" transform="translate(630 360) rotate(90)"/>
+    <polygon class="cls-2" points="90 495 135 450 180 495 135 540 90 495"/>
+    <rect class="cls-2" x="90" y="360" width="90" height="90" transform="translate(540 270) rotate(90)"/>
+    <polygon class="cls-1" points="90 405 135 360 180 405 135 450 90 405"/>
+    <polygon class="cls-1" points="0 360 0 450 90 450 90 360 0 360"/>
+    <polygon class="cls-2" points="0 405 45 450 90 405 45 360 0 405"/>
+    <polygon class="cls-2" points="0 450 0 540 90 540 90 450 0 450"/>
+    <polygon class="cls-1" points="0 495 45 540 90 495 45 450 0 495"/>
+  </g>
+  <polyline class="cls-1" points="720 540 630 540 630 450 720 450"/>
+  <polyline class="cls-2" points="720 495 675 540 630 495 675 450 720 495"/>
+  <polyline class="cls-2" points="720 450 630 450 630 360 720 360"/>
+  <polyline class="cls-1" points="720 405 675 450 630 405 675 360 720 405"/>
+  <polygon class="cls-1" points="540 360 540 450 630 450 630 360 540 360"/>
+  <polygon class="cls-2" points="540 405 585 450 630 405 585 360 540 405"/>
+  <polygon class="cls-2" points="540 450 540 540 630 540 630 450 540 450"/>
+  <polygon class="cls-1" points="540 495 585 540 630 495 585 450 540 495"/>
+  <rect class="cls-1" x="450" y="450" width="90" height="90" transform="translate(990 0) rotate(90)"/>
+  <polygon class="cls-2" points="450 495 495 450 540 495 495 540 450 495"/>
+  <rect class="cls-2" x="450" y="360" width="90" height="90" transform="translate(900 -90) rotate(90)"/>
+  <polygon class="cls-1" points="450 405 495 360 540 405 495 450 450 405"/>
+  <polygon class="cls-1" points="360 360 360 450 450 450 450 360 360 360"/>
+  <polygon class="cls-2" points="360 405 405 450 450 405 405 360 360 405"/>
+  <polygon class="cls-2" points="360 450 360 540 450 540 450 450 360 450"/>
+  <polygon class="cls-1" points="360 495 405 540 450 495 405 450 360 495"/>
+  <g>
+    <rect class="cls-1" x="270" y="270" width="90" height="90" transform="translate(630 0) rotate(90)"/>
+    <polygon class="cls-2" points="270 315 315 270 360 315 315 360 270 315"/>
+    <rect class="cls-2" x="270" y="180" width="90" height="90" transform="translate(540 -90) rotate(90)"/>
+    <polygon class="cls-1" points="270 225 315 180 360 225 315 270 270 225"/>
+    <polygon class="cls-1" points="180 180 180 270 270 270 270 180 180 180"/>
+    <polygon class="cls-2" points="180 225 225 270 270 225 225 180 180 225"/>
+    <polygon class="cls-2" points="180 270 180 360 270 360 270 270 180 270"/>
+    <polygon class="cls-1" points="180 315 225 360 270 315 225 270 180 315"/>
+    <rect class="cls-1" x="90" y="270" width="90" height="90" transform="translate(450 180) rotate(90)"/>
+    <polygon class="cls-2" points="90 315 135 270 180 315 135 360 90 315"/>
+    <rect class="cls-2" x="90" y="180" width="90" height="90" transform="translate(360 90) rotate(90)"/>
+    <polygon class="cls-1" points="90 225 135 180 180 225 135 270 90 225"/>
+    <polygon class="cls-1" points="0 180 0 270 90 270 90 180 0 180"/>
+    <polygon class="cls-2" points="0 225 45 270 90 225 45 180 0 225"/>
+    <polygon class="cls-2" points="0 270 0 360 90 360 90 270 0 270"/>
+    <polygon class="cls-1" points="0 315 45 360 90 315 45 270 0 315"/>
+  </g>
+  <polyline class="cls-1" points="720 360 630 360 630 270 720 270"/>
+  <polyline class="cls-2" points="720 315 675 360 630 315 675 270 720 315"/>
+  <polyline class="cls-2" points="720 270 630 270 630 180 720 180"/>
+  <polyline class="cls-1" points="720 225 675 270 630 225 675 180 720 225"/>
+  <polygon class="cls-1" points="540 180 540 270 630 270 630 180 540 180"/>
+  <polygon class="cls-2" points="540 225 585 270 630 225 585 180 540 225"/>
+  <polygon class="cls-2" points="540 270 540 360 630 360 630 270 540 270"/>
+  <polygon class="cls-1" points="540 315 585 360 630 315 585 270 540 315"/>
+  <rect class="cls-1" x="450" y="270" width="90" height="90" transform="translate(810 -180) rotate(90)"/>
+  <polygon class="cls-2" points="450 315 495 270 540 315 495 360 450 315"/>
+  <rect class="cls-2" x="450" y="180" width="90" height="90" transform="translate(720 -270) rotate(90)"/>
+  <polygon class="cls-1" points="450 225 495 180 540 225 495 270 450 225"/>
+  <polygon class="cls-1" points="360 180 360 270 450 270 450 180 360 180"/>
+  <polygon class="cls-2" points="360 225 405 270 450 225 405 180 360 225"/>
+  <polygon class="cls-2" points="360 270 360 360 450 360 450 270 360 270"/>
+  <polygon class="cls-1" points="360 315 405 360 450 315 405 270 360 315"/>
+  <g>
+    <rect class="cls-1" x="270" y="90" width="90" height="90" transform="translate(450 -180) rotate(90)"/>
+    <polygon class="cls-2" points="270 135 315 90 360 135 315 180 270 135"/>
+    <rect class="cls-2" x="270" y="0" width="90" height="90" transform="translate(360 -270) rotate(90)"/>
+    <polygon class="cls-1" points="270 45 315 0 360 45 315 90 270 45"/>
+    <polygon class="cls-1" points="180 0 180 90 270 90 270 0 180 0"/>
+    <polygon class="cls-2" points="180 45 225 90 270 45 225 0 180 45"/>
+    <polygon class="cls-2" points="180 90 180 180 270 180 270 90 180 90"/>
+    <polygon class="cls-1" points="180 135 225 180 270 135 225 90 180 135"/>
+    <rect class="cls-1" x="90" y="90" width="90" height="90" transform="translate(270 0) rotate(90)"/>
+    <polygon class="cls-2" points="90 135 135 90 180 135 135 180 90 135"/>
+    <rect class="cls-2" x="90" y="0" width="90" height="90" transform="translate(180 -90) rotate(90)"/>
+    <polygon class="cls-1" points="90 45 135 0 180 45 135 90 90 45"/>
+    <polygon class="cls-1" points="0 0 0 90 90 90 90 0 0 0"/>
+    <polygon class="cls-2" points="0 45 45 90 90 45 45 0 0 45"/>
+    <polygon class="cls-2" points="0 90 0 180 90 180 90 90 0 90"/>
+    <polygon class="cls-1" points="0 135 45 180 90 135 45 90 0 135"/>
+  </g>
+  <polyline class="cls-1" points="720 180 630 180 630 90 720 90"/>
+  <polyline class="cls-2" points="720 135 675 180 630 135 675 90 720 135"/>
+  <polyline class="cls-2" points="720 90 630 90 630 0 720 0"/>
+  <polyline class="cls-1" points="720 45 675 90 630 45 675 0 720 45"/>
+  <polygon class="cls-1" points="540 0 540 90 630 90 630 0 540 0"/>
+  <polygon class="cls-2" points="540 45 585 90 630 45 585 0 540 45"/>
+  <polygon class="cls-2" points="540 90 540 180 630 180 630 90 540 90"/>
+  <polygon class="cls-1" points="540 135 585 180 630 135 585 90 540 135"/>
+  <rect class="cls-1" x="450" y="90" width="90" height="90" transform="translate(630 -360) rotate(90)"/>
+  <polygon class="cls-2" points="450 135 495 90 540 135 495 180 450 135"/>
+  <rect class="cls-2" x="450" y="0" width="90" height="90" transform="translate(540 -450) rotate(90)"/>
+  <polygon class="cls-1" points="450 45 495 0 540 45 495 90 450 45"/>
+  <polygon class="cls-1" points="360 0 360 90 450 90 450 0 360 0"/>
+  <polygon class="cls-2" points="360 45 405 90 450 45 405 0 360 45"/>
+  <polygon class="cls-2" points="360 90 360 180 450 180 450 90 360 90"/>
+  <polygon class="cls-1" points="360 135 405 180 450 135 405 90 360 135"/>
+</svg>
