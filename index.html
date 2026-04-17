@@ -755,40 +755,15 @@ async function svgToInkOverlayTexture(svgUrl, {
 // PODLAHA (Ground)
 // =========================
 
-// =========================
-// PODLAHA – LESKLÝ PBR ZÁKLAD
-// =========================
+// Base floor (plná velikost)
 const floor = BABYLON.MeshBuilder.CreateGround(
   "floor",
   { width: ROOM.W, height: ROOM.D },
   scene
 );
 
-const floorMat = new BABYLON.PBRMaterial("floorPBR", scene);
-
-// tmavý beton / lak
-floorMat.albedoColor = new BABYLON.Color3(0.08, 0.08, 0.08);
-
-// lesk
-floorMat.roughness = IS_MOBILE ? 0.22 : 0.08;   // mobil méně lesklý
-floorMat.metallic  = IS_MOBILE ? 0.25 : 0.55;
-
-// mikro-nerovnosti povrchu (realističtější odraz)
-floorMat.microSurface = IS_MOBILE ? 0.75 : 0.92;
-
-// environment odraz
-floorMat.reflectionTexture = scene.environmentTexture;
-floorMat.reflectionTexture.level = IS_MOBILE ? 0.6 : 1.0;
-
-// jemný ambient
-floorMat.environmentIntensity = IS_MOBILE ? 0.6 : 1.0;
-
-// žádný klasický specular
-floorMat.specularColor = BABYLON.Color3.Black();
-
-floor.material = floorMat;
-floor.receiveShadows = true;
-    
+// fallback (když SVG selže)
+floor.material = unlit("#151515");
 
 // === Overlay mesh o něco menší (inset) ===
 const INSET = 0.05; // v metrech – zkus 0.15 až 0.40 podle velikosti místnosti
@@ -1813,16 +1788,6 @@ function resetCamera({animate=true} = {}){
   /* ========= Scene creation ========= */
 function createScene(){
   scene = new BABYLON.Scene(engine);
-
-  // 🌍 Environment pro PBR odrazy (velmi důležité)
-scene.environmentTexture =
-  BABYLON.CubeTexture.CreateFromPrefilteredData(
-    "https://cdn.babylonjs.com/environments/studio.env",
-    scene
-  );
-
-scene.environmentIntensity = IS_MOBILE ? 0.6 : 1.0;
-  
   scene.clearColor = new BABYLON.Color4(0,0,0,1);
 
   camera = new BABYLON.ArcRotateCamera("cam", RESET_POSE.alpha, RESET_POSE.beta, RESET_POSE.radius, RESET_POSE.target.clone(), scene);
