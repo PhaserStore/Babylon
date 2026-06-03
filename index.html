@@ -397,9 +397,10 @@ function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_
 
  
 // ⚙️ velikosti textur pro typewriter DynamicTexture
-// jemně navýšené, ale stále podle velikosti panelu = stabilnější než fixní 2048/512
-const texW = Math.max(1024, nextPOT(Math.round(1536 * (width / 4))));
-const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2.4)));
+// zachovat původní proporce, jen lehce zvýšit minimum pro větší čitelnost
+const texW = Math.max(1024, nextPOT(Math.round(1024 * (width / 4))));
+const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2)));
+
 
 
 
