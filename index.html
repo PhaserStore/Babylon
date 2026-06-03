@@ -1404,13 +1404,18 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
     
 // === SCÉNOVÝ TYPEWRITER TEXT mezi horní hranu rámu a SPODKEM loga ===
 const logoBottomY = yPos - logoH / 2;
-const frameTop    = frameTopY;
+const frameTop = frameTopY;
 
-// 0.50 = střed mezery; 0.62–0.70 ≈ blíž k logu
-const GAP_T = 0.75;
-const TW_Y_SHIFT_M = 0.80; // +80 cm nahoru
+// 0.50 = střed mezery; vyšší číslo = blíž k logu
+const GAP_T = 0.82;
 
-const yText = frameTop + (logoBottomY - frameTop) * GAP_T;
+// jemné dotažení textu ještě výš směrem k logu
+const TW_EXTRA_UP = 0.18;
+
+const TW_Y_SHIFT_M = 0.80; // původní globální offset
+
+const yText = frameTop + (logoBottomY - frameTop) * GAP_T + TW_EXTRA_UP;
+
 
 // šířka panelu pro přední/zadní stěnu
 const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2;
