@@ -763,11 +763,11 @@ const floor = BABYLON.MeshBuilder.CreateGround(
   scene
 );
 
-// fallback (když textura selže)
+// fallback podklad
 floor.material = unlit("#151515");
 
 // === Overlay mesh o něco menší (inset) ===
-const INSET = 0.05; // v metrech – zkus 0.15 až 0.40 podle velikosti místnosti
+const INSET = 0.05;
 
 const floorOverlay = BABYLON.MeshBuilder.CreateGround(
   "floorOverlay",
@@ -781,51 +781,49 @@ const floorOverlay = BABYLON.MeshBuilder.CreateGround(
 // lehce nad base floor, aby nevznikal z-fighting
 floorOverlay.position.y = 0.003;
 
-// jistota, že overlay nechytá stíny / kliky
+// overlay nechytá kliky ani stíny
 floorOverlay.receiveShadows = false;
 floorOverlay.isPickable = false;
 
-// pokud máš podlahu posunutou mimo (0,0,0), srovnej overlay
+// srovnání pozice s base floorem
 floorOverlay.position.x = floor.position.x;
 floorOverlay.position.z = floor.position.z;
 
-// WEBP overlay
+// === WEBP textura ===
 (() => {
-  try {
-    const tex = new BABYLON.Texture(
-      "./assets/floor.webp",
-      scene,
-      false,
-      false,
-      BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-      () => {
-        console.log("floor.webp loaded");
-      },
-      (message, exception) => {
-        console.error("Failed to load floor.webp", message, exception);
-      }
-    );
+  const tex = new BABYLON.Texture(
+    "./assets/floor.webp",
+    scene,
+    false,
+    false,
+    BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+    () => {
+      console.log("[floor] floor.webp loaded");
+    },
+    (message, exception) => {
+      console.error("[floor] failed to load floor.webp", message, exception);
+    }
+  );
 
-    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.anisotropicFilteringLevel = 1;
+  tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  tex.anisotropicFilteringLevel = 1;
 
-    const mat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
-    mat.diffuseTexture = tex;
-    mat.emissiveTexture = tex;
-    mat.specularColor = BABYLON.Color3.Black();
-    mat.backFaceCulling = false;
+  const m = new BABYLON.StandardMaterial("floorOverlayMat", scene);
+  m.diffuseTexture = tex;
+  m.emissiveTexture = tex;
+  m.specularColor = BABYLON.Color3.Black();
+  m.backFaceCulling = false;
 
-    // pokud má webp průhlednost
-    mat.useAlphaFromDiffuseTexture = true;
-    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+  // pokud má WEBP průhlednost
+  m.useAlphaFromDiffuseTexture = true;
+  m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
-    floorOverlay.material = mat;
-  } catch (err) {
-    console.error("Floor overlay init failed:", err);
-  }
+  floorOverlay.material = m;
+
+  console.log("[floor] overlay OK");
 })();
-
+    
     // === UV margin (aby overlay nebyl až na hraně overlay meshe) ===
     // POZOR: 0.06 = 6% (ty jsi měl 0.6, to je 60% a rozbije to scale do mínusu)
     const margin = 0.06;              // zkus 0.03–0.10
