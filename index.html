@@ -1649,24 +1649,26 @@ hint("Logo zobrazeno (front + back) + variabilní typewriter pro obě stěny ✔
 // Střed viditelné výšky stěn: (ROOM.H - 0.04) je LED_TOP a -0.005 je lip
 const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
 
-/* === Přední stěna – +Z ===
-   Abychom viděli přední stěnu (z = +ROOM.D/2),
-   musí být kamera na straně -Z → alpha = -PI/2 (nebo 3*PI/2). */
+// Posun defaultního míření trochu níž,
+// aby nebylo vidět tolik nebe a zadní stěna byla vizuálně lépe vystředěná
+const RESET_TARGET_Y = WALL_CENTER_Y - 1.05;
+
 const FRONT_ALPHA = -Math.PI / 2;
 
-/* Normalizace úhlu do [0, 2π) – aby se ArcRotate neskákal „oklikou“ */
 function normAlpha(a){
   const TAU = Math.PI * 2;
-  a = a % TAU; if (a < 0) a += TAU;
+  a = a % TAU;
+  if (a < 0) a += TAU;
   return a;
 }
 
 const RESET_POSE = {
-  target: new BABYLON.Vector3(0, WALL_CENTER_Y, 0),
+  target: new BABYLON.Vector3(0, RESET_TARGET_Y, 0),
   radius: 17.0,
-  alpha:  -Math.PI / 2,      // přední stěna (kamera na -Z)
-  beta:   Math.PI / 1.88
+  alpha: -Math.PI / 2,
+  beta: Math.PI / 1.88
 };
+
 
     /* 📱 Mobilní offset cíle kamery: zvedne kompozici, aby HUD ikony nepřekrývaly přední stěnu */
 const MOBILE_TARGET_Y_OFFSET = 0.60; // v metrech; doladíš mezi 0.35–0.60 podle vkusu
