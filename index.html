@@ -242,9 +242,14 @@ const SC_ENABLED = !IS_MOBILE; // jen desktop
   })();
 
   const canvas = document.getElementById("renderCanvas");
-  const engine = new BABYLON.Engine(canvas, true, {
-    preserveDrawingBuffer:false, stencil:true, antialias:true, adaptToDeviceRatio:false, powerPreference:"high-performance"
-  });
+ const engine = new BABYLON.Engine(canvas, true, {
+  preserveDrawingBuffer:false,
+  stencil:true,
+  antialias:true,
+  adaptToDeviceRatio:false,
+  powerPreference:"high-performance",
+  disableWebGL2Support: false
+});
 
   const sceneCaps = engine.getCaps ? engine.getCaps() : {};
   const MAX_TEX_CAP = Math.max(512, sceneCaps.maxTextureSize || 2048);
@@ -390,9 +395,11 @@ function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_
   // ⚙️ bezpečný výpočet nejbližší power‑of‑two
   const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
 
-  // ⚙️ velikosti textur pro typewriter DynamicTexture
-  const texW = Math.max(512, nextPOT(Math.round(1024 * (width / 4))));
-  const texH = Math.max(128, nextPOT(Math.round(TW_FONT_PX * 2)));
+ 
+// FIXED resolution = stabilní + ostré (hlavní fix)
+const texW = IS_MOBILE ? 1024 : 2048;
+const texH = IS_MOBILE ? 256 : 512;
+
 
   const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
   dt.hasAlpha = true;
