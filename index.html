@@ -752,7 +752,7 @@ async function svgToInkOverlayTexture(svgUrl, {
 
   function buildRoom() {
   
-// =========================
+/// =========================
 // PODLAHA (Ground)
 // =========================
 
@@ -790,39 +790,39 @@ floorOverlay.position.x = floor.position.x;
 floorOverlay.position.z = floor.position.z;
 
 // === WEBP textura ===
-(() => {
-  const tex = new BABYLON.Texture(
-    "./assets/floor.webp",
-    scene,
-    false,
-    false,
-    BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-    () => {
-      console.log("[floor] floor.webp loaded");
-    },
-    (message, exception) => {
-      console.error("[floor] failed to load floor.webp", message, exception);
-    }
-  );
+const floorTex = new BABYLON.Texture(
+  "./assets/floor.webp",
+  scene,
+  false,
+  false,
+  BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+  () => {
+    console.log("[floor] floor.webp loaded");
+  },
+  (message, exception) => {
+    console.error("[floor] failed to load floor.webp", message, exception);
+  }
+);
 
-  tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  tex.anisotropicFilteringLevel = 1;
+floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+floorTex.anisotropicFilteringLevel = 1;
 
-  const m = new BABYLON.StandardMaterial("floorOverlayMat", scene);
-  m.diffuseTexture = tex;
-  m.emissiveTexture = tex;
-  m.specularColor = BABYLON.Color3.Black();
-  m.backFaceCulling = false;
+const floorMat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
+floorMat.diffuseTexture = floorTex;
+floorMat.emissiveTexture = floorTex;
+floorMat.specularColor = BABYLON.Color3.Black();
+floorMat.backFaceCulling = false;
+floorMat.disableLighting = true;
 
-  // pokud má WEBP průhlednost
-  m.useAlphaFromDiffuseTexture = true;
-  m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+// pokud má WEBP průhlednost
+floorMat.useAlphaFromDiffuseTexture = true;
+floorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
-  floorOverlay.material = m;
+floorOverlay.material = floorMat;
 
-  console.log("[floor] overlay OK");
-})();
+console.log("[floor] overlay OK");
+
     
     // === UV margin (aby overlay nebyl až na hraně overlay meshe) ===
     // POZOR: 0.06 = 6% (ty jsi měl 0.6, to je 60% a rozbije to scale do mínusu)
