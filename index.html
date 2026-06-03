@@ -751,7 +751,7 @@ async function svgToInkOverlayTexture(svgUrl, {
   }
 
   function buildRoom() {
-  // =========================
+  
 // =========================
 // PODLAHA (Ground)
 // =========================
@@ -785,7 +785,7 @@ floorOverlay.position.y = 0.003;
 floorOverlay.receiveShadows = false;
 floorOverlay.isPickable = false;
 
-// (volitelné) pokud máš podlahu posunutou mimo (0,0,0), srovnej overlay
+// pokud máš podlahu posunutou mimo (0,0,0), srovnej overlay
 floorOverlay.position.x = floor.position.x;
 floorOverlay.position.z = floor.position.z;
 
