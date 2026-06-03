@@ -1406,15 +1406,16 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
 const logoBottomY = yPos - logoH / 2;
 const frameTop = frameTopY;
 
-// 0.50 = střed mezery; vyšší číslo = blíž k logu
-const GAP_T = 0.82;
+// vyšší číslo = text blíž ke spodní hraně loga
+const GAP_T = 0.90;
 
-// jemné dotažení textu ještě výš směrem k logu
-const TW_EXTRA_UP = 0.18;
+// ruční posun ještě trochu výš
+const TW_EXTRA_UP = 0.28;
 
-const TW_Y_SHIFT_M = 0.80; // původní globální offset
+const TW_Y_SHIFT_M = 0.80;
 
 const yText = frameTop + (logoBottomY - frameTop) * GAP_T + TW_EXTRA_UP;
+
 
 
 // šířka panelu pro přední/zadní stěnu
