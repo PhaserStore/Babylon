@@ -1355,9 +1355,11 @@ const mul = IS_MOBILE ? LOGO_SIZE_MULT_MOBILE : LOGO_SIZE_MULT_DESKTOP;
 const logoW_base = ROOM.W * LOGO_SCALE;
 const logoH_base = LOGO_HEIGHT_M;
 
-// Proporční zvětšení obou rozměrů stejným multiplikátorem
-const logoW = logoW_base * mul;
-const logoH = logoH_base * mul;
+const LOGO_EXTRA_SCALE = 1.06; // +6 %
+
+const logoW = logoW_base * mul * LOGO_EXTRA_SCALE;
+const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
+
 
     const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
