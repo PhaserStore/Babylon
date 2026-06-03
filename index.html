@@ -752,6 +752,7 @@ async function svgToInkOverlayTexture(svgUrl, {
 
   function buildRoom() {
   // =========================
+// =========================
 // PODLAHA (Ground)
 // =========================
 
@@ -762,7 +763,7 @@ const floor = BABYLON.MeshBuilder.CreateGround(
   scene
 );
 
-// fallback (když SVG selže)
+// fallback (když textura selže)
 floor.material = unlit("#151515");
 
 // === Overlay mesh o něco menší (inset) ===
@@ -788,34 +789,42 @@ floorOverlay.isPickable = false;
 floorOverlay.position.x = floor.position.x;
 floorOverlay.position.z = floor.position.z;
 
-
-// SVG overlay (běží asynchronně)
-(async () => {
+// WEBP overlay
+(() => {
   try {
-    const dt = await svgToInkOverlayTexture("./assets/floor2.svg", {
-      maxSize: IS_MOBILE ? 1024 : 2048,
-      targetAspect: ROOM.W / ROOM.D,
+    const tex = new BABYLON.Texture(
+      "./assets/floor.webp",
+      scene,
+      false,
+      false,
+      BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+      () => {
+        console.log("floor.webp loaded");
+      },
+      (message, exception) => {
+        console.error("Failed to load floor.webp", message, exception);
+      }
+    );
 
-      // Ink barva (RGB)
-      ink: { r: 152, g: 32, b: 227 },
+    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.anisotropicFilteringLevel = 1;
 
-      // Viditelnost masky
-      alphaGain: 1.6,
-      alphaMax: 1,
+    const mat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
+    mat.diffuseTexture = tex;
+    mat.emissiveTexture = tex;
+    mat.specularColor = BABYLON.Color3.Black();
+    mat.backFaceCulling = false;
 
-      // Tvrdé tvary bez poloprůhlednosti uvnitř
-      binaryAlpha: true,
-      threshold: 0.10,
+    // pokud má webp průhlednost
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
-      mode: "auto"
-    });
-
-    // ✅ Textura musí mít alpha a nesmí se wrapovat
-    dt.hasAlpha = true;
-    dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
-    dt.anisotropicFilteringLevel = 1;
+    floorOverlay.material = mat;
+  } catch (err) {
+    console.error("Floor overlay init failed:", err);
+  }
+})();
 
     // === UV margin (aby overlay nebyl až na hraně overlay meshe) ===
     // POZOR: 0.06 = 6% (ty jsi měl 0.6, to je 60% a rozbije to scale do mínusu)
