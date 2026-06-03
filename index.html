@@ -396,9 +396,11 @@ function makeTypewriterPlane({ name, x = 0, y, z, rotY, width, height, color=TW_
   const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
 
  
-// FIXED resolution = stabilní + ostré (hlavní fix)
-const texW = IS_MOBILE ? 1024 : 2048;
-const texH = IS_MOBILE ? 256 : 512;
+// ⚙️ velikosti textur pro typewriter DynamicTexture
+// jemně navýšené, ale stále podle velikosti panelu = stabilnější než fixní 2048/512
+const texW = Math.max(1024, nextPOT(Math.round(1536 * (width / 4))));
+const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2.4)));
+
 
 
   const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
