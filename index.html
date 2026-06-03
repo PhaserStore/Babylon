@@ -295,7 +295,7 @@ const TW_COLOR_HEX    = "#daff3e"; // stejná barva jako logo
 const TW_FONT_PX      = 175;     // vizuálně cca 40pt (54px ~ 40pt na TVDPI)
 const TW_MARGIN_WALL  = 0.18;   // kolik (m) od vnitřní hrany stěny (aby netrčel do rohu)
 const TW_FLIP_VERTICAL = true;        // překlápí text vertikálně
-const TW_OFFSET_PX = -190; // jemné dohnání o ~92 px nahoru
+const TW_OFFSET_PX = -70;
     
    
 // === Blink/dýchání kurzoru (underscore) ===
@@ -1406,13 +1406,12 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
 const logoBottomY = yPos - logoH / 2;
 const frameTopYLocal = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-// 0 = na úrovni rámů
-// 1 = těsně pod logem
-// vyšší číslo = text blíž k logu
-const TW_BETWEEN_LOGO_AND_FRAMES = 0.78;
+// 0 = horní hrana rámů
+// 1 = těsně pod logo
+const TW_BETWEEN_LOGO_AND_FRAMES = 0.92;
 
-// jemné dotažení nahoru
-const TW_EXTRA_RAISE = 0.22;
+// extra posun nahoru
+const TW_EXTRA_RAISE = 0.38;
 
 const yText =
   frameTopYLocal +
