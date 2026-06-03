@@ -740,8 +740,8 @@ async function svgToInkOverlayTexture(svgUrl, {
     skyMat.diffuseColor = new BABYLON.Color3(0,0,0); skyMat.specularColor = new BABYLON.Color3(0,0,0); skyMat.emissiveColor = new BABYLON.Color3(0,0,0);
 
     const cubetex = BABYLON.CubeTexture.CreateFromImages([
-      "./assets/mySky_px.png","./assets/mySky_nx.png","./assets/mySky_py.png",
-      "./assets/mySky_ny.png","./assets/mySky_pz.png","./assets/mySky_nz.png"
+      "./assets/mySky_px.webp","./assets/mySky_nx.webp","./assets/mySky_py.webp",
+      "./assets/mySky_ny.webp","./assets/mySky_pz.webp","./assets/mySky_nz.webp"
     ], scene);
     cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
