@@ -1417,14 +1417,15 @@ const TW_GAP_BELOW_LOGO_M = 0.22;
 // ---- panel textu není kreslený přesně ve středu plane,
 // ale níž kvůli TW_OFFSET_PX, takže musíme zvednout celý plane ----
 const nextPOTLocal = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-const panelH = Math.max(0.20, TW_FONT_PX / 100);
+const panelHeightForCalc = Math.max(0.20, TW_FONT_PX / 100);
 const panelTexH = Math.max(256, nextPOTLocal(Math.round(TW_FONT_PX * 2)));
 
 // kde leží střed kresleného textu uvnitř textury (měřeno odspodu po flipu)
 const textFracFromBottom = (Math.round(panelTexH / 2) + (TW_OFFSET_PX | 0)) / panelTexH;
 
 // o kolik musí být střed plane výš než samotný viditelný text
-const textCenterOffsetInPlane = panelH * (0.5 - textFracFromBottom);
+const textCenterOffsetInPlane = panelHeightForCalc * (0.5 - textFracFromBottom);
+
 
 // chceme, aby VIDITELNÝ text byl těsně pod logem
 const desiredVisibleTextY = logoVisibleBottomY - TW_GAP_BELOW_LOGO_M;
