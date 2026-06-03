@@ -745,7 +745,7 @@ async function svgToInkOverlayTexture(svgUrl, {
     ], scene);
     cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    cubetex.level = 0.8; // lehce tmavší
+    cubetex.level = 0.6; // lehce tmavší
     skyMat.reflectionTexture = cubetex;
     skybox.material = skyMat;
   }
