@@ -1402,21 +1402,42 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
     __logoBack.material   = matBack;
 
     
-// === SCÉNOVÝ TYPEWRITER TEXT: mezi logo a rámy, ale blíž k logu ===
-const logoBottomY = yPos - logoH / 2;
+// === SCÉNOVÝ TYPEWRITER TEXT: pozice podle SKUTEČNĚ VIDITELNÉ části loga ===
 const frameTopYLocal = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-// 0 = horní hrana rámů
-// 1 = těsně pod logo
-const TW_BETWEEN_LOGO_AND_FRAMES = 0.92;
+// SVG logo je vykreslené do square textury SIZE x SIZE,
+// ale samotná kresba zabírá jen výšku `h` uprostřed.
+// Proto musíme počítat se skutečně viditelnou výškou loga:
+const logoVisibleH = logoH * (h / SIZE);
+const logoVisibleBottomY = yPos - logoVisibleH / 2;
 
-// extra posun nahoru
-const TW_EXTRA_RAISE = 0.38;
+// mezera mezi spodkem VIDITELNÉHO loga a samotným textem
+const TW_GAP_BELOW_LOGO_M = 0.22;
 
-const yText =
-  frameTopYLocal +
-  (logoBottomY - frameTopYLocal) * TW_BETWEEN_LOGO_AND_FRAMES +
-  TW_EXTRA_RAISE;
+// ---- panel textu není kreslený přesně ve středu plane,
+// ale níž kvůli TW_OFFSET_PX, takže musíme zvednout celý plane ----
+const nextPOTLocal = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
+const panelH = Math.max(0.20, TW_FONT_PX / 100);
+const panelTexH = Math.max(256, nextPOTLocal(Math.round(TW_FONT_PX * 2)));
+
+// kde leží střed kresleného textu uvnitř textury (měřeno odspodu po flipu)
+const textFracFromBottom = (Math.round(panelTexH / 2) + (TW_OFFSET_PX | 0)) / panelTexH;
+
+// o kolik musí být střed plane výš než samotný viditelný text
+const textCenterOffsetInPlane = panelH * (0.5 - textFracFromBottom);
+
+// chceme, aby VIDITELNÝ text byl těsně pod logem
+const desiredVisibleTextY = logoVisibleBottomY - TW_GAP_BELOW_LOGO_M;
+
+// finální Y středu textového plane
+let yText = desiredVisibleTextY + textCenterOffsetInPlane;
+
+// pojistka: text musí zůstat nad rámy
+const TW_MIN_CLEARANCE_ABOVE_FRAMES_M = 0.28;
+const minSafePlaneY = frameTopYLocal + TW_MIN_CLEARANCE_ABOVE_FRAMES_M + textCenterOffsetInPlane;
+yText = Math.max(yText, minSafePlaneY);
+
+    
 
 
 
