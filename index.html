@@ -752,7 +752,7 @@ async function svgToInkOverlayTexture(svgUrl, {
 
   function buildRoom() {
   
-/// =========================
+// =========================
 // PODLAHA (Ground)
 // =========================
 
@@ -808,18 +808,19 @@ floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
 floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 floorTex.anisotropicFilteringLevel = 1;
 
-const floorMat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
-floorMat.diffuseTexture = floorTex;
-floorMat.emissiveTexture = floorTex;
-floorMat.specularColor = BABYLON.Color3.Black();
-floorMat.backFaceCulling = false;
-floorMat.disableLighting = true;
+const m = new BABYLON.StandardMaterial("floorOverlayMat", scene);
+m.diffuseTexture = floorTex;
+m.emissiveTexture = floorTex;
+m.specularColor = BABYLON.Color3.Black();
+m.backFaceCulling = false;
+m.disableLighting = true;
 
 // pokud má WEBP průhlednost
-floorMat.useAlphaFromDiffuseTexture = true;
-floorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+m.useAlphaFromDiffuseTexture = true;
+m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
-floorOverlay.material = floorMat;
+// ✅ Materiál patří na overlay mesh, ne na base floor
+floorOverlay.material = m;
 
 console.log("[floor] overlay OK");
 
