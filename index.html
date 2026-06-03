@@ -1269,7 +1269,7 @@ function addFrame(pos, rotY=0, wall='front'){
     width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
   }, scene);
 
-  plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.83, 0)).add(normalOffset(rotY, 0.03));
+  plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.72, 0)).add(normalOffset(rotY, 0.03));
   plac.rotation.y = rotY + Math.PI;
   plac.isPickable = true;
 
