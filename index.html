@@ -750,124 +750,83 @@ async function svgToInkOverlayTexture(svgUrl, {
     skybox.material = skyMat;
   }
 
-  function buildRoom() {
-  
-// =========================
-// PODLAHA (Ground)
-// =========================
+function buildRoom() {
 
-// Base floor (plná velikost)
-const floor = BABYLON.MeshBuilder.CreateGround(
-  "floor",
-  { width: ROOM.W, height: ROOM.D },
-  scene
-);
+  // =========================
+  // PODLAHA (Ground)
+  // =========================
 
-// fallback podklad
-floor.material = unlit("#151515");
+  // Base floor (plná velikost)
+  const floor = BABYLON.MeshBuilder.CreateGround(
+    "floor",
+    { width: ROOM.W, height: ROOM.D },
+    scene
+  );
 
-// === Overlay mesh o něco menší (inset) ===
-const INSET = 0.05;
+  // fallback podklad
+  floor.material = unlit("#151515");
 
-const floorOverlay = BABYLON.MeshBuilder.CreateGround(
-  "floorOverlay",
-  {
-    width: Math.max(0.1, ROOM.W - INSET * 2),
-    height: Math.max(0.1, ROOM.D - INSET * 2)
-  },
-  scene
-);
+  // === Overlay mesh o něco menší (inset) ===
+  const INSET = 0.05;
 
-// lehce nad base floor, aby nevznikal z-fighting
-floorOverlay.position.y = 0.003;
+  const floorOverlay = BABYLON.MeshBuilder.CreateGround(
+    "floorOverlay",
+    {
+      width: Math.max(0.1, ROOM.W - INSET * 2),
+      height: Math.max(0.1, ROOM.D - INSET * 2)
+    },
+    scene
+  );
 
-// overlay nechytá kliky ani stíny
-floorOverlay.receiveShadows = false;
-floorOverlay.isPickable = false;
+  // lehce nad base floor, aby nevznikal z-fighting
+  floorOverlay.position.y = 0.003;
 
-// srovnání pozice s base floorem
-floorOverlay.position.x = floor.position.x;
-floorOverlay.position.z = floor.position.z;
+  // overlay nechytá kliky ani stíny
+  floorOverlay.receiveShadows = false;
+  floorOverlay.isPickable = false;
 
-// === WEBP textura ===
-const floorTex = new BABYLON.Texture(
-  "./assets/floor.webp",
-  scene,
-  false,
-  false,
-  BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-  () => {
-    console.log("[floor] floor.webp loaded");
-  },
-  (message, exception) => {
-    console.error("[floor] failed to load floor.webp", message, exception);
-  }
-);
+  // srovnání pozice s base floorem
+  floorOverlay.position.x = floor.position.x;
+  floorOverlay.position.z = floor.position.z;
 
-floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-floorTex.anisotropicFilteringLevel = 1;
+  // === WEBP textura ===
+  const floorTex = new BABYLON.Texture(
+    "./assets/floor.webp",
+    scene,
+    false,
+    false,
+    BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+    () => {
+      console.log("[floor] floor.webp loaded");
+    },
+    (message, exception) => {
+      console.error("[floor] failed to load floor.webp", message, exception);
+    }
+  );
 
-const floorMat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
-floorMat.diffuseTexture = floorTex;
-floorMat.emissiveTexture = floorTex;
-floorMat.specularColor = BABYLON.Color3.Black();
-floorMat.backFaceCulling = false;
-floorMat.disableLighting = true;
+  floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  floorTex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  floorTex.anisotropicFilteringLevel = MAX_ANISO;
+  floorTex.gammaSpace = true;
 
-// pokud má WEBP průhlednost
-floorMat.useAlphaFromDiffuseTexture = true;
-floorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+  const floorMat = new BABYLON.StandardMaterial("floorOverlayMat", scene);
+  floorMat.disableLighting = true;
+  floorMat.backFaceCulling = false;
+  floorMat.specularColor = new BABYLON.Color3(0, 0, 0);
 
-// materiál patří na overlay mesh, ne na base floor
-floorOverlay.material = floorMat;
+  floorMat.diffuseTexture = floorTex;
+  floorMat.emissiveTexture = floorTex;
+  floorMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
 
-console.log("[floor] overlay OK");
+  // pokud má WEBP průhlednost
+  floorMat.useAlphaFromDiffuseTexture = true;
+  floorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+  floorMat.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
 
-    
-    // === UV margin (aby overlay nebyl až na hraně overlay meshe) ===
-    // POZOR: 0.06 = 6% (ty jsi měl 0.6, to je 60% a rozbije to scale do mínusu)
-    const margin = 0.06;              // zkus 0.03–0.10
-    const scale  = 1 - margin * 2;    // např. 0.88 při margin 0.06
+  // materiál patří na overlay mesh, ne na base floor
+  floorOverlay.material = floorMat;
 
-    dt.uScale  = scale;
-    dt.vScale  = scale;
-    dt.uOffset = margin;
-    dt.vOffset = margin;
-
-    const m = new BABYLON.StandardMaterial("floorMatInk", scene);
-    m.disableLighting = true;
-    m.specularColor = new BABYLON.Color3(0, 0, 0);
-
-    // ✅ Klíčová změna: NEpoužívat dt jako diffuseTexture
-    // Jinak se vykreslí i RGB pozadí a vznikne “bílá deska”.
-    m.diffuseTexture = null;
-    m.diffuseColor = new BABYLON.Color3(0, 0, 0);
-
-    // ✅ opacityTexture = maska (transparentní mimo ink)
-    m.opacityTexture = dt;
-
-    // ✅ emissiveTexture = viditelný ink (svítí, aby byl čitelný)
-    m.emissiveTexture = dt;
-    m.emissiveColor = new BABYLON.Color3(1, 1, 1);
-
-    // transparency
-    m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-    m.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
-    m.needDepthPrePass = true;
-
-    // Doporučeno pro takové overlaye
-    m.backFaceCulling = true;
-
-    // ✅ Materiál patří na overlay mesh, ne na base floor
-    floorOverlay.material = m;
-
-    console.log("[floor] overlay OK");
-  } catch (e) {
-    console.warn("[floor] overlay failed -> fallback", e);
-    // když overlay selže, zůstane jen tmavý floor
-  }
-})();
+  console.log("[floor] overlay OK");
 
   // =========================
   // STĚNY (vše uvnitř buildRoom)
@@ -917,12 +876,15 @@ console.log("[floor] overlay OK");
   right.rotation.y = Math.PI / 2;
   right.material = unlit("#242424");
 
-  // (volitelné) ať se stěny neklikají
-  back.isPickable = front.isPickable = left.isPickable = right.isPickable = false;
+  // volitelné: ať se stěny neklikají
+  back.isPickable = false;
+  front.isPickable = false;
+  left.isPickable = false;
+  right.isPickable = false;
 
-  // (volitelné) návrat reference, pokud bys někdy chtěl
-  return { floor, back, front, left, right };
+  return { floor, floorOverlay, back, front, left, right };
 }
+
 
   function buildCeilingWithAperture({ inw = 0.1 } = {}) {
     const y1 = ROOM.H - 0.04;
