@@ -1402,15 +1402,22 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
     __logoBack.material   = matBack;
 
     
-// === SCÉNOVÝ TYPEWRITER TEXT: pevně pod logo ===
+// === SCÉNOVÝ TYPEWRITER TEXT: mezi logo a rámy, ale blíž k logu ===
 const logoBottomY = yPos - logoH / 2;
+const frameTopYLocal = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
 
-// mezera mezi spodkem loga a běžícím textem
-// menší číslo = text blíž k logu
-const TW_GAP_UNDER_LOGO = 0.12;
+// 0 = na úrovni rámů
+// 1 = těsně pod logem
+// vyšší číslo = text blíž k logu
+const TW_BETWEEN_LOGO_AND_FRAMES = 0.78;
 
-// finální Y pozice textového panelu
-const yText = logoBottomY - TW_GAP_UNDER_LOGO;
+// jemné dotažení nahoru
+const TW_EXTRA_RAISE = 0.22;
+
+const yText =
+  frameTopYLocal +
+  (logoBottomY - frameTopYLocal) * TW_BETWEEN_LOGO_AND_FRAMES +
+  TW_EXTRA_RAISE;
 
 
 
