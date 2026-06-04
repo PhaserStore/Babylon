@@ -801,16 +801,16 @@ function buildRoom() {
 
   // === WEBP textura ===
   const floorTex = new BABYLON.Texture(
-    "./assets/floor.webp",
+    "./assets/floor_1024.webp",
     scene,
     false,
     false,
     BABYLON.Texture.BILINEAR_SAMPLINGMODE,
     () => {
-      console.log("[floor] floor.webp loaded");
+      console.log("[floor] floor_1024.webp loaded");
     },
     (message, exception) => {
-      console.error("[floor] failed to load floor.webp", message, exception);
+      console.error("[floor] failed to load floor_1024.webp", message, exception);
     }
   );
 
