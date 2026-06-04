@@ -750,8 +750,8 @@ async function svgToInkOverlayTexture(svgUrl, {
     skyMat.diffuseColor = new BABYLON.Color3(0,0,0); skyMat.specularColor = new BABYLON.Color3(0,0,0); skyMat.emissiveColor = new BABYLON.Color3(0,0,0);
 
     const cubetex = BABYLON.CubeTexture.CreateFromImages([
-      "./assets/mySky_px.webp","./assets/mySky_nx.webp","./assets/mySky_py.webp",
-      "./assets/mySky_ny.webp","./assets/mySky_pz.webp","./assets/mySky_nz.webp"
+      "./assets/mySky_px_1024.webp","./assets/mySky_nx_1024.webp","./assets/mySky_py_1024.webp",
+      "./assets/mySky_ny_1024.webp","./assets/mySky_pz_1024.webp","./assets/mySky_nz_1024.webp"
     ], scene);
     cubetex.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     cubetex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
@@ -1869,7 +1869,7 @@ const SKY_INNER_MARGIN = 0.12;
 let STAR_TEX = null;
 function getStarTexture(){
   if (STAR_TEX) return STAR_TEX;
-  STAR_TEX = new BABYLON.Texture("assets/star.png", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+  STAR_TEX = new BABYLON.Texture("assets/star.webp", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
   STAR_TEX.hasAlpha = true;
   STAR_TEX.wrapU = STAR_TEX.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
   STAR_TEX.anisotropicFilteringLevel = 4;
