@@ -417,6 +417,15 @@ const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2)));
   mat.opacityTexture = dt;
   mat.emissiveTexture = dt;
   mat.emissiveColor = BABYLON.Color3.FromHexString(TW_COLOR_HEX);
+  mat.useAlphaFromDiffuseTexture = true;
+mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHATESTANDBLEND;
+mat.alphaCutOff = 0.15;
+
+mat.forceDepthWrite = true;
+mat.needDepthPrePass = true;
+
+mat.zOffset = -2;
+
 
   plane.material = mat;
 
@@ -1336,7 +1345,7 @@ function buildGalleryLogo(){
 
   img.onload = () => {
     // 1) Ostrá textura z inline SVG
-    const SIZE = 1024;
+    const SIZE = IS_MOBILE ? 1024 : 2048;
     const dt   = new BABYLON.DynamicTexture("logoDT", { width: SIZE, height: SIZE }, scene, true);
     const ctx  = dt.getContext();
 
@@ -1376,16 +1385,31 @@ const logoH = logoH_base * mul * LOGO_EXTRA_SCALE;
     const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
     // 4) Materiály (sdílený vzhled; emissive kvůli GlowLayer – pokud nechceš glow, tyto 2 řádky smaž)
-    const makeMat = (name) => {
-      const m = new BABYLON.StandardMaterial(name, scene);
-      m.disableLighting  = true;
-      m.diffuseTexture   = dt;
-      m.opacityTexture   = dt;
-      m.emissiveTexture  = dt;                 // vypni/smaž, pokud glow nechceš
-      m.emissiveColor    = new BABYLON.Color3(1, 1, 1);
-      m.backFaceCulling  = false;
-      return m;
-    };
+ const makeMat = (name) => {
+  const m = new BABYLON.StandardMaterial(name, scene);
+
+  m.disableLighting = true;
+  m.diffuseTexture = dt;
+  m.opacityTexture = dt;
+
+  // ✅ silnější emissive → neon feel
+  m.emissiveTexture = dt;
+  m.emissiveColor = BABYLON.Color3.FromHexString("#daff3e").scale(1.4);
+
+  m.backFaceCulling = false;
+
+  // ✅ stabilita hran
+  m.useAlphaFromDiffuseTexture = true;
+  m.transparencyMode = BABYLON.Material.MATERIAL_ALPHATESTANDBLEND;
+  m.alphaCutOff = 0.2;
+
+  // ✅ blink fix
+  m.forceDepthWrite = true;
+  m.needDepthPrePass = true;
+  m.zOffset = -3;
+
+  return m;
+};
     const matFront = makeMat("logoMat_front");
     const matBack  = makeMat("logoMat_back");
 
@@ -1824,8 +1848,8 @@ function createScene(){
   
 // PŘIDEJ:
 if (!IS_MOBILE) {
-  glow.intensity = 0.85;       // desktop boost (bylo 0.95)
-  glow.blurKernelSize = 64;   // širší rozptyl na desktopu (bylo 56)
+  glow.intensity = 0.7;       // desktop boost (bylo 0.95)
+  glow.blurKernelSize = 48;   // širší rozptyl na desktopu (bylo 56)
 } else {
   glow.intensity = 0.48;       // mobil nech stejné
   glow.blurKernelSize = 18;
