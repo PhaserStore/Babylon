@@ -981,9 +981,9 @@
     lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
     dt.update(false); // FIX 4
     const mat = unlitTex(dt); mat.zOffset = -2;
-    // FIX (placard flip): placard plane is rotated rotY + Math.PI, rendering the
-    // text upside-down AND mirrored. Mirror both U and V so the label reads normally.
-    dt.uScale = -1; dt.uOffset = 1;
+    // FIX (placard flip): placard plane is rotated rotY + Math.PI. Only the V axis
+    // needs mirroring to make the text right-side-up; the text must NOT be mirrored
+    // horizontally, so U is left untouched.
     dt.vScale = -1; dt.vOffset = 1;
     plac.material = mat;
   }
@@ -1115,31 +1115,24 @@
       const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
-      // FIX (logo mirror): The plane on the front wall (rotation.y = 0) renders the
-      // texture horizontally mirrored. We can't just mirror the shared canvas because
-      // the back logo (rotation.y = π) faces the opposite way and would then break.
-      // Instead each material gets its OWN texture instance, and we mirror the U axis
-      // (uScale = -1, uOffset = 1) only on the front so the logo reads left-to-right.
-      const makeMat = (name, mirrorU) => {
+      // FIX (logo mirror): Both wall planes render the logo texture horizontally
+      // mirrored. Each material gets its OWN texture clone with the U axis mirrored
+      // (uScale = -1, uOffset = 1) so the logo reads left-to-right on both walls.
+      const makeMat = (name) => {
         const m = new BABYLON.StandardMaterial(name, scene);
         m.disableLighting  = true;
-        m.diffuseTexture   = dt;
-        m.opacityTexture   = dt;
-        m.emissiveTexture  = dt;
         m.emissiveColor    = new BABYLON.Color3(1, 1, 1);
         m.backFaceCulling  = false;
-        if (mirrorU){
-          // Mirror only the textures bound to THIS material via clones so the
-          // back side stays unaffected.
-          const dF = dt.clone(); dF.uScale = -1; dF.uOffset = 1; dF.hasAlpha = true;
-          m.diffuseTexture  = dF;
-          m.opacityTexture  = dF;
-          m.emissiveTexture = dF;
-        }
+        const dMirror = dt.clone();
+        dMirror.uScale = -1; dMirror.uOffset = 1;
+        dMirror.hasAlpha = true;
+        m.diffuseTexture  = dMirror;
+        m.opacityTexture  = dMirror;
+        m.emissiveTexture = dMirror;
         return m;
       };
-      const matFront = makeMat("logoMat_front", true);  // front wall = mirror
-      const matBack  = makeMat("logoMat_back",  false); // back wall = leave as-is
+      const matFront = makeMat("logoMat_front");
+      const matBack  = makeMat("logoMat_back");
 
       __logoFront = BABYLON.MeshBuilder.CreatePlane("logo_front", { width: logoW, height: logoH }, scene);
       __logoFront.position.set(0, yPos, zFront);
