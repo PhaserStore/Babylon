@@ -1116,14 +1116,12 @@
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
       // FIX (logo orientation): correct the logo so it reads properly on both walls.
-      // The texture was appearing mirrored on BOTH axes (horizontal + vertical), so we
-      // mirror both U and V on the shared DynamicTexture to bring it back to the
-      // correct, upright, left-to-right orientation.
+      // Only the V axis needs mirroring to make the logo upright; the U axis is left
+      // neutral so the logo reads left-to-right (not horizontally mirrored).
       //
       // NOTE: do NOT use dt.clone() here — DynamicTexture.clone() returns a blank
       // texture (it does not copy the canvas pixel data), which made the logo
       // disappear entirely. The shared dt is used directly.
-      dt.uScale = -1; dt.uOffset = 1;
       dt.vScale = -1; dt.vOffset = 1;
 
       const makeMat = (name) => {
