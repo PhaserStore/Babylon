@@ -1116,19 +1116,23 @@
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
       // FIX (logo mirror): Both wall planes render the logo texture horizontally
-      // mirrored. Each material gets its OWN texture clone with the U axis mirrored
+      // mirrored. We mirror the U axis directly on the shared DynamicTexture
       // (uScale = -1, uOffset = 1) so the logo reads left-to-right on both walls.
+      //
+      // NOTE: do NOT use dt.clone() here — DynamicTexture.clone() returns a blank
+      // texture (it does not copy the canvas pixel data), which made the logo
+      // disappear entirely. The reference implementation used the shared dt directly.
+      dt.uScale = -1;
+      dt.uOffset = 1;
+
       const makeMat = (name) => {
         const m = new BABYLON.StandardMaterial(name, scene);
         m.disableLighting  = true;
+        m.diffuseTexture   = dt;
+        m.opacityTexture   = dt;
+        m.emissiveTexture  = dt;
         m.emissiveColor    = new BABYLON.Color3(1, 1, 1);
         m.backFaceCulling  = false;
-        const dMirror = dt.clone();
-        dMirror.uScale = -1; dMirror.uOffset = 1;
-        dMirror.hasAlpha = true;
-        m.diffuseTexture  = dMirror;
-        m.opacityTexture  = dMirror;
-        m.emissiveTexture = dMirror;
         return m;
       };
       const matFront = makeMat("logoMat_front");
