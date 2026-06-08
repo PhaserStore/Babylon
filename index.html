@@ -1544,17 +1544,18 @@ const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
       __logoBack.rotation.y = Math.PI;
       __logoBack.material   = matBack;
 
-      // LEFT wall logo
+// LEFT wall logo
 __logoLeft = BABYLON.MeshBuilder.CreatePlane("logo_left", { width: logoW, height: logoH }, scene);
 __logoLeft.position.set(xLeft, yPos, 0);
-__logoLeft.rotation.y = Math.PI / 2;   // face inward (+X)
+__logoLeft.rotation.y = -Math.PI / 2;
 __logoLeft.material   = makeMat("logoMat_left");
 
 // RIGHT wall logo
 __logoRight = BABYLON.MeshBuilder.CreatePlane("logo_right", { width: logoW, height: logoH }, scene);
 __logoRight.position.set(xRight, yPos, 0);
-__logoRight.rotation.y = -Math.PI / 2; // face inward (-X)
+__logoRight.rotation.y = Math.PI / 2;
 __logoRight.material   = makeMat("logoMat_right");
+
 
 
       const nextPOTLocal = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
