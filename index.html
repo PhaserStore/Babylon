@@ -129,15 +129,23 @@
 
     /* Desktop icon strip (NEW): subtle plain black 75%, no blur, sits just
        above the SoundCloud bar behind the HUD icon row. Not tall/intrusive. */
-    #mobileIconDock{
-      display:block;
-      position:fixed; left:0; right:0;
-      bottom: calc(var(--bar-h) + var(--safe-bottom));
-      height: calc(56px + 24px); /* icon (56) + small padding */
-      background: rgba(0,0,0,.75);
-      z-index: 40; pointer-events:none;
-      will-change: transform; transform: translateZ(0);
-    }
+ #mobileIconDock{
+  display:block;
+  position:fixed; left:0; right:0;
+  bottom: calc(var(--bar-h) + var(--safe-bottom));
+  height: calc(56px + 24px);
+  background: rgba(0,0,0,.75);
+  z-index: 40;
+  pointer-events:auto; /* desktop toggle click */
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  opacity: 1;
+  transition: opacity .18s ease;
+}
+#mobileIconDock.is-hidden{
+  opacity: 0;
+}
+
 
     @media (pointer:coarse), (max-width: 900px){
       :root{
