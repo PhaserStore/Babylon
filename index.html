@@ -127,32 +127,59 @@
     /* email sits to the RIGHT of share (two slots in) */
     #emailIcon{ left:calc(12px + var(--safe-left) + (56px + 8px) * 2); }
 
+    /* Mobile dock strip (hidden on desktop) */
+    #mobileIconDock{ display:none; }
+
+    @media (pointer:coarse), (max-width: 900px){
+      :root{
+        --icon-size: 52px;
+        --dock-pad: 10px;
+      }
+
+      /* Dark translucent strip behind the icon row */
+      #mobileIconDock{
+        display:block;
+        position:fixed; left:0; right:0;
+        bottom:0;
+        height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
+        background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.55) 70%, rgba(0,0,0,0) 100%);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        z-index: 9990; pointer-events:none;
+        will-change: transform; transform: translateZ(0);
+      }
+
+      /* All mobile icons share one row, centered vertically in the dock,
+         sized a touch smaller, equal spacing via percentage anchors. */
+      .hudIcon, .hudIconLeft{
+        width: var(--icon-size); height: var(--icon-size);
+        bottom: calc(var(--dock-pad) + var(--safe-bottom)) !important;
+        top: auto;
+        transform: translateX(-50%); /* center each icon on its anchor point */
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,.55));
+      }
+      .hudIcon:hover, .hudIconLeft:hover{ transform: translateX(-50%) translateY(-1px); }
+
+      /* fullscreen stays hidden on mobile; 5 visible icons:
+         instagram, share, email, auto-tour, reset — evenly spaced at
+         ~16.7% steps across the width (centers of 5 equal slots → 1/6 … 5/6 ish).
+         We use a tidy spread that keeps comfortable edge margins. */
+      #fullscreenIcon{ display:none !important; }
+
+      #instaIcon   { left: 12% !important; right:auto !important; }
+      #shareIcon   { left: 31% !important; right:auto !important; }
+      #emailIcon   { left: 50% !important; right:auto !important; }
+      #autoTourIcon{ left: 69% !important; right:auto !important; }
+      #resetCamIcon{ left: 88% !important; right:auto !important; }
+
+      #scBar, #scIframeHost{ display:none !important; }
+      #instaIcon, #shareIcon, #emailIcon{ display:block !important; }
+    }
+
     @media (max-width: 560px){
       #scBar{ gap:12px; padding:0 10px; }
       .sc-right{ min-width:200px; gap:10px; }
       #barVol{ width:70px; }
       .time{ display:none; }
-    }
-
-    @media (pointer:coarse), (max-width: 900px){
-      :root{
-        --icon-size: 56px;
-        --mobile-shift: var(--icon-size);
-      }
-      .hudIcon{
-        bottom: max(6px, calc(12px + var(--safe-bottom) - var(--mobile-shift)));
-      }
-      .hudIconLeft{
-        bottom: max(6px, calc(12px + var(--safe-bottom) - var(--mobile-shift)));
-      }
-      /* fullscreen is hidden on mobile; auto-tour stays visible but shifts into the
-         fullscreen slot so the right group stays tight (reset + auto-tour). */
-      #fullscreenIcon{ display:none !important; }
-      #autoTourIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
-      #scBar, #scIframeHost{ display:none !important; }
-      #instaIcon, #shareIcon, #emailIcon{ display:block !important; }
-      #shareIcon{ left: calc(12px + var(--safe-left) + 56px + 8px); }
-      #emailIcon{ left: calc(12px + var(--safe-left) + (56px + 8px) * 2); }
     }
   </style>
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -160,6 +187,10 @@
 
 <body>
   <canvas id="renderCanvas"></canvas>
+
+  <!-- Mobile-only dark translucent strip behind the icon row (improves icon
+       visibility over the patterned floor). Hidden on desktop. -->
+  <div id="mobileIconDock" aria-hidden="true"></div>
 
   <!-- ===== LOADING OVERLAY (NEW) ===== -->
   <div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
@@ -348,14 +379,14 @@
       "LIMITED_EDITION_OUT_NOW"
     ],
     left: [
-      "CLICK_LABELS_TO_OPEN_LINKS",
-      "SUSTAINABLE_MATERIALS",
-      "SHIPPED_WORLDWIDE"
+      "CLICK_ANY_LABEL_TO_OPEN_THE_PRODUCT_LINK",
+      "SUSTAINABLE_MATERIALS_AND_RESPONSIBLE_PRODUCTION",
+      "SHIPPED_WORLDWIDE_WITH_LOVE_FROM_THE_STUDIO"
     ],
     right: [
-      "CONTEMPORARY_DESIGN",
-      "LIMITED_EDITION",
-      "CUSTOM_REQUESTS"
+      "CONTEMPORARY_DESIGN_FOR_THE_DIGITAL_GENERATION",
+      "LIMITED_EDITION_PIECES_DROP_EVERY_SEASON",
+      "CUSTOM_REQUESTS_AND_COLLABORATIONS_WELCOME"
     ]
   };
 
@@ -376,6 +407,12 @@
   let __twFrontRAF = 0, __twBackRAF = 0;
   let twFrontAnchor = null;
   let twBackAnchor  = null;
+
+  // NEW: side-wall (left/right) text planes + animation handles
+  let __twLeftPlane = null, __twRightPlane = null;
+  let __twLeftRAF = 0, __twRightRAF = 0;
+  // NEW: mobile sentence-cycler controllers (one per wall) for clean teardown
+  const __cyclers = { front:null, back:null, left:null, right:null };
 
   function projectToScreen(worldPos){
     const eng   = scene.getEngine();
@@ -420,7 +457,10 @@
     plane.isPickable = false;
 
     const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-    const texW = Math.max(1024, nextPOT(Math.round(1024 * (width / 4))));
+    // Cap texture width so very wide side-wall panels don't allocate huge textures.
+    // 4096 desktop / 2048 mobile keeps text crisp while bounding memory use.
+    const TW_TEX_CAP = IS_MOBILE ? 2048 : 4096;
+    const texW = Math.min(TW_TEX_CAP, Math.max(1024, nextPOT(Math.round(1024 * (width / 4)))));
     const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2)));
 
     const dt = new BABYLON.DynamicTexture(name + "_dt", { width: texW, height: texH }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
@@ -568,6 +608,92 @@
     }
 
     return (rafId = requestAnimationFrame(tick));
+  }
+
+  /* ===== MOBILE full-sentence cycler (NEW) =====
+     Performance-friendly alternative to the typewriter for mobile. Instead of
+     redrawing one character per frame, it draws a COMPLETE sentence once, holds
+     it, then fades to the next sentence. Uses a setInterval-driven swap plus a
+     short rAF fade, so there is no per-frame texture upload during the hold
+     phase (cheap on memory and GPU). Same font/size/placement as desktop. */
+  function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
+    const ctx = dt.getContext();
+    ctx.clearRect(0, 0, texW, texH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `600 ${fontPx}px Doto, monospace`;
+
+    const x = Math.round(texW / 2);
+    const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
+
+    ctx.save();
+    if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    ctx.shadowColor = "rgba(218,255,62,0.20)";
+    ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
+    ctx.fillStyle   = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+    dt.update(false); // FIX 4 — single upload per swap/fade step, not per frame
+  }
+
+  /* Returns a controller with a .stop() so we can clean up on rebuild. */
+  function runSentenceCyclerToDT(dt, opts = {}){
+    const {
+      texts: _texts, text: _text,
+      texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX,
+      holdMs = 2600,     // how long a full sentence stays
+      fadeMs = 320       // fade in/out duration
+    } = opts;
+
+    const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
+    if (!texts.length) return { stop(){} };
+
+    let idx = 0;
+    let intervalId = 0;
+    let rafId = 0;
+    let stopped = false;
+
+    function fade(from, to, text, done){
+      const t0 = performance.now();
+      function step(now){
+        if (stopped) return;
+        const r = Math.min(1, (now - t0) / fadeMs);
+        const a = from + (to - from) * r;
+        drawFullSentence(dt, { text, texW, texH, alpha:a, color, fontPx });
+        if (r < 1) rafId = requestAnimationFrame(step);
+        else if (done) done();
+      }
+      rafId = requestAnimationFrame(step);
+    }
+
+    function showCurrent(){
+      const text = texts[idx];
+      fade(0, 1, text); // fade in
+    }
+
+    function next(){
+      if (stopped) return;
+      const cur = texts[idx];
+      // fade out current, then swap + fade in next
+      fade(1, 0, cur, () => {
+        idx = (idx + 1) % texts.length;
+        fade(0, 1, texts[idx]);
+      });
+    }
+
+    showCurrent();
+    intervalId = setInterval(next, holdMs + fadeMs); // hold + the fade-out time
+
+    return {
+      stop(){
+        stopped = true;
+        if (intervalId) clearInterval(intervalId);
+        if (rafId) cancelAnimationFrame(rafId);
+      }
+    };
   }
 
   /* ========= Scene setup ========= */
@@ -944,42 +1070,81 @@
   }
 
   /* ===== Placard =====
-     The placard texture's aspect ratio is driven by the plane's W/H so text is
-     never stretched. Poppins SemiBold (600). */
+     Premium, non-condensed text. The texture resolution is derived from the
+     placard's real-world aspect ratio (W:H) so letterforms are never squeezed
+     horizontally. Font size is driven by texture HEIGHT, and we measure text to
+     pick the largest size that fits the width — so titles look natural and
+     readable. Poppins SemiBold (600). */
   function drawPlacard(plac, data, rotY, planeW, planeH){
-    const texWFull = TEX_SIZE;
-    const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
-    const texW = nearestPOT(texWTarget, IS_MOBILE ? 1024 : 2048);
-    const texH = nearestPOT(Math.max(64, Math.round(texW * (planeH / planeW))), texW);
+    const aspect = Math.max(0.05, planeW / planeH); // real placard W:H (wide)
+    // Base the texture on HEIGHT so wide placards get a wide texture (no squeeze).
+    const baseH = IS_MOBILE ? 256 : 512;
+    let texH = nearestPOT(baseH, IS_MOBILE ? 1024 : 2048);
+    let texW = nearestPOT(Math.max(2, Math.round(texH * aspect)), IS_MOBILE ? 2048 : 4096);
+
     const dt = makeDT("pl", texW, texH, !IS_MOBILE);
     const c = dt.getContext();
     c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
-    const pad = Math.round(texH * 0.12);
-    const maxW = texW - pad*2;
-    c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "top";
-    const lineH = Math.round(texH * 0.34);
-    const fontSize = Math.max(18, Math.round(lineH * 0.78));
-    c.font = `600 ${fontSize}px Poppins`; // Poppins SemiBold
+
+    const padX = Math.round(texW * 0.05);
+    const padY = Math.round(texH * 0.16);
+    const maxW = texW - padX*2;
+    const maxBlockH = texH - padY*2;
+
+    c.fillStyle = "#ffffff";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+
     const text = (data.title || "(untitled)").trim();
-    const words = text.split(/\s+/);
-    const lines = []; let buf = "";
-    for (let w of words){
-      const test = buf ? (buf + " " + w) : w;
-      if (c.measureText(test).width <= maxW) buf = test;
-      else { if (buf) lines.push(buf); buf = w; }
-    }
-    if (buf) lines.push(buf);
+
+    // Pick the largest font size (from height) whose wrapped text fits the box.
+    // This avoids any horizontal scaling/condensing — letters keep their shape.
     const maxLines = 2;
+    function wrapAt(fontPx){
+      c.font = `600 ${fontPx}px Poppins, sans-serif`;
+      const words = text.split(/\s+/);
+      const lines = []; let buf = "";
+      for (const w of words){
+        const test = buf ? (buf + " " + w) : w;
+        if (c.measureText(test).width <= maxW) buf = test;
+        else { if (buf) lines.push(buf); buf = w; }
+      }
+      if (buf) lines.push(buf);
+      return lines;
+    }
+
+    let fontPx = Math.round(texH * 0.46); // start generous
+    let lines = wrapAt(fontPx);
+    // shrink until it fits both width (per line) and height (line count)
+    let guard = 40;
+    while (guard-- > 0){
+      lines = wrapAt(fontPx);
+      const tooMany = lines.length > maxLines;
+      const lineH = fontPx * 1.18;
+      const blockH = Math.min(lines.length, maxLines) * lineH;
+      const tooTall = blockH > maxBlockH;
+      const tooWide = lines.some(ln => c.measureText(ln).width > maxW);
+      if (!tooMany && !tooTall && !tooWide) break;
+      fontPx -= Math.max(2, Math.round(fontPx * 0.06));
+      if (fontPx < 16) { fontPx = 16; break; }
+    }
+
+    // Final wrap + ellipsis if still overflowing 2 lines
+    c.font = `600 ${fontPx}px Poppins, sans-serif`;
+    lines = wrapAt(fontPx);
     if (lines.length > maxLines){
       const keep = lines.slice(0, maxLines);
       let last = keep[maxLines-1];
-      while (c.measureText(last + "…").width > maxW && last.length>0) last = last.slice(0,-1);
+      while (c.measureText(last + "…").width > maxW && last.length > 0) last = last.slice(0, -1);
       keep[maxLines-1] = last + "…";
-      lines.length = 0; Array.prototype.push.apply(lines, keep);
+      lines = keep;
     }
+
+    const lineH = fontPx * 1.18;
     const blockH = lines.length * lineH;
-    const startY = Math.max(pad, Math.round((texH - blockH)/2));
-    lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
+    const startY = Math.round(texH/2 - blockH/2 + lineH/2);
+    lines.forEach((ln, i)=> c.fillText(ln, texW/2, startY + i*lineH));
+
     dt.update(false); // FIX 4
     const mat = unlitTex(dt); mat.zOffset = -2;
     // placard flip: plane rotated rotY + Math.PI → only V mirrored (text upright, not mirrored).
@@ -1086,6 +1251,30 @@
 
   function hint(msg){ console.log(msg); }
 
+  /* NEW: choose the text engine per platform.
+     Desktop → existing typewriter (rich). Mobile → lightweight full-sentence
+     cycler (no per-char typing). Returns { rafId, controller } so callers can
+     store handles for teardown. */
+  function startWallText(wallKey, dt, texW, texH){
+    const texts = TW_STRINGS[wallKey];
+    if (IS_MOBILE){
+      // tear down any previous cycler for this wall
+      try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+      const ctrl = runSentenceCyclerToDT(dt, {
+        texts, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX,
+        holdMs: 2600, fadeMs: 320
+      });
+      __cyclers[wallKey] = ctrl;
+      return { rafId: 0, controller: ctrl };
+    } else {
+      const rafId = runTypewriterToDT(dt, {
+        texts, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
+        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+      });
+      return { rafId, controller: null };
+    }
+  }
+
   function buildGalleryLogo(){
     try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
     try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
@@ -1166,35 +1355,60 @@
       const wallInnerWidth = ROOM.W - TW_MARGIN_WALL * 2;
       const panelW = Math.max(1.0, wallInnerWidth);
       const panelH = Math.max(0.20, TW_FONT_PX / 100);
+      // Side walls run along ROOM.D (longer), so their panels can be wider.
+      const sideInnerWidth = ROOM.D - TW_MARGIN_WALL * 2;
+      const sidePanelW = Math.max(1.0, sideInnerWidth);
 
+      // Cleanup any previous front/back/side planes + animations/cyclers.
       try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
       try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
+      try { if (__twLeftRAF)  cancelAnimationFrame(__twLeftRAF);  } catch(_){}
+      try { if (__twRightRAF) cancelAnimationFrame(__twRightRAF); } catch(_){}
+      try { __cyclers.front?.stop?.(); __cyclers.back?.stop?.(); __cyclers.left?.stop?.(); __cyclers.right?.stop?.(); } catch(_){}
       try { __twFrontPlane?.dispose?.(); __twFrontPlane = null; } catch(_){}
       try { __twBackPlane ?.dispose?.(); __twBackPlane  = null; } catch(_){}
+      try { __twLeftPlane ?.dispose?.(); __twLeftPlane  = null; } catch(_){}
+      try { __twRightPlane?.dispose?.(); __twRightPlane = null; } catch(_){}
 
+      // FRONT
       {
         const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
           name:"tw_front", x:0, y:yText, z:zFront - 0.004, rotY:0, width:panelW, height:panelH
         });
         __twFrontPlane = plane; __twFrontDT = twDT;
-        __twFrontRAF = runTypewriterToDT(twDT, {
-          texts: TW_STRINGS.front, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-          texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
-        });
+        const r = startWallText('front', twDT, texW, texH);
+        __twFrontRAF = r.rafId;
       }
+      // BACK
       {
         const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
           name:"tw_back", x:0, y:yText, z:zBack + 0.004, rotY:Math.PI, width:panelW, height:panelH
         });
         __twBackPlane = plane; __twBackDT = twDT;
-        __twBackRAF = runTypewriterToDT(twDT, {
-          texts: TW_STRINGS.back, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-          texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+        const r = startWallText('back', twDT, texW, texH);
+        __twBackRAF = r.rafId;
+      }
+      // LEFT (NEW) — runs along the wall at x = -ROOM.W/2, faces +X (rotY = +π/2)
+      {
+        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+          name:"tw_left", x:(-ROOM.W/2 + 0.05), y:yText, z:0, rotY:Math.PI/2, width:sidePanelW, height:panelH
         });
+        __twLeftPlane = plane;
+        const r = startWallText('left', twDT, texW, texH);
+        __twLeftRAF = r.rafId;
+      }
+      // RIGHT (NEW) — runs along the wall at x = +ROOM.W/2, faces -X (rotY = -π/2)
+      {
+        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+          name:"tw_right", x:(ROOM.W/2 - 0.05), y:yText, z:0, rotY:-Math.PI/2, width:sidePanelW, height:panelH
+        });
+        __twRightPlane = plane;
+        const r = startWallText('right', twDT, texW, texH);
+        __twRightRAF = r.rafId;
       }
 
       Assets.markLogoReady(); // NEW: tell loader the logo is up
-      hint("Logo shown (front + back) + typewriter on both walls ✔");
+      hint("Logo shown (front + back) + text on all four walls ✔");
     };
     img.onerror = (e) => { console.error("Logo SVG decode failed.", e); Assets.markLogoReady(); hint("Error: logo SVG decode failed."); };
   }
@@ -1202,11 +1416,11 @@
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
 
-  /* NEW counts: front/back = 2, left/right = 3. */
+  /* Counts: front/back = 2, left/right = 4. */
   const FIXED_LAYOUT = {
     safeWall: 1.0, cornerSafe: 1.0,
     frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
-    counts: { front: 2, back: 2, left: 3, right: 3 }
+    counts: { front: 2, back: 2, left: 4, right: 4 }
   };
 
   /* DATA trimmed to the new counts (2 / 2 / 3 / 3). */
@@ -1222,12 +1436,14 @@
     left: [
       { img: "./assets/Acid_T.webp", label: "Left 1", href: "https://example.com/left-1" },
       { img: "./assets/Acid_T.webp", label: "Left 2", href: "https://example.com/left-2" },
-      { img: "./assets/Acid_T.webp", label: "Left 3", href: "https://example.com/left-3" }
+      { img: "./assets/Acid_T.webp", label: "Left 3", href: "https://example.com/left-3" },
+      { img: "./assets/Acid_T.webp", label: "Left 4", href: "https://example.com/left-4" }
     ],
     right: [
       { img: "./assets/Acid_T.webp", label: "Right 1", href: "https://example.com/right-1" },
       { img: "./assets/Acid_T.webp", label: "Right 2", href: "https://example.com/right-2" },
-      { img: "./assets/Acid_T.webp", label: "Right 3", href: "https://example.com/right-3" }
+      { img: "./assets/Acid_T.webp", label: "Right 3", href: "https://example.com/right-3" },
+      { img: "./assets/Acid_T.webp", label: "Right 4", href: "https://example.com/right-4" }
     ]
   };
 
@@ -1250,8 +1466,14 @@
     const rotY = wall==='front' ? Math.PI : wall==='back' ? 0 : wall==='left' ? Math.PI/2 : -Math.PI/2;
     const axisX  = (wall==='front'||wall==='back');
     const length = axisX ? ROOM.W : ROOM.D;
-    const min = -length/2 + safeWall + cornerSafe;
-    const max =  length/2 - safeWall - cornerSafe;
+    // Side walls are much longer (ROOM.D) and now hold 4 square frames. Use a
+    // slightly tighter corner margin there so the 4 frames spread out with gaps
+    // that read as consistent with the front/back composition (not cramped).
+    const isSide = !axisX;
+    const sw = isSide ? Math.max(0.6, safeWall * 0.8) : safeWall;
+    const cs = isSide ? Math.max(0.6, cornerSafe * 0.8) : cornerSafe;
+    const min = -length/2 + sw + cs;
+    const max =  length/2 - sw - cs;
     const frameW = FRAME_SIZE.W || FIXED_LAYOUT.frame.width;
     const centers = distributeCenters(min, max, count, frameW);
     framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
@@ -1384,10 +1606,10 @@
   const RESET_TARGET_Y = WALL_CENTER_Y - 1.05;
   const FRONT_ALPHA = -Math.PI / 2;
 
-  // Mobile-only framing tweaks:
-  const MOBILE_TARGET_Y = WALL_CENTER_Y + 1.35; // raise the look-at point toward the logo
-  const MOBILE_BETA     = Math.PI / 2.12;       // slightly above horizontal → hides top edge
-  const MOBILE_RADIUS   = 15.5;                 // pull in a touch so upper content fills frame
+  // Mobile-only framing tweaks (raised further so the top wall/ceiling edge is hidden):
+  const MOBILE_TARGET_Y = WALL_CENTER_Y + 2.45; // look-at lifted toward the logo/text band
+  const MOBILE_BETA     = Math.PI / 2.42;       // closer to horizontal-up → top edge stays off-screen
+  const MOBILE_RADIUS   = 15.0;                 // slightly closer so upper content fills the frame
 
   function normAlpha(a){
     const TAU = Math.PI * 2;
