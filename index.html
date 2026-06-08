@@ -838,24 +838,27 @@
     const x = Math.round(texW / 2);
     const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
 
-    // Vertical compression to ~50% height. Horizontal width is untouched, so the
-    // letters are not cropped or otherwise distorted — only made less tall.
-    const SIDE_VSCALE = 0.5;
+   // Keep the same text height feel as the front/back wall text
+const SIDE_VSCALE = 1.0;
 
-    ctx.save();
-    if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
-    if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
-    // Scale vertically around the text's center line so it stays centered.
-    ctx.translate(0, y);
-    ctx.scale(1, SIDE_VSCALE);
-    ctx.translate(0, -y);
-    ctx.shadowColor = "rgba(218,255,62,0.20)";
-    ctx.shadowBlur  = Math.max(2, Math.round(size * 0.18));
-    ctx.fillStyle   = color;
-    ctx.fillText(text, x, y);
-    ctx.restore();
-    dt.update(false); // single upload — static, no per-frame cost
-  }
+
+    const SIDE_HCOMPRESS = 0.5; // half width
+
+ctx.save();
+if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
+if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
+
+// keep full height, but shorten width to ~50%
+ctx.translate(x, y);
+ctx.scale(SIDE_HCOMPRESS, SIDE_VSCALE);
+ctx.translate(-x, -y);
+
+ctx.shadowColor = "rgba(218,255,62,0.20)";
+ctx.shadowBlur  = Math.max(2, Math.round(size * 0.18));
+ctx.fillStyle   = color;
+ctx.fillText(text, x, y);
+ctx.restore();
+
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
