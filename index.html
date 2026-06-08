@@ -818,55 +818,60 @@
   /* Static side-wall text (Poppins SemiBold, centered, no cycling, no deform).
      Auto-fits uniformly so the full sentence is always visible and never clipped. */
   function drawStaticSideText(dt, { text, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
-    const ctx = dt.getContext();
-    ctx.clearRect(0, 0, texW, texH);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
 
-    // Uniform fit using Poppins REGULAR (400) metrics (measured at the draw font).
-    const maxW = texW * TW_SAFE_FRAC;
-    let size = fontPx;
-    ctx.font = `400 ${size}px Poppins, sans-serif`;
-    let w = ctx.measureText(text).width;
-    if (w > maxW){
-      size = Math.max(8, Math.floor(size * (maxW / w)));
-      for (let i = 0; i < 24; i++){
-        ctx.font = `400 ${size}px Poppins, sans-serif`;
-        if (ctx.measureText(text).width <= maxW) break;
-        size -= Math.max(1, Math.round(size * 0.04));
-        if (size <= 8){ size = 8; break; }
-      }
+  const maxW = texW * TW_SAFE_FRAC;
+  let size = fontPx;
+  ctx.font = `400 ${size}px Poppins, sans-serif`;
+  let w = ctx.measureText(text).width;
+
+  if (w > maxW){
+    size = Math.max(8, Math.floor(size * (maxW / w)));
+    for (let i = 0; i < 24; i++){
+      ctx.font = `400 ${size}px Poppins, sans-serif`;
+      if (ctx.measureText(text).width <= maxW) break;
+      size -= Math.max(1, Math.round(size * 0.04));
+      if (size <= 8){ size = 8; break; }
     }
-    ctx.font = `400 ${size}px Poppins, sans-serif`;
+  }
 
-    const x = Math.round(texW / 2);
-    const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
+  ctx.font = `400 ${size}px Poppins, sans-serif`;
 
- // Keep the same text height feel as the front/back wall text
-const SIDE_VSCALE = 1.0;
+  const x = Math.round(texW / 2);
+  const y = Math.round(texH / 2);
 
+  // DESKTOP side walls: make text 20% taller, keep width compressed
+  const SIDE_VSCALE = IS_MOBILE ? 1.0 : 1.2;
+  const SIDE_HCOMPRESS = 0.5;
 
-    const SIDE_HCOMPRESS = 0.5; // half width
+  ctx.save();
+  if (TW_FLIP_VERTICAL){
+    ctx.translate(0, texH);
+    ctx.scale(1, -1);
+  }
+  if (hFlip){
+    ctx.translate(texW, 0);
+    ctx.scale(-1, 1);
+  }
 
-ctx.save();
-if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
-if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
+  // transform around the text center
+  ctx.translate(x, y);
+  ctx.scale(SIDE_HCOMPRESS, SIDE_VSCALE);
+  ctx.translate(-x, -y);
 
-// keep full height, but shorten width to ~50%
-ctx.translate(x, y);
-ctx.scale(SIDE_HCOMPRESS, SIDE_VSCALE);
-ctx.translate(-x, -y);
+  ctx.shadowColor = "rgba(218,255,62,0.20)";
+  ctx.shadowBlur  = Math.max(2, Math.round(size * 0.18));
+  ctx.fillStyle   = color;
+  ctx.fillText(text, x, y);
 
-ctx.shadowColor = "rgba(218,255,62,0.20)";
-ctx.shadowBlur  = Math.max(2, Math.round(size * 0.18));
-ctx.fillStyle   = color;
-ctx.fillText(text, x, y);
-ctx.restore();
-dt.update(false); // upload the static side-wall text once
+  ctx.restore();
+  dt.update(false);
 }
-
 
 
 
