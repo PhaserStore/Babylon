@@ -1415,7 +1415,10 @@
   let FRAME_CENTER_Y = 0;
   const LOGO_EXTRA_UP = 2.5;
   let __logoFront = null;
-  let __logoBack  = null;
+let __logoBack  = null;
+let __logoLeft  = null;
+let __logoRight = null;
+
 
   function hint(msg){ console.log(msg); }
 
@@ -1475,7 +1478,10 @@
 
   function buildGalleryLogo(){
     try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
-    try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
+try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
+try { __logoLeft ?.dispose?.(); __logoLeft  = null; } catch(_){}
+try { __logoRight?.dispose?.(); __logoRight = null; } catch(_){}
+
     try { twFrontAnchor?.dispose?.(); twFrontAnchor = null; } catch(_){}
     try { twBackAnchor ?.dispose?.(); twBackAnchor  = null; } catch(_){}
 
@@ -1508,6 +1514,9 @@
 
       const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
+      const xLeft  = -ROOM.W / 2 + FRONT_BACK_OFFSET;
+const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
+
 
       // PRESERVED logo orientation fix: only V mirrored (upright, not horizontally mirrored).
       dt.vScale = -1; dt.vOffset = 1;
@@ -1534,6 +1543,19 @@
       __logoBack.position.set(0, yPos, zBack);
       __logoBack.rotation.y = Math.PI;
       __logoBack.material   = matBack;
+
+      // LEFT wall logo
+__logoLeft = BABYLON.MeshBuilder.CreatePlane("logo_left", { width: logoW, height: logoH }, scene);
+__logoLeft.position.set(xLeft, yPos, 0);
+__logoLeft.rotation.y = Math.PI / 2;   // face inward (+X)
+__logoLeft.material   = makeMat("logoMat_left");
+
+// RIGHT wall logo
+__logoRight = BABYLON.MeshBuilder.CreatePlane("logo_right", { width: logoW, height: logoH }, scene);
+__logoRight.position.set(xRight, yPos, 0);
+__logoRight.rotation.y = -Math.PI / 2; // face inward (-X)
+__logoRight.material   = makeMat("logoMat_right");
+
 
       const nextPOTLocal = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
       const panelHeightForCalc = Math.max(0.20, TW_FONT_PX / 100);
