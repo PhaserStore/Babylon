@@ -404,16 +404,16 @@
   /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
   const SIDE_WALL_TEXT = "Hi-tech quality apparel. Future ready.";
 
-  /* Usable text-box width as a FRACTION of the available wall length.
-     These set how wide the drawing texture is. Combined with the uniform
-     auto-fit (fitFontPx), the FULL sentence always fits with safe margins and
-     the font is never stretched/squashed. Front/back are wide enough for their
-     longest sentence; side walls (longer walls) get a longer box. */
+  /* Usable text-box width as a FRACTION of the available wall length (front/back).
+     Combined with the uniform auto-fit, the full sentence always fits with safe
+     margins and the font is never stretched/squashed. The SIDE walls do NOT use
+     left/right here — they reuse the BACK-wall text-box width (see panel sizing
+     in buildGalleryLogo). The left/right values are kept only for reference. */
   const TW_WIDTH_FRAC = {
     front: 0.82,  // wide enough for the full front sentence (safe margins kept)
-    back:  0.82,
-    left:  0.80,  // long side walls — generous box, still safe margins
-    right: 0.80
+    back:  0.82,  // ← side walls reuse THIS width
+    left:  0.82,  // (unused for sizing — sides match back)
+    right: 0.82   // (unused for sizing — sides match back)
   };
 
   const TW_SPEED_MS     = 75;
@@ -802,21 +802,21 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Uniform fit using Poppins SemiBold metrics (measured at the draw font).
+    // Uniform fit using Poppins REGULAR (400) metrics (measured at the draw font).
     const maxW = texW * TW_SAFE_FRAC;
     let size = fontPx;
-    ctx.font = `600 ${size}px Poppins, sans-serif`;
+    ctx.font = `400 ${size}px Poppins, sans-serif`;
     let w = ctx.measureText(text).width;
     if (w > maxW){
       size = Math.max(8, Math.floor(size * (maxW / w)));
       for (let i = 0; i < 24; i++){
-        ctx.font = `600 ${size}px Poppins, sans-serif`;
+        ctx.font = `400 ${size}px Poppins, sans-serif`;
         if (ctx.measureText(text).width <= maxW) break;
         size -= Math.max(1, Math.round(size * 0.04));
         if (size <= 8){ size = 8; break; }
       }
     }
-    ctx.font = `600 ${size}px Poppins, sans-serif`;
+    ctx.font = `400 ${size}px Poppins, sans-serif`;
 
     const x = Math.round(texW / 2);
     const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
@@ -1416,7 +1416,7 @@
     const hFlip = (wallKey === 'left' || wallKey === 'right');
     const isSide = (wallKey === 'left' || wallKey === 'right');
 
-    // ── SIDE WALLS: static Poppins SemiBold sentence (desktop + mobile, no cycle).
+    // ── SIDE WALLS: static Poppins Regular sentence (desktop + mobile, no cycle).
     if (isSide){
       drawStaticSideText(dt, {
         text: SIDE_WALL_TEXT, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
@@ -1529,14 +1529,15 @@
 
       // Available wall lengths
       const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2; // front/back run along width
-      const sideAvail      = ROOM.D - TW_MARGIN_WALL * 2;  // left/right run along depth
       const panelH = Math.max(0.20, TW_FONT_PX / 100);
 
-      // Per-wall text-box widths = fraction of available length (centered → safe margins).
+      // Front/back text-box widths = fraction of the front/back available length.
       const panelW_front = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.front);
       const panelW_back  = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.back);
-      const panelW_left  = Math.max(1.0, sideAvail      * TW_WIDTH_FRAC.left);
-      const panelW_right = Math.max(1.0, sideAvail      * TW_WIDTH_FRAC.right);
+      // SIDE WALLS: use the SAME width as the BACK-wall typographer text box
+      // (same absolute world-space width), just centered on the longer side wall.
+      const panelW_left  = panelW_back;
+      const panelW_right = panelW_back;
 
       // Cleanup any previous front/back/side planes + animations/cyclers.
       try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
