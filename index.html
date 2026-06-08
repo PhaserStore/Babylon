@@ -387,27 +387,28 @@
      shows them as fixed full sentences (no typewriter). Side walls: a single
      STATIC sentence shown on both desktop and mobile (no cycling/typewriter). */
   const TW_STRINGS = {
-    // 1) FRONT wall text box
-    front: [
-      "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
-      "EXPLORE_THE_COLLECTIONS",
-      "FOLLOW_US_ON_INSTAGRAM"
-    ],
-    // 2) BACK wall text box
-    back: [
-      "THANK_YOU_FOR_VISITING",
-      "NEW_DROPS_THIS_MONTH",
-      "LIMITED_EDITION_OUT_NOW"
-    ],
-    // 3) LEFT wall — STATIC (do not change)
-    left: [
-      "Hi-tech quality apparel. Future ready."
-    ],
-    // 4) RIGHT wall — STATIC (do not change)
-    right: [
-      "Hi-tech quality apparel. Future ready."
-    ]
-  };
+  front: [
+    "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
+    "EXPLORE_THE_COLLECTIONS",
+    "FOLLOW_US_ON_INSTAGRAM"
+  ],
+  back: [
+    "THANK_YOU_FOR_VISITING",
+    "NEW_DROPS_THIS_MONTH",
+    "LIMITED_EDITION_OUT_NOW"
+  ],
+  left: [
+    "CLICK_LABELS_TO_OPEN_LINKS",
+    "SUSTAINABLE_MATERIALS",
+    "SHIPPED_WORLDWIDE"
+  ],
+  right: [
+    "CONTEMPORARY_DESIGN",
+    "LIMITED_EDITION",
+    "CUSTOM_REQUESTS"
+  ]
+};
+
 
   /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
   const SIDE_WALL_TEXT = "Hi-tech quality apparel. Future ready.";
@@ -1442,54 +1443,63 @@ let __logoRight = null;
      cycler (no per-char typing). Returns { rafId, controller } so callers can
      store handles for teardown. */
   function startWallText(wallKey, dt, texW, texH){
-    const texts = TW_STRINGS[wallKey];
-    // Orientation correction (verified against rendered output):
-    // The text planes use rotation.y = rotY directly (front:0, back:π, left:+π/2,
-    // right:-π/2). With the vertical flip applied in the draw step, the FRONT and
-    // BACK walls read correctly WITHOUT a horizontal flip, while the SIDE walls
-    // (left/right) need the horizontal flip to read left-to-right.
-    const hFlip = (wallKey === 'left' || wallKey === 'right');
-    const isSide = (wallKey === 'left' || wallKey === 'right');
+  const texts = TW_STRINGS[wallKey];
+  const hFlip = (wallKey === 'left' || wallKey === 'right');
+  const isSide = (wallKey === 'left' || wallKey === 'right');
 
-    // ── SIDE WALLS: static Poppins Regular sentence (desktop + mobile, no cycle).
+  // MOBILE = úsporná verze
+  if (IS_MOBILE){
+    // side walls na mobilu zůstanou statické
     if (isSide){
       drawStaticSideText(dt, {
-        text: SIDE_WALL_TEXT, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
+        text: (texts && texts[0]) ? texts[0] : SIDE_WALL_TEXT,
+        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
       });
       return { rafId: 0, controller: null };
     }
 
-    // ── FRONT / BACK ──
-    if (IS_MOBILE){
-      // MOBILE: fixed full-sentence cycler. To guarantee FRONT and BACK render at
-      // the SAME size & proportions, size from the COMBINED front+back sentence
-      // set (the single longest sentence across both walls drives the size).
-      // Then horizontally compress to 80% (vertical untouched → no deformation).
-      try { __cyclers[wallKey]?.stop?.(); } catch(_){}
-      const H_COMPRESS = 0.8;
-      const measCtx = dt.getContext();
-      const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
-      const fixedPx = fixedFontPxForSet(measCtx, combinedFB, texW, TW_FONT_PX, H_COMPRESS);
-      const ctrl = runSentenceCyclerToDT(dt, {
-        texts, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX,
-        holdMs: 2600, fadeMs: 320, hFlip,
-        fixedPx, hCompress: H_COMPRESS
-      });
-      __cyclers[wallKey] = ctrl;
-      return { rafId: 0, controller: ctrl };
-    } else {
-      // DESKTOP: original typewriter effect (richer animated experience).
-      // Front and back use the same panel width, same texW/texH and the same
-      // fixed TW_FONT_PX → identical size & proportions on both walls.
-      // Horizontally compressed to 80% (vertical untouched) to match the brief.
-      const rafId = runTypewriterToDT(dt, {
-        texts, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip,
-        hCompress: 0.8
-      });
-      return { rafId, controller: null };
-    }
+    // front/back mobil = sentence cycler
+    try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+    const H_COMPRESS = 0.8;
+    const measCtx = dt.getContext();
+    const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
+    const fixedPx = fixedFontPxForSet(measCtx, combinedFB, texW, TW_FONT_PX, H_COMPRESS);
+
+    const ctrl = runSentenceCyclerToDT(dt, {
+      texts,
+      texW,
+      texH,
+      color: TW_COLOR_HEX,
+      fontPx: TW_FONT_PX,
+      holdMs: 2600,
+      fadeMs: 320,
+      hFlip,
+      fixedPx,
+      hCompress: H_COMPRESS
+    });
+
+    __cyclers[wallKey] = ctrl;
+    return { rafId: 0, controller: ctrl };
   }
+
+  // DESKTOP = typographer / typewriter na všech 4 stěnách
+  const desktopCompress = isSide ? 0.5 : 0.8;
+
+  const rafId = runTypewriterToDT(dt, {
+    texts,
+    speedMs: TW_SPEED_MS,
+    pauseMs: TW_PAUSE_MS,
+    texW,
+    texH,
+    color: TW_COLOR_HEX,
+    fontPx: TW_FONT_PX,
+    hFlip,
+    hCompress: desktopCompress
+  });
+
+  return { rafId, controller: null };
+}
+
 
   function buildGalleryLogo(){
     try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
