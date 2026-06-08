@@ -386,7 +386,7 @@
      Front/back: editable arrays — desktop types them out (typewriter), mobile
      shows them as fixed full sentences (no typewriter). Side walls: a single
      STATIC sentence shown on both desktop and mobile (no cycling/typewriter). */
-  const TW_STRINGS = {
+ const TW_STRINGS = {
   front: [
     "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
     "EXPLORE_THE_COLLECTIONS",
@@ -398,14 +398,10 @@
     "LIMITED_EDITION_OUT_NOW"
   ],
   left: [
-    "CLICK_LABELS_TO_OPEN_LINKS",
-    "SUSTAINABLE_MATERIALS",
-    "SHIPPED_WORLDWIDE"
+    "Hi-tech quality apparel. Future ready."
   ],
   right: [
-    "CONTEMPORARY_DESIGN",
-    "LIMITED_EDITION",
-    "CUSTOM_REQUESTS"
+    "Hi-tech quality apparel. Future ready."
   ]
 };
 
@@ -1447,19 +1443,23 @@ let __logoRight = null;
   const hFlip = (wallKey === 'left' || wallKey === 'right');
   const isSide = (wallKey === 'left' || wallKey === 'right');
 
-  // MOBILE = úsporná verze
-  if (IS_MOBILE){
-    // side walls na mobilu zůstanou statické
-    if (isSide){
-      drawStaticSideText(dt, {
-        text: (texts && texts[0]) ? texts[0] : SIDE_WALL_TEXT,
-        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
-      });
-      return { rafId: 0, controller: null };
-    }
+  // SIDE WALLS = vždy statický text (desktop + mobile)
+  if (isSide){
+    drawStaticSideText(dt, {
+      text: SIDE_WALL_TEXT,
+      texW,
+      texH,
+      color: TW_COLOR_HEX,
+      fontPx: TW_FONT_PX,
+      hFlip
+    });
+    return { rafId: 0, controller: null };
+  }
 
-    // front/back mobil = sentence cycler
+  // MOBILE = úsporná ne-běžící verze pouze pro front/back
+  if (IS_MOBILE){
     try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+
     const H_COMPRESS = 0.8;
     const measCtx = dt.getContext();
     const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
@@ -1473,7 +1473,7 @@ let __logoRight = null;
       fontPx: TW_FONT_PX,
       holdMs: 2600,
       fadeMs: 320,
-      hFlip,
+      hFlip: false,
       fixedPx,
       hCompress: H_COMPRESS
     });
@@ -1482,9 +1482,7 @@ let __logoRight = null;
     return { rafId: 0, controller: ctrl };
   }
 
-  // DESKTOP = typographer / typewriter na všech 4 stěnách
-  const desktopCompress = isSide ? 0.5 : 0.8;
-
+  // DESKTOP = původní běžící typewriter pouze pro front/back
   const rafId = runTypewriterToDT(dt, {
     texts,
     speedMs: TW_SPEED_MS,
@@ -1493,13 +1491,12 @@ let __logoRight = null;
     texH,
     color: TW_COLOR_HEX,
     fontPx: TW_FONT_PX,
-    hFlip,
-    hCompress: desktopCompress
+    hFlip: false,
+    hCompress: 0.8
   });
 
   return { rafId, controller: null };
 }
-
 
   function buildGalleryLogo(){
     try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
