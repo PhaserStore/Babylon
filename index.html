@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="cs">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -21,6 +21,7 @@
       --btn-bg-hover:#3a3a3a;
       --btn-brd:rgba(255,255,255,.15);
       --accent:#ff6a00;
+      --phaser-green:#daff3e; /* shared brand green (matches logo + typewriter) */
     }
     html,body{
       width:100%; height:100%; margin:0; overflow:hidden; background:#111; color:var(--txt);
@@ -35,6 +36,42 @@
       transform: translateZ(0);
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
+    }
+
+    /* ===== LOADING OVERLAY (NEW) =====
+       Lightweight, layered cleanly above the canvas. Fades out once the first
+       stable render is ready. Uses its own compositing layer so it never forces
+       canvas repaints, and is removed from the DOM after fade to avoid overhead. */
+    #loadingOverlay{
+      position:fixed; inset:0; z-index:20000;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:26px; background:#000; color:var(--txt);
+      opacity:1; transition:opacity .55s ease;
+      will-change:opacity; transform:translateZ(0);
+      -webkit-tap-highlight-color:transparent;
+      padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
+    }
+    #loadingOverlay.is-hidden{ opacity:0; pointer-events:none; }
+    #loadingLogo{
+      width:min(60vw, 360px); height:auto; display:block;
+      filter: drop-shadow(0 0 18px rgba(218,255,62,.20));
+      user-select:none; -webkit-user-drag:none;
+    }
+    #loadingBarWrap{
+      width:min(72vw, 360px); display:flex; flex-direction:column; align-items:center; gap:12px;
+    }
+    #loadingBarTrack{
+      width:100%; height:4px; border-radius:4px; background:rgba(255,255,255,.12);
+      overflow:hidden; position:relative;
+    }
+    #loadingBarFill{
+      position:absolute; left:0; top:0; bottom:0; width:0%;
+      background:var(--phaser-green); border-radius:4px;
+      transition:width .25s ease;
+    }
+    #loadingPct{
+      font-family:'Poppins',sans-serif; font-weight:400; font-size:13px; letter-spacing:.06em;
+      color:var(--txt-dim); font-variant-numeric:tabular-nums;
     }
 
     #scBar{
@@ -64,6 +101,7 @@
     #scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
     #barVol{ width:84px; }
 
+    /* RIGHT HUD group: reset (far right), fullscreen (left of reset), auto-tour (left of fullscreen) */
     .hudIcon{
       position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
       filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); opacity:.96; transition: transform .12s ease, opacity .12s ease;
@@ -73,7 +111,11 @@
     }
     .hudIcon:hover{ transform:translateY(-1px); opacity:1; }
     #fullscreenIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
+    /* auto-tour sits to the LEFT of fullscreen (two slots in) */
+    #autoTourIcon{ right:calc(12px + var(--safe-right) + (56px + 8px) * 2); }
+    #autoTourIcon.is-active{ filter: drop-shadow(0 0 12px rgba(218,255,62,.55)); opacity:1; }
 
+    /* LEFT HUD group: instagram (far left), share (right of instagram), email (right of share) */
     .hudIconLeft{
       position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
       filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); opacity:.96; transition: transform .12s ease, opacity .12s ease;
@@ -82,6 +124,8 @@
     }
     .hudIconLeft:hover{ transform:translateY(-1px); opacity:1; }
     #shareIcon{ left:calc(12px + var(--safe-left) + 56px + 8px); }
+    /* email sits to the RIGHT of share (two slots in) */
+    #emailIcon{ left:calc(12px + var(--safe-left) + (56px + 8px) * 2); }
 
     @media (max-width: 560px){
       #scBar{ gap:12px; padding:0 10px; }
@@ -101,12 +145,14 @@
       .hudIconLeft{
         bottom: max(6px, calc(12px + var(--safe-bottom) - var(--mobile-shift)));
       }
+      /* fullscreen is hidden on mobile; auto-tour stays visible but shifts into the
+         fullscreen slot so the right group stays tight (reset + auto-tour). */
       #fullscreenIcon{ display:none !important; }
+      #autoTourIcon{ right:calc(12px + var(--safe-right) + 56px + 8px); }
       #scBar, #scIframeHost{ display:none !important; }
-      #instaIcon, #shareIcon{ display:block !important; }
-      #shareIcon{
-        left: calc(12px + var(--safe-left) + 56px + 8px);
-      }
+      #instaIcon, #shareIcon, #emailIcon{ display:block !important; }
+      #shareIcon{ left: calc(12px + var(--safe-left) + 56px + 8px); }
+      #emailIcon{ left: calc(12px + var(--safe-left) + (56px + 8px) * 2); }
     }
   </style>
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -115,19 +161,55 @@
 <body>
   <canvas id="renderCanvas"></canvas>
 
+  <!-- ===== LOADING OVERLAY (NEW) ===== -->
+  <div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
+    <!-- Phaser logo (inline SVG, same artwork as the in-scene logo) -->
+    <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <g fill="#daff3e">
+        <path d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
+        <path d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
+        <path d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+        <path d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+        <path d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
+        <path d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+      </g>
+    </svg>
+    <div id="loadingBarWrap">
+      <div id="loadingBarTrack"><div id="loadingBarFill"></div></div>
+      <div id="loadingPct">0%</div>
+    </div>
+  </div>
+
+  <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
+  <img id="autoTourIcon" class="hudIcon"
+    src="./assets/auto tour.svg"
+    alt="Auto tour" title="Auto tour"
+    role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
   <img id="fullscreenIcon" class="hudIcon"
     src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-    alt="Celá obrazovka" title="Přepnout celé okno"
-    role="button" tabindex="0" aria-label="Celá obrazovka" aria-pressed="false" />
+    alt="Full screen" title="Full screen"
+    role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
   <img id="resetCamIcon" class="hudIcon"
-    src="./assets/focus.svg" alt="Reset kamery" title="Reset kamery (R)"
-    role="button" tabindex="0" aria-label="Reset kamery" />
+    src="./assets/focus.svg" alt="Reset camera" title="Reset camera (R)"
+    role="button" tabindex="0" aria-label="Reset camera" />
+
+  <!-- LEFT HUD: instagram, share, email (NEW) -->
   <img id="instaIcon" class="hudIconLeft"
     src="./assets/Insta.svg" alt="Instagram" title="Open Instagram @__phaser__"
-    role="button" tabindex="0" aria-label="Open Instagram profile" />
+    role="button" tabindex="0" aria-label="Open Instagram" />
   <img id="shareIcon" class="hudIconLeft"
-    src="./assets/Share.svg" alt="Share" title="Share this page"
-    role="button" tabindex="0" aria-label="Sdílet odkaz na tuto stránku" />
+    src="./assets/Share.svg" alt="Share" title="Share"
+    role="button" tabindex="0" aria-label="Share this page" />
+  <img id="emailIcon" class="hudIconLeft"
+    src="./assets/email.svg" alt="Email" title="Email"
+    role="button" tabindex="0" aria-label="Email" />
 
   <div id="scBar" aria-label="SoundCloud Bar">
     <div class="sc-left">
@@ -152,7 +234,7 @@
       <span id="scTimeDur" class="time">0:00</span>
     </div>
     <div class="sc-right">
-      <button id="barMute" title="Mute/Unmute" aria-label="Mute or unmute">
+      <button id="barMute" title="Mute" aria-label="Mute">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
       </button>
       <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
@@ -187,6 +269,49 @@
     let pick = steps[0], best = Infinity;
     for (const s of steps){ const d = Math.abs(s - raw); if (d < best){ best = d; pick = s; } }
     return pick;
+  })();
+
+  /* ===== LOADING OVERLAY controller (NEW) =====
+     Drives a deterministic, smooth progress bar that reaches 100% only when the
+     gallery's first stable render is ready, then fades the overlay out. */
+  const Loader = (() => {
+    const overlay = document.getElementById('loadingOverlay');
+    const fill    = document.getElementById('loadingBarFill');
+    const pctEl   = document.getElementById('loadingPct');
+    let shown = 0;          // currently displayed %
+    let target = 0;         // desired %
+    let raf = 0;
+    let done = false;
+
+    function render(){
+      // ease shown toward target
+      shown += (target - shown) * 0.18;
+      if (Math.abs(target - shown) < 0.3) shown = target;
+      const v = Math.max(0, Math.min(100, Math.round(shown)));
+      if (fill)  fill.style.width = v + '%';
+      if (pctEl) pctEl.textContent = v + '%';
+      if (!done || v < 100) raf = requestAnimationFrame(render);
+    }
+    raf = requestAnimationFrame(render);
+
+    return {
+      set(p){ target = Math.max(target, Math.min(100, p)); },
+      finish(){
+        target = 100;
+        // wait until the bar visually reaches 100 before fading
+        const check = () => {
+          if (shown >= 99.5){
+            done = true;
+            overlay?.classList.add('is-hidden');
+            // remove from DOM after the fade completes (keeps it lightweight)
+            setTimeout(() => { try { overlay?.remove(); } catch(_){} cancelAnimationFrame(raf); }, 650);
+          } else {
+            requestAnimationFrame(check);
+          }
+        };
+        check();
+      }
+    };
   })();
 
   const canvas = document.getElementById("renderCanvas");
@@ -322,19 +447,7 @@
   }
 
   /* ─────────────────────────────────────────────────────────────────
-   * FIX 5 — drawTypeLine: changed dt.update(false) everywhere.
-   *
-   * Original code called dt.update() (no arg) which defaults to
-   * invertY=true AND triggers a full mipmap regeneration chain on
-   * every single animation frame.  With TW_SPEED_MS=75ms that means
-   * ~13 full GPU mipmap rebuilds per second PER typewriter plane —
-   * two planes = 26 per second.  Each rebuild stalls the GPU pipeline
-   * for a few ms, showing as periodic white/black flicker on slower
-   * GPUs and Safari (which serialises GPU work more aggressively).
-   *
-   * Passing false disables the per-call mipmap regen; mipmaps are
-   * generated once by Babylon at first bind and stay valid because
-   * the texture size never changes.
+   * FIX 5 — drawTypeLine: dt.update(false) everywhere (no mipmap regen/frame).
    * ───────────────────────────────────────────────────────────────── */
   function drawTypeLine(dt, {
     text,
@@ -420,20 +533,7 @@
     let start = performance.now();
     let rafId = 0;
 
-    /* ─────────────────────────────────────────────────────────────
-     * FIX 6 — throttled typewriter updates.
-     *
-     * Original: called drawTypeLine on every rAF (~60/s), uploading
-     * a new texture every frame even when no character had changed
-     * (during the pause phase).  This caused constant GPU texture
-     * uploads that manifested as subtle flickering, especially during
-     * the pause phase when the cursor blink is the only change.
-     *
-     * Fix: track the last rendered (charCount, cursorAlphaBucket)
-     * and skip the draw + upload entirely when nothing has visually
-     * changed.  Cursor blink is bucketed to ~20 levels so we still
-     * get smooth breathing without uploading 60× per second.
-     * ───────────────────────────────────────────────────────────── */
+    /* FIX 6 — throttled typewriter updates (skip upload when nothing changed). */
     let lastChars = -1;
     let lastCursorBucket = -1;
 
@@ -450,16 +550,14 @@
         if (elapsed >= lenMs + pauseMs) {
           idx = (idx + 1) % texts.length;
           start = now;
-          lastChars = -1; // force redraw on text switch
+          lastChars = -1;
           lastCursorBucket = -1;
         }
       }
 
-      // Cursor blink bucket (20 steps = ~50ms granularity at 450ms period)
       const period = Math.max(120, TW_CURSOR_BLINK_MS);
       const cursorBucket = Math.floor(((now % period) / period) * 20);
 
-      // Skip upload if nothing changed
       if (chars !== lastChars || cursorBucket !== lastCursorBucket) {
         drawTypeLine(dt, { text: t, progress: chars, texW, texH, color, fontPx });
         lastChars = chars;
@@ -529,93 +627,6 @@
     dt.hasAlpha = false;
     dt.anisotropicFilteringLevel = MAX_ANISO;
     return dt;
-  }
-
-  async function svgToInkOverlayTexture(svgUrl, {
-    maxSize = 2048,
-    targetAspect = 1.0,
-    ink = { r: 255, g: 255, b: 255 },
-    alphaGain = 1.8,
-    alphaMax = 1.0,
-    sampling = BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-    mode = "auto",
-    binaryAlpha = false,
-    threshold = 0.10
-  } = {}) {
-    const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
-    const cap = IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP;
-
-    const res = await fetch(svgUrl, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`SVG fetch failed: ${res.status} ${res.statusText}`);
-    const svgText = await res.text();
-
-    const blob = new Blob([svgText], { type: "image/svg+xml" });
-    const blobUrl = URL.createObjectURL(blob);
-
-    const img = await new Promise((resolve, reject) => {
-      const im = new Image();
-      im.decoding = "async";
-      im.onload = () => resolve(im);
-      im.onerror = reject;
-      im.src = blobUrl;
-    });
-
-    let w = Math.min(cap, maxSize);
-    let h = Math.round(w / Math.max(1e-6, targetAspect));
-    if (h > cap) { h = cap; w = Math.round(h * targetAspect); }
-    w = Math.min(nextPOT(w), cap);
-    h = Math.min(nextPOT(h), cap);
-
-    const tmp = document.createElement("canvas");
-    tmp.width = w; tmp.height = h;
-    const tctx = tmp.getContext("2d", { willReadFrequently: true });
-    tctx.clearRect(0, 0, w, h);
-    tctx.imageSmoothingEnabled = true;
-    tctx.imageSmoothingQuality = "high";
-    tctx.drawImage(img, 0, 0, w, h);
-    const imgData = tctx.getImageData(0, 0, w, h);
-    const d = imgData.data;
-
-    let sumLum = 0, count = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const a = d[i + 3];
-      if (a > 10) {
-        const r = d[i], g = d[i + 1], b = d[i + 2];
-        sumLum += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-        count++;
-      }
-    }
-    const avgLum = count ? (sumLum / count) : 0;
-    let useWhiteAsInk;
-    if (mode === "whiteOnTransparent") useWhiteAsInk = true;
-    else if (mode === "blackOnTransparent") useWhiteAsInk = false;
-    else useWhiteAsInk = avgLum > 0.55;
-
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      const a = d[i + 3] / 255;
-      const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      let cov = useWhiteAsInk ? (lum * a) : ((1 - lum) * a);
-      cov = Math.max(0, Math.min(1, cov * alphaGain));
-      if (binaryAlpha) cov = (cov >= threshold) ? 1 : 0;
-      d[i]     = ink.r;
-      d[i + 1] = ink.g;
-      d[i + 2] = ink.b;
-      d[i + 3] = Math.round(cov * alphaMax * 255);
-    }
-
-    const out = new BABYLON.DynamicTexture("floorInkDT", { width: w, height: h }, scene, true, sampling);
-    out.hasAlpha = true;
-    out.gammaSpace = true;
-    const ctx = out.getContext();
-    ctx.putImageData(imgData, 0, 0);
-    out.update(false); // FIX 4 applied here too
-    out.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    out.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    out.uScale = 1; out.vScale = 1;
-    out.anisotropicFilteringLevel = MAX_ANISO || 4;
-    URL.revokeObjectURL(blobUrl);
-    return out;
   }
 
   function buildMySkybox() {
@@ -802,24 +813,10 @@
     return { texW, texH };
   }
 
-  /* ─────────────────────────────────────────────────────────────────
-   * FIX 7 — setWebPToFrame: atomic material swap, no mid-frame flicker.
-   *
-   * Original: new DynamicTexture + new material created inside
-   * img.onload, then immediately assigned to frame.material.  When
-   * Babylon picks this up mid-frame the old texture is already
-   * released from the GPU before the new one is ready, causing a
-   * 1–3 frame transparent/black flash (very visible as a flicker).
-   *
-   * Fix: build the DT + material completely offscreen, then defer
-   * the swap to the next scene.onBeforeRenderObservable tick so the
-   * assignment always happens at a deterministic point in the render
-   * pipeline (before draw calls, after all JS for that frame).
-   * The old material is disposed only AFTER the new one is bound.
-   * ───────────────────────────────────────────────────────────────── */
+  /* FIX 7 — setWebPToFrame: atomic material swap, no mid-frame flicker. */
   function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
     if (!isWebP(url)) {
-      console.warn("Pouze WebP je povolen pro rámové obrazy. Přeskakuji:", url);
+      console.warn("Only WebP is allowed for frame images. Skipping:", url);
       return;
     }
     const safeUrl = encodeURI(url);
@@ -837,17 +834,13 @@
 
       const newMat = unlitTex(dt);
       newMat.zOffset = -1;
-      // FIX (image flip): the frame plane is rotated rotY + Math.PI, which renders
-      // the image texture upside-down. Mirror the V axis so it reads right-side-up.
+      // image flip: frame plane rotated rotY + Math.PI → mirror V so it reads upright.
       dt.vScale  = -1;
       dt.vOffset = 1;
 
-      // Defer swap to next render-loop tick to avoid mid-frame GPU state change
       const swapObserver = scene.onBeforeRenderObservable.addOnce(() => {
         const oldMat = targetItem.frame.material;
         targetItem.frame.material = newMat;
-        // Dispose old material + its texture on the tick AFTER swap
-        // so the GPU has time to bind the new one
         scene.onBeforeRenderObservable.addOnce(() => {
           if (oldMat && oldMat.name !== "ph_img_mat") {
             oldMat.diffuseTexture?.dispose();
@@ -856,9 +849,12 @@
           }
         });
       });
+
+      // NEW: report image load to the loader for accurate progress
+      Assets.markFrameImageLoaded();
     };
 
-    img.onerror = (e) => console.error("[WebP] Chyba načítání:", safeUrl, e);
+    img.onerror = (e) => { console.error("[WebP] load error:", safeUrl, e); Assets.markFrameImageLoaded(); };
     img.src = safeUrl;
   }
 
@@ -900,6 +896,8 @@
     }
   }
 
+  /* ===== Frame sizing =====
+     Square frames now. Width/height set in applyFixedLayout(). */
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171";
@@ -945,6 +943,9 @@
     return mm;
   }
 
+  /* ===== Placard =====
+     The placard texture's aspect ratio is driven by the plane's W/H so text is
+     never stretched. Poppins SemiBold (600). */
   function drawPlacard(plac, data, rotY, planeW, planeH){
     const texWFull = TEX_SIZE;
     const texWTarget = IS_MOBILE ? Math.max(256, Math.min(1024, Math.round(texWFull * 0.5))) : texWFull;
@@ -958,8 +959,8 @@
     c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "top";
     const lineH = Math.round(texH * 0.34);
     const fontSize = Math.max(18, Math.round(lineH * 0.78));
-    c.font = `600 ${fontSize}px Poppins`;
-    const text = (data.title || "(bez názvu)").trim();
+    c.font = `600 ${fontSize}px Poppins`; // Poppins SemiBold
+    const text = (data.title || "(untitled)").trim();
     const words = text.split(/\s+/);
     const lines = []; let buf = "";
     for (let w of words){
@@ -981,9 +982,7 @@
     lines.forEach((ln, i)=> c.fillText(ln, texW / 2, startY + i*lineH + Math.round(lineH*0.1)));
     dt.update(false); // FIX 4
     const mat = unlitTex(dt); mat.zOffset = -2;
-    // FIX (placard flip): placard plane is rotated rotY + Math.PI. Only the V axis
-    // needs mirroring to make the text right-side-up; the text must NOT be mirrored
-    // horizontally, so U is left untouched.
+    // placard flip: plane rotated rotY + Math.PI → only V mirrored (text upright, not mirrored).
     dt.vScale = -1; dt.vOffset = 1;
     plac.material = mat;
   }
@@ -994,6 +993,10 @@
     return new BABYLON.Vector3(nx, 0, nz);
   }
 
+  /* ===== addFrame =====
+     pos here is the FRAME CENTER. Placard offset below the frame is preserved
+     proportionally (same gap language as before: -0.72 * H below center, plus a
+     little extra so it clears the taller square frame cleanly). */
   function addFrame(pos, rotY=0, wall='front'){
     const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
       width: FRAME_SIZE.W + FRAME_BOX_BORDER,
@@ -1025,20 +1028,24 @@
     dt.update(false); // FIX 4
     const fMat = unlitTex(dt);
     fMat.zOffset = -1;
-    // Tag the placeholder so the deferred dispose in setWebPToFrame skips it safely
     fMat.name = "ph_img_mat";
     f.material = fMat;
 
+    // Placard: width MATCHES the square frame width (more room for titles).
     const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.22, FRAME_SIZE.H * 0.10);
+    const placH = Math.max(0.26, FRAME_SIZE.W * 0.16); // slightly taller, proportional to wider frame
     const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
       width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
     }, scene);
-    plac.position = pos.add(new BABYLON.Vector3(0, -FRAME_SIZE.H*0.72, 0)).add(normalOffset(rotY, 0.03));
+    // keep the same visual gap below the frame bottom as before.
+    const PLAC_GAP = 0.28; // distance from frame bottom edge to placard top edge
+    const placCenterY = pos.y - (FRAME_SIZE.H/2) - PLAC_GAP - (placH/2);
+    plac.position = new BABYLON.Vector3(pos.x, placCenterY, pos.z).add(normalOffset(rotY, 0.03));
     plac.rotation.y = rotY + Math.PI;
     plac.isPickable = true;
+    plac._width = placW; plac._height = placH;
 
-    const data = { title: "(bez názvu)", url: "", src: "" };
+    const data = { title: "(untitled)", url: "", src: "" };
     drawPlacard(plac, data, rotY, placW, placH);
     return { frame:f, box, placard:plac, data, wall, rotY, pos };
   }
@@ -1115,13 +1122,7 @@
       const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
 
-      // FIX (logo orientation): correct the logo so it reads properly on both walls.
-      // Only the V axis needs mirroring to make the logo upright; the U axis is left
-      // neutral so the logo reads left-to-right (not horizontally mirrored).
-      //
-      // NOTE: do NOT use dt.clone() here — DynamicTexture.clone() returns a blank
-      // texture (it does not copy the canvas pixel data), which made the logo
-      // disappear entirely. The shared dt is used directly.
+      // PRESERVED logo orientation fix: only V mirrored (upright, not horizontally mirrored).
       dt.vScale = -1; dt.vOffset = 1;
 
       const makeMat = (name) => {
@@ -1192,49 +1193,41 @@
         });
       }
 
-      hint("Logo zobrazeno (front + back) + variabilní typewriter pro obě stěny ✔");
+      Assets.markLogoReady(); // NEW: tell loader the logo is up
+      hint("Logo shown (front + back) + typewriter on both walls ✔");
     };
-    img.onerror = (e) => { console.error("Logo SVG nešlo dekódovat.", e); hint("Chyba: logo SVG nešlo dekódovat."); };
+    img.onerror = (e) => { console.error("Logo SVG decode failed.", e); Assets.markLogoReady(); hint("Error: logo SVG decode failed."); };
   }
 
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
+
+  /* NEW counts: front/back = 2, left/right = 3. */
   const FIXED_LAYOUT = {
     safeWall: 1.0, cornerSafe: 1.0,
     frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
-    counts: { front: 4, back: 4, left: 7, right: 7 }
+    counts: { front: 2, back: 2, left: 3, right: 3 }
   };
 
+  /* DATA trimmed to the new counts (2 / 2 / 3 / 3). */
   const DATA = {
     front: [
       { img: "./assets/Acid_T.webp", label: "Acid Smiley", href: "https://phaserstore.etsy.com/listing/4495434398" },
-      { img: "./assets/Acid_T.webp",   label: "Produkt B", href: "https://example.com/b" },
-      { img: "./assets/Acid_T.webp", label: "Produkt C", href: "https://example.com/c" },
-      { img: "./assets/Acid_T.webp",   label: "Produkt D", href: "https://example.com/d" }
+      { img: "./assets/Acid_T.webp", label: "Product B",   href: "https://example.com/b" }
     ],
     back: [
       { img: "./assets/Acid_T.webp", label: "Back A", href: "https://example.com/a" },
-      { img: "./assets/Acid_T.webp",   label: "Back B", href: "https://example.com/b" },
-      { img: "./assets/Acid_T.webp", label: "Back C", href: "https://example.com/c" },
-      { img: "./assets/Acid_T.webp",   label: "Back D", href: "https://example.com/d" }
+      { img: "./assets/Acid_T.webp", label: "Back B", href: "https://example.com/b" }
     ],
     left: [
-      { img: "./assets/Acid_T.webp", label: "Levá 1", href: "https://example.com/left-1" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 2", href: "https://example.com/left-2" },
-      { img: "./assets/Acid_T.webp", label: "Levá 3", href: "https://example.com/left-3" },
-      { img: "./assets/Acid_T.webp", label: "Levá 4", href: "https://example.com/left-4" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 5", href: "https://example.com/left-5" },
-      { img: "./assets/Acid_T.webp", label: "Levá 6", href: "https://example.com/left-6" },
-      { img: "./assets/Acid_T.webp",   label: "Levá 7", href: "https://example.com/left-7" }
+      { img: "./assets/Acid_T.webp", label: "Left 1", href: "https://example.com/left-1" },
+      { img: "./assets/Acid_T.webp", label: "Left 2", href: "https://example.com/left-2" },
+      { img: "./assets/Acid_T.webp", label: "Left 3", href: "https://example.com/left-3" }
     ],
     right: [
-      { img: "./assets/Acid_T.webp",   label: "Pravá 1", href: "https://example.com/right-1" },
-      { img: "./assets/Acid_T.webp", label: "Pravá 2", href: "https://example.com/right-2" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 3", href: "https://example.com/right-3" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 4", href: "https://example.com/right-4" },
-      { img: "./assets/Acid_T.webp", label: "Pravá 5", href: "https://example.com/right-5" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 6", href: "https://example.com/right-6" },
-      { img: "./assets/Acid_T.webp",   label: "Pravá 7", href: "https://example.com/right-7" }
+      { img: "./assets/Acid_T.webp", label: "Right 1", href: "https://example.com/right-1" },
+      { img: "./assets/Acid_T.webp", label: "Right 2", href: "https://example.com/right-2" },
+      { img: "./assets/Acid_T.webp", label: "Right 3", href: "https://example.com/right-3" }
     ]
   };
 
@@ -1284,22 +1277,64 @@
         const d  = items[i] || {};
         const src = d.src || d.video || d.img || "";
         it.data.src   = src;
-        it.data.title = d.label || it.data.title || "(bez názvu)";
+        it.data.title = d.label || it.data.title || "(untitled)";
         it.data.url   = d.href  || it.data.url || "";
         drawPlacard(it.placard, it.data, it.rotY,
           it.placard._width  || FRAME_SIZE.W,
-          it.placard._height || Math.max(0.22, FRAME_SIZE.H*0.10));
+          it.placard._height || Math.max(0.26, FRAME_SIZE.W*0.16));
         if (!src) continue;
         if (isVideoUrl(src)) {
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
           setWebPToFrame(src, it, TEX_SIZE, d.fit || "contain");
         } else {
-          console.warn("Pouze WebP je povolen. Přeskakuji:", src);
+          console.warn("Only WebP is allowed. Skipping:", src);
+          Assets.markFrameImageLoaded();
         }
       }
     });
   }
+
+  /* ===== Asset/loader bookkeeping (NEW) =====
+     Counts the essential first-view assets and reports progress to the Loader.
+     "Ready" = logo built + all frame images resolved + first stable render. */
+  const Assets = (() => {
+    let totalFrameImages = 0;
+    let loadedFrameImages = 0;
+    let logoReady = false;
+    let firstRenderReady = false;
+    let finished = false;
+
+    function totalImagesPlanned(){
+      return Object.values(DATA).reduce((acc, arr) => acc + arr.filter(d => /\.webp$/i.test(d.img||d.src||"")).length, 0);
+    }
+
+    function recompute(){
+      // weight: logo 20%, frame images 60%, first render 20%
+      const imgFrac = totalFrameImages ? (loadedFrameImages / totalFrameImages) : 1;
+      let pct = (logoReady ? 20 : 0) + imgFrac * 60 + (firstRenderReady ? 20 : 0);
+      Loader.set(pct);
+      maybeFinish();
+    }
+
+    function maybeFinish(){
+      if (finished) return;
+      const imagesDone = totalFrameImages === 0 || loadedFrameImages >= totalFrameImages;
+      if (logoReady && imagesDone && firstRenderReady){
+        finished = true;
+        Loader.finish();
+      }
+    }
+
+    return {
+      init(){ totalFrameImages = totalImagesPlanned(); Loader.set(5); },
+      markLogoReady(){ logoReady = true; recompute(); },
+      markFrameImageLoaded(){ loadedFrameImages++; recompute(); },
+      markFirstRender(){ if (!firstRenderReady){ firstRenderReady = true; recompute(); } },
+      // safety net: never let the overlay hang forever
+      forceFinishAfter(ms){ setTimeout(()=>{ if (!finished){ logoReady = true; firstRenderReady = true; loadedFrameImages = totalFrameImages; recompute(); } }, ms); }
+    };
+  })();
 
   /* ========= Picking & zoom ========= */
   function setupPicking(){
@@ -1324,6 +1359,7 @@
   function setupZoomUX(){
     const canvasEl = canvas;
     canvasEl.addEventListener("dblclick", ()=>{
+      stopAutoTour(); // manual interaction cancels auto-tour
       zoomToPointer(scene.pointerX, scene.pointerY, {
         scale: camera.radius < 1.2 ? 1.0 : 0.55, forceMin: camera.radius < 0.6
       });
@@ -1332,6 +1368,7 @@
     canvasEl.addEventListener("touchend", (e)=>{
       const now = Date.now(); const dt = now - lastTap; lastTap = now;
       if (dt > 280) return;
+      stopAutoTour();
       const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
       const rect = canvasEl.getBoundingClientRect();
       const x = t.clientX - rect.left; const y = t.clientY - rect.top;
@@ -1339,10 +1376,18 @@
     }, { passive:true });
   }
 
-  /* ========= Camera reset ========= */
+  /* ========= Camera reset =========
+     NEW: mobile gets a raised framing (higher target + lower beta) so the top
+     wall/ceiling edge is not visible; the view starts around the logo area.
+     Desktop composition is unchanged. */
   const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
   const RESET_TARGET_Y = WALL_CENTER_Y - 1.05;
   const FRONT_ALPHA = -Math.PI / 2;
+
+  // Mobile-only framing tweaks:
+  const MOBILE_TARGET_Y = WALL_CENTER_Y + 1.35; // raise the look-at point toward the logo
+  const MOBILE_BETA     = Math.PI / 2.12;       // slightly above horizontal → hides top edge
+  const MOBILE_RADIUS   = 15.5;                 // pull in a touch so upper content fills frame
 
   function normAlpha(a){
     const TAU = Math.PI * 2;
@@ -1352,10 +1397,10 @@
   }
 
   const RESET_POSE = {
-    target: new BABYLON.Vector3(0, RESET_TARGET_Y, 0),
-    radius: 17.0,
+    target: new BABYLON.Vector3(0, IS_MOBILE ? MOBILE_TARGET_Y : RESET_TARGET_Y, 0),
+    radius: IS_MOBILE ? MOBILE_RADIUS : 17.0,
     alpha: -Math.PI / 2,
-    beta: Math.PI / 1.88
+    beta: IS_MOBILE ? MOBILE_BETA : Math.PI / 1.88
   };
 
   function animateCameraTo({alpha, beta, radius, target}, durationMs=400){
@@ -1413,7 +1458,7 @@
   function requestFs(el){ const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen; if (req) req.call(el); }
   function exitFs(){ const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen; if (ex) ex.call(document); }
   function toggleFullscreen(){ if (isFullscreen()) exitFs(); else requestFs(document.documentElement); }
-  function syncFsButton(){ const btn = document.getElementById('fullscreenIcon'); if (!btn) return; const on = isFullscreen(); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); btn.title = on ? 'Ukončit celé okno (Esc)' : 'Přepnout celé okno'; }
+  function syncFsButton(){ const btn = document.getElementById('fullscreenIcon'); if (!btn) return; const on = isFullscreen(); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); btn.title = on ? 'Exit full screen (Esc)' : 'Full screen'; }
 
   /* ========= Scene creation ========= */
   function createScene(){
@@ -1432,15 +1477,7 @@
     if (!IS_MOBILE) { glow.intensity = 0.85; glow.blurKernelSize = 64; }
     else            { glow.intensity = 0.48; glow.blurKernelSize = 18; }
 
-    /* ─────────────────────────────────────────────────────────────────
-     * FIX 8 — disable image processing BEFORE scene is used.
-     *
-     * Original set these properties after the scene was already active.
-     * In Babylon, mutating imageProcessingConfiguration after the first
-     * render can force a full shader recompile mid-frame, appearing as a
-     * single-frame white flash ("shader flicker") on first load.
-     * Setting them here, before any meshes are created, prevents that.
-     * ───────────────────────────────────────────────────────────────── */
+    /* FIX 8 — disable image processing BEFORE scene is used. */
     const ipc = scene.imageProcessingConfiguration;
     ipc.isEnabled           = false;
     ipc.applyByPostProcess  = false;
@@ -1581,21 +1618,7 @@
     return 0.30 + 0.70 * Math.pow(dot, 0.7);
   }
 
-  /* ─────────────────────────────────────────────────────────────────
-   * FIX 9 — spawnOneFallingStar: safe disposal of star + material.
-   *
-   * Original: called `mat.dispose?.()` inside the fade-out observer,
-   * right after setting star.visibility = 0.  In Babylon, disposing a
-   * material while it is still bound to a visible mesh can leave the
-   * GPU in an undefined state for one frame, appearing as a brief
-   * black flash where the star was.
-   *
-   * Fix: dispose star+material only AFTER the mesh is fully invisible
-   * AND we confirm the mesh is truly gone by calling star.dispose()
-   * first.  Also removed the HALO's separate material creation — it
-   * now shares the parent's material, halving the number of GPU
-   * state changes per star.
-   * ───────────────────────────────────────────────────────────────── */
+  /* FIX 9 — spawnOneFallingStar: safe disposal (mesh first, then material). */
   function spawnOneFallingStar({ start, end, dirXZ, yTop, yBot, speed, sizeBase, color }){
     yTop     = yTop     ?? CEIL_Y + BABYLON.Scalar.RandomRange(1.48, 1.62);
     yBot     = yBot     ?? CEIL_Y + BABYLON.Scalar.RandomRange(0.90, 1.05);
@@ -1628,11 +1651,10 @@
 
     if (glow) glow.addIncludedOnlyMesh(star);
 
-    // Halo shares the same material — no extra GPU state change
     const halo = BABYLON.MeshBuilder.CreatePlane("starHalo", { size: size * 2.2 }, scene);
     halo.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
     halo.parent        = star;
-    halo.material      = mat; // shared — no flicker from a second bind
+    halo.material      = mat;
 
     const A = new BABYLON.Vector3(start.x, yTop, start.z);
     const B = new BABYLON.Vector3(end.x,   yBot, end.z);
@@ -1663,9 +1685,8 @@
           star.visibility = 1 - rf;
           if (rf >= 1){
             scene.onBeforeRenderObservable.remove(obs2);
-            // FIX 9: dispose mesh first, THEN material — never the other way around
-            star.dispose();      // detaches halo child too (parent=star)
-            mat.dispose();       // safe now: mesh is already removed from render list
+            star.dispose();
+            mat.dispose();
           }
         });
       }
@@ -1693,23 +1714,41 @@
     setTimeout(()=> scheduleFallingStar(), 220);
   }
 
-  /* ========= Layout apply ========= */
+  /* ========= Layout apply =========
+     NEW: SQUARE frames. Width ≈ two old frames combined. TOP edge of the new
+     square aligns with the TOP edge of the old (rectangular) frames, so the
+     square extends downward from that same top line. */
   function applyFixedLayout() {
     const YCENTER    = ROOM.H * 0.55;
     const safeWall   = FIXED_LAYOUT.safeWall;
     const cornerSafe = FIXED_LAYOUT.cornerSafe;
-    const baseW = FIXED_LAYOUT.frame.width;
-    const baseH = FIXED_LAYOUT.frame.height;
+    const baseW = FIXED_LAYOUT.frame.width;   // 2.2 (old narrow width)
+    const baseH = FIXED_LAYOUT.frame.height;  // 2.2
     FRAME_BASE_H = baseH;
-    const newW = baseW;
-    const newH = baseW * (16/9);
-    FRAME_SIZE.W     = newW;
-    FRAME_SIZE.H     = newH;
+
+    // --- Reconstruct the OLD top line so we can align to it exactly ---
+    // Old behaviour: narrow frame W = baseW, H = baseW * (16/9); anchored at top
+    // via centerY = YCENTER - (oldH - baseH)/2. Top edge = centerY + oldH/2.
+    const oldW = baseW;
+    const oldH = baseW * (16/9);
+    const oldCenterY = YCENTER - (oldH - baseH)/2;
+    const OLD_TOP_EDGE_Y = oldCenterY + oldH/2;
+
+    // --- New SQUARE frame: width ≈ two old frames combined ---
+    // Two old frames + the visual gap between them. Keep it natural on the wall.
+    const SQUARE_W = Math.min(oldW * 2.0 + 0.6, ROOM.W - 2*(safeWall+cornerSafe) - 0.4);
+    const SQUARE_H = SQUARE_W; // square
+
+    FRAME_SIZE.W     = SQUARE_W;
+    FRAME_SIZE.H     = SQUARE_H;
     FRAME_BOX_BORDER = FIXED_LAYOUT.frame.border;
     FRAME_COLOR      = FIXED_LAYOUT.frame.color;
-    FRAME_DELTA_H    = newH - baseH;
-    const centerY = YCENTER - FRAME_DELTA_H/2;
+    FRAME_DELTA_H    = SQUARE_H - baseH;
+
+    // Align NEW top edge to OLD top edge → centerY = topEdge - H/2
+    const centerY = OLD_TOP_EDGE_Y - SQUARE_H/2;
     FRAME_CENTER_Y   = centerY;
+
     createFixedFramesForWall('front', FIXED_LAYOUT.counts.front,  centerY, safeWall, cornerSafe);
     createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
     createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
@@ -1748,6 +1787,56 @@
     if (dir.z > 1e-6)  rMax = Math.min(rMax, (CAM_BOUNDS.maxZ - t.z) / dir.z);
     else if (dir.z < -1e-6) rMax = Math.min(rMax, (CAM_BOUNDS.minZ - t.z) / dir.z);
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
+  }
+
+  /* ========= AUTO TOUR (NEW) =========
+     Smooth, slow, cinematic orbit driven inside the render loop (no separate
+     timers/animations → no jitter, no flicker). Toggleable. Manual interaction
+     stops it. Uses the same alpha sweep so it reads as a gentle walkthrough. */
+  const AutoTour = {
+    active: false,
+    speed: 0.055,        // radians/sec — slow & elegant
+    lastTime: 0
+  };
+
+  function setAutoTourButton(on){
+    const btn = document.getElementById('autoTourIcon');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.classList.toggle('is-active', on);
+    btn.title = on ? 'Stop auto tour' : 'Auto tour';
+  }
+
+  function startAutoTour(){
+    if (AutoTour.active) return;
+    // ease to the reset/center pose first, then begin orbiting from there
+    resetCamera({ animate:true });
+    AutoTour.active = true;
+    AutoTour.lastTime = performance.now();
+    setAutoTourButton(true);
+  }
+
+  function stopAutoTour(){
+    if (!AutoTour.active) return;
+    AutoTour.active = false;
+    setAutoTourButton(false);
+  }
+
+  function toggleAutoTour(){
+    if (AutoTour.active){ stopAutoTour(); return; }
+    // enter fullscreen automatically (desktop). On mobile FS may be unavailable; ignore.
+    if (!isFullscreen()){ try { requestFs(document.documentElement); } catch(_){} }
+    startAutoTour();
+  }
+
+  function updateAutoTour(){
+    if (!AutoTour.active) return;
+    const now = performance.now();
+    let dt = (now - AutoTour.lastTime) / 1000;
+    AutoTour.lastTime = now;
+    if (dt > 0.1) dt = 0.1; // clamp after tab switches to avoid jumps
+    // gentle continuous orbit; beta/radius/target stay at the (mobile/desktop) reset pose
+    camera.alpha += AutoTour.speed * dt;
   }
 
   /* ========= SoundCloud player ========= */
@@ -1861,6 +1950,8 @@
 
   /* ========= BOOT ========= */
   createScene();
+  Assets.init();
+  Assets.forceFinishAfter(9000); // safety: overlay never hangs
 
   (async function boot(){
     try{
@@ -1884,11 +1975,20 @@
   })();
 
   /* ========= Render loop ========= */
+  let __firstRenderSignalled = false;
   engine.runRenderLoop(()=>{
     if (!scene) return;
+    updateAutoTour();           // NEW: advance cinematic orbit (no-op when inactive)
     constrainTarget?.();
     constrainCameraRadius?.();
     scene.render();
+
+    // NEW: signal first stable render to the loader (a couple frames in for safety)
+    if (!__firstRenderSignalled){
+      __firstRenderSignalled = true;
+      // wait 2 rAF so textures are bound before we call it "stable"
+      requestAnimationFrame(()=>requestAnimationFrame(()=>Assets.markFirstRender()));
+    }
 
     if (AutoScale.enabled){
       const now = performance.now();
@@ -1920,10 +2020,10 @@
   const resetCamIcon = document.getElementById('resetCamIcon');
   if (resetCamIcon){
     resetCamIcon.addEventListener('dragstart', e=>e.preventDefault());
-    resetCamIcon.addEventListener('click', ()=>resetCamera({animate:true}));
-    resetCamIcon.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); resetCamera({animate:true}); } });
+    resetCamIcon.addEventListener('click', ()=>{ stopAutoTour(); resetCamera({animate:true}); });
+    resetCamIcon.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); stopAutoTour(); resetCamera({animate:true}); } });
   }
-  window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='r') resetCamera({animate:true}); });
+  window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='r'){ stopAutoTour(); resetCamera({animate:true}); } });
 
   const fullscreenIcon = document.getElementById('fullscreenIcon');
   if (fullscreenIcon){
@@ -1934,17 +2034,30 @@
     document.addEventListener('webkitfullscreenchange', syncFsButton);
   }
 
+  /* AUTO TOUR icon (NEW) */
+  const autoTourIcon = document.getElementById('autoTourIcon');
+  if (autoTourIcon){
+    autoTourIcon.addEventListener('dragstart', e=>e.preventDefault());
+    autoTourIcon.addEventListener('click', toggleAutoTour);
+    autoTourIcon.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleAutoTour(); } });
+  }
+  // also stop auto-tour if the user grabs the camera directly
+  canvas.addEventListener('pointerdown', ()=>{ if (AutoTour.active) stopAutoTour(); }, { passive:true });
+
   const instaIcon = document.getElementById('instaIcon');
   const shareIcon = document.getElementById('shareIcon');
+  const emailIcon = document.getElementById('emailIcon');
 
   function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
   async function sharePage(){
-    const shareData = { title: document.title||"Virtual Gallery", text: "Podívej se na Virtual Gallery", url: window.location.href };
-    try{ if(navigator.share){ await navigator.share(shareData); } else { await navigator.clipboard?.writeText?.(shareData.url); alert("Odkaz byl zkopírován do schránky."); } }catch(e){}
+    const shareData = { title: document.title||"Virtual Gallery", text: "Check out the Virtual Gallery", url: window.location.href };
+    try{ if(navigator.share){ await navigator.share(shareData); } else { await navigator.clipboard?.writeText?.(shareData.url); alert("Link copied to clipboard."); } }catch(e){}
   }
+  function openEmail(){ window.location.href = "mailto:hello@phaserstore.com"; }
 
   if (instaIcon){ instaIcon.addEventListener('dragstart',e=>e.preventDefault()); instaIcon.addEventListener('click',openInsta); instaIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openInsta();}}); }
   if (shareIcon){ shareIcon.addEventListener('dragstart',e=>e.preventDefault()); shareIcon.addEventListener('click',sharePage); shareIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();sharePage();}}); }
+  if (emailIcon){ emailIcon.addEventListener('dragstart',e=>e.preventDefault()); emailIcon.addEventListener('click',openEmail); emailIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openEmail();}}); }
   </script>
 </body>
 </html>
