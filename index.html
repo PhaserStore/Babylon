@@ -42,67 +42,37 @@
        Lightweight, layered cleanly above the canvas. Fades out once the first
        stable render is ready. Uses its own compositing layer so it never forces
        canvas repaints, and is removed from the DOM after fade to avoid overhead. */
-  #loadingOverlay{
-  position:fixed; inset:0; z-index:20000;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-
-  /* menší mezera mezi logem a loading sekcí */
-  gap:8px;
-
-  background:#000; color:var(--txt);
-  opacity:1; transition:opacity .55s ease;
-  will-change:opacity; transform:translateZ(0);
-  -webkit-tap-highlight-color:transparent;
-  padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
-}
-
-#loadingBarWrap{
-  width:min(86vw, 520px);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-
-  /* procenta blíž k lince */
-  gap:4px;
-
-  /* celý blok blíž k logu */
-  margin-top:-2px;
-}
-
-#loadingBarTrack{
-  width:100%;
-
-  /* cca 1 pt / velmi tenká linka */
-  height:1px;
-
-  border-radius:1px;
-  background:rgba(255,255,255,.12);
-  overflow:hidden;
-  position:relative;
-}
-
-#loadingBarFill{
-  position:absolute;
-  left:0; top:0; bottom:0;
-  width:0%;
-  background:var(--phaser-green);
-  border-radius:1px;
-  transition:width .25s ease;
-}
-
-#loadingPct{
-  font-family:'Poppins',sans-serif;
-  font-weight:400;
-  font-size:12px;
-  letter-spacing:.05em;
-  line-height:1;
-  color:var(--txt-dim);
-  font-variant-numeric:tabular-nums;
-
-  /* jemně blíž ke lince */
-  margin-top:0;
-}
-
+    #loadingOverlay{
+      position:fixed; inset:0; z-index:20000;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:14px; background:#000; color:var(--txt);
+      opacity:1; transition:opacity .55s ease;
+      will-change:opacity; transform:translateZ(0);
+      -webkit-tap-highlight-color:transparent;
+      padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
+    }
+    #loadingOverlay.is-hidden{ opacity:0; pointer-events:none; }
+    #loadingLogo{
+      width:min(60vw, 360px); height:auto; display:block;
+      filter: drop-shadow(0 0 18px rgba(218,255,62,.20));
+      user-select:none; -webkit-user-drag:none;
+    }
+    #loadingBarWrap{
+      width:min(86vw, 520px); display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    #loadingBarTrack{
+      width:100%; height:2px; border-radius:2px; background:rgba(255,255,255,.12);
+      overflow:hidden; position:relative;
+    }
+    #loadingBarFill{
+      position:absolute; left:0; top:0; bottom:0; width:0%;
+      background:var(--phaser-green); border-radius:2px;
+      transition:width .25s ease;
+    }
+    #loadingPct{
+      font-family:'Poppins',sans-serif; font-weight:400; font-size:13px; letter-spacing:.06em;
+      color:var(--txt-dim); font-variant-numeric:tabular-nums;
+    }
 
     #scBar{
       position:fixed; left:0; right:0; bottom:0;
