@@ -1657,24 +1657,23 @@ const panelW_right = panelW_back;
         __twBackRAF = r.rafId;
       }
       // LEFT — runs along the wall at x = -ROOM.W/2, faces +X (rotY = +π/2)
-      {
-        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-          name:"tw_left", x:(-ROOM.W/2 + 0.05), y:yText, z:0, rotY:Math.PI/2, width:panelW_left, height:panelH
-        });
-        __twLeftPlane = plane;
-        const r = startWallText('left', twDT, texW, texH);
-        __twLeftRAF = r.rafId;
-      }
-      // RIGHT — runs along the wall at x = +ROOM.W/2, faces -X (rotY = -π/2)
-      {
-        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-          name:"tw_right", x:(ROOM.W/2 - 0.05), y:yText, z:0, rotY:-Math.PI/2, width:panelW_right, height:panelH
-        });
-        __twRightPlane = plane;
-        const r = startWallText('right', twDT, texW, texH);
-        __twRightRAF = r.rafId;
-      }
-
+{
+  const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+    name:"tw_left", x:(-ROOM.W/2 + 0.05), y:yText, z:0, rotY:Math.PI/2, width:panelW_left, height:panelH
+  });
+  __twLeftPlane = plane;
+  const r = startWallText('left', twDT, texW, texH);
+  __twLeftRAF = r.rafId;
+}
+// RIGHT — runs along the wall at x = +ROOM.W/2, faces -X (rotY = -π/2)
+{
+  const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+    name:"tw_right", x:(ROOM.W/2 - 0.05), y:yText, z:0, rotY:-Math.PI/2, width:panelW_right, height:panelH
+  });
+  __twRightPlane = plane;
+  const r = startWallText('right', twDT, texW, texH);
+  __twRightRAF = r.rafId;
+}
       Assets.markLogoReady(); // NEW: tell loader the logo is up
       hint("Logo shown (front + back) + text on all four walls ✔");
     };
