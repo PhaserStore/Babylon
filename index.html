@@ -297,9 +297,18 @@
 
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-    Math.min(window.innerWidth, window.innerHeight) <= 900 ||
-    window.matchMedia?.('(pointer:coarse)').matches === true;
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+  (
+    window.matchMedia?.('(pointer:coarse)').matches === true &&
+    Math.min(window.innerWidth, window.innerHeight) <= 900
+  );
+
+    console.log("IS_MOBILE =", IS_MOBILE, {
+  width: window.innerWidth,
+  height: window.innerHeight,
+  pointerCoarse: window.matchMedia?.('(pointer:coarse)').matches,
+  ua: navigator.userAgent
+});
 
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
   const SC_ENABLED = !IS_MOBILE;
@@ -2556,7 +2565,7 @@ if (iconDock && isDesktopDockMode()){
   });
 }
 
-function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
+
 
   function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
   async function sharePage(){
