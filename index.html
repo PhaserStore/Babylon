@@ -228,7 +228,7 @@
 
   <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
   <img id="autoTourIcon" class="hudIcon"
-    src="./assets/Auto tour.svg"
+    src="./assets/auto tour.svg"
     alt="Auto tour" title="Auto tour"
     role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
   <img id="fullscreenIcon" class="hudIcon"
@@ -247,7 +247,7 @@
     src="./assets/Share.svg" alt="Share" title="Share"
     role="button" tabindex="0" aria-label="Share this page" />
   <img id="emailIcon" class="hudIconLeft"
-    src="./assets/Email.svg" alt="Email" title="Email"
+    src="./assets/email.svg" alt="Email" title="Email"
     role="button" tabindex="0" aria-label="Email" />
 
   <div id="scBar" aria-label="SoundCloud Bar">
@@ -522,7 +522,8 @@
     texW,
     texH,
     color = TW_COLOR_HEX,
-    fontPx = TW_FONT_PX
+    fontPx = TW_FONT_PX,
+    hFlip = false
   }){
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
@@ -544,10 +545,12 @@
       ctx.translate(0, texH);
       ctx.scale(1, -1);
     }
-    // Horizontal flip (FIX): counteracts the plane orientation so the text reads
-    // left-to-right and is NOT mirrored on any wall.
-    ctx.translate(texW, 0);
-    ctx.scale(-1, 1);
+    // Horizontal flip — applied ONLY to walls that need it (front/back), so the
+    // text reads left-to-right there. Side walls (left/right) are left as-is.
+    if (hFlip){
+      ctx.translate(texW, 0);
+      ctx.scale(-1, 1);
+    }
 
     ctx.shadowColor = "rgba(218,255,62,0.20)";
     ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
@@ -595,7 +598,8 @@
       texW,
       texH,
       color = TW_COLOR_HEX,
-      fontPx = TW_FONT_PX
+      fontPx = TW_FONT_PX,
+      hFlip = false
     } = opts;
 
     const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
@@ -631,7 +635,7 @@
       const cursorBucket = Math.floor(((now % period) / period) * 20);
 
       if (chars !== lastChars || cursorBucket !== lastCursorBucket) {
-        drawTypeLine(dt, { text: t, progress: chars, texW, texH, color, fontPx });
+        drawTypeLine(dt, { text: t, progress: chars, texW, texH, color, fontPx, hFlip });
         lastChars = chars;
         lastCursorBucket = cursorBucket;
       }
@@ -648,7 +652,7 @@
      it, then fades to the next sentence. Uses a setInterval-driven swap plus a
      short rAF fade, so there is no per-frame texture upload during the hold
      phase (cheap on memory and GPU). Same font/size/placement as desktop. */
-  function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX }){
+  function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
     ctx.imageSmoothingEnabled = true;
@@ -662,8 +666,8 @@
 
     ctx.save();
     if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
-    // Horizontal flip (FIX): text reads left-to-right, not mirrored.
-    ctx.translate(texW, 0); ctx.scale(-1, 1);
+    // Horizontal flip — ONLY for walls that need it (front/back). Side walls stay as-is.
+    if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.shadowColor = "rgba(218,255,62,0.20)";
     ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
@@ -679,7 +683,8 @@
       texts: _texts, text: _text,
       texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX,
       holdMs = 2600,     // how long a full sentence stays
-      fadeMs = 320       // fade in/out duration
+      fadeMs = 320,      // fade in/out duration
+      hFlip = false
     } = opts;
 
     const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
@@ -696,7 +701,7 @@
         if (stopped) return;
         const r = Math.min(1, (now - t0) / fadeMs);
         const a = from + (to - from) * r;
-        drawFullSentence(dt, { text, texW, texH, alpha:a, color, fontPx });
+        drawFullSentence(dt, { text, texW, texH, alpha:a, color, fontPx, hFlip });
         if (r < 1) rafId = requestAnimationFrame(step);
         else if (done) done();
       }
@@ -1301,19 +1306,21 @@
      store handles for teardown. */
   function startWallText(wallKey, dt, texW, texH){
     const texts = TW_STRINGS[wallKey];
+    // Horizontal flip ONLY on front/back walls; side walls keep current orientation.
+    const hFlip = (wallKey === 'front' || wallKey === 'back');
     if (IS_MOBILE){
       // tear down any previous cycler for this wall
       try { __cyclers[wallKey]?.stop?.(); } catch(_){}
       const ctrl = runSentenceCyclerToDT(dt, {
         texts, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX,
-        holdMs: 2600, fadeMs: 320
+        holdMs: 2600, fadeMs: 320, hFlip
       });
       __cyclers[wallKey] = ctrl;
       return { rafId: 0, controller: ctrl };
     } else {
       const rafId = runTypewriterToDT(dt, {
         texts, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
-        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX
+        texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
       });
       return { rafId, controller: null };
     }
