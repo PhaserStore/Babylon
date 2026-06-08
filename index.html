@@ -539,15 +539,91 @@
     return size;
   }
 
-  function drawTypeLine(dt, {
-    text,
-    progress,
-    texW,
-    texH,
-    color = TW_COLOR_HEX,
-    fontPx = TW_FONT_PX,
-    hFlip = false
-  }){
+ function drawTypeLine(dt, {
+  text,
+  progress,
+  texW,
+  texH,
+  color = TW_COLOR_HEX,
+  fontPx = TW_FONT_PX,
+  hFlip = false,
+  hCompress = 1
+}){
+  const ctx = dt.getContext();
+  ctx.clearRect(0, 0, texW, texH);
+
+  ctx.imageSmoothingEnabled  = true;
+  ctx.imageSmoothingQuality  = "high";
+
+  // Full sentence fit measurement (same as before)
+  const fitPx = fitFontPx(ctx, text, texW, fontPx);
+
+  ctx.fillStyle              = color;
+  ctx.textAlign              = "center";
+  ctx.textBaseline           = "middle";
+  ctx.font                   = `600 ${fitPx}px Doto, monospace`;
+
+  const x = Math.round(texW / 2);
+  const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
+  const content = text.slice(0, progress);
+
+  ctx.save();
+
+  // existing vertical correction
+  if (TW_FLIP_VERTICAL){
+    ctx.translate(0, texH);
+    ctx.scale(1, -1);
+  }
+
+  // existing horizontal flip for walls that need it
+  if (hFlip){
+    ctx.translate(texW, 0);
+    ctx.scale(-1, 1);
+  }
+
+  // NEW: horizontal-only compression around the center
+  if (hCompress !== 1){
+    ctx.translate(x, 0);
+    ctx.scale(hCompress, 1);
+    ctx.translate(-x, 0);
+  }
+
+  ctx.shadowColor = "rgba(218,255,62,0.20)";
+  ctx.shadowBlur  = Math.max(2, Math.round(fitPx * 0.22));
+
+  ctx.fillText(content, x, y);
+
+  if (progress > 0){
+    const metrics   = ctx.measureText(content);
+    const textWidth = metrics?.width || 0;
+    const endX      = x + textWidth / 2;
+
+    const now     = performance.now();
+    const period  = Math.max(120, TW_CURSOR_BLINK_MS || 900);
+    const tRel    = (now % period) / period;
+    const tri     = tRel < 0.5 ? (tRel * 2) : (1 - (tRel - 0.5) * 2);
+    const alpha   = (TW_CURSOR_ALPHA_MIN ?? 0.25) + tri * ((TW_CURSOR_ALPHA_MAX ?? 1.0) - (TW_CURSOR_ALPHA_MIN ?? 0.25));
+
+    const prevShadow = ctx.shadowColor;
+    const prevAlpha  = ctx.globalAlpha;
+    const prevFill   = ctx.fillStyle;
+    const prevAlign  = ctx.textAlign;
+
+    ctx.shadowColor  = "rgba(0,0,0,0)";
+    ctx.globalAlpha  = Math.max(0, Math.min(1, alpha));
+    ctx.fillStyle    = TW_CURSOR_COLOR || color;
+    ctx.textAlign    = "left";
+    ctx.fillText("_", Math.round(endX + 2), y);
+
+    ctx.textAlign   = prevAlign;
+    ctx.fillStyle   = prevFill;
+    ctx.globalAlpha = prevAlpha;
+    ctx.shadowColor = prevShadow;
+  }
+
+  ctx.restore();
+  dt.update(false);
+}
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
 
