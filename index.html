@@ -375,10 +375,9 @@
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
   /* ===== Wall text content =====
-     FOUR independent, editable text boxes — one per wall. Edit the strings in
-     any array freely; each array is shown one full sentence at a time (mobile)
-     or typed out (desktop). Front/back use the SHORTER text box width; left/right
-     use the LONGER one (see TW_WIDTH_FRAC below). */
+     Front/back: editable arrays — desktop types them out (typewriter), mobile
+     shows them as fixed full sentences (no typewriter). Side walls: a single
+     STATIC sentence shown on both desktop and mobile (no cycling/typewriter). */
   const TW_STRINGS = {
     // 1) FRONT wall text box
     front: [
@@ -392,19 +391,18 @@
       "NEW_DROPS_THIS_MONTH",
       "LIMITED_EDITION_OUT_NOW"
     ],
-    // 3) LEFT wall text box (can be longer)
+    // 3) LEFT wall — STATIC (do not change)
     left: [
-      "CLICK_ANY_LABEL_TO_OPEN_THE_PRODUCT_LINK",
-      "SUSTAINABLE_MATERIALS_AND_RESPONSIBLE_PRODUCTION",
-      "SHIPPED_WORLDWIDE_WITH_LOVE_FROM_THE_STUDIO"
+      "Hi-tech quality apparel. Future ready."
     ],
-    // 4) RIGHT wall text box (can be longer)
+    // 4) RIGHT wall — STATIC (do not change)
     right: [
-      "CONTEMPORARY_DESIGN_FOR_THE_DIGITAL_GENERATION",
-      "LIMITED_EDITION_PIECES_DROP_EVERY_SEASON",
-      "CUSTOM_REQUESTS_AND_COLLABORATIONS_WELCOME"
+      "Hi-tech quality apparel. Future ready."
     ]
   };
+
+  /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
+  const SIDE_WALL_TEXT = "Hi-tech quality apparel. Future ready.";
 
   /* Usable text-box width as a FRACTION of the available wall length.
      These set how wide the drawing texture is. Combined with the uniform
@@ -680,15 +678,16 @@
      it, then fades to the next sentence. Uses a setInterval-driven swap plus a
      short rAF fade, so there is no per-frame texture upload during the hold
      phase (cheap on memory and GPU). Same font/size/placement as desktop. */
-  function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
+  function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false, fixedPx=null, hCompress=1 }){
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Uniform auto-fit so the full sentence is visible and never clipped (no deform).
-    const fitPx = fitFontPx(ctx, text, texW, fontPx);
+    // If a fixedPx is provided (mobile front/back: consistent size from the
+    // longest sentence) use it as-is; otherwise auto-fit so nothing is clipped.
+    const fitPx = (fixedPx != null) ? fixedPx : fitFontPx(ctx, text, texW, fontPx);
     ctx.font = `600 ${fitPx}px Doto, monospace`;
 
     const x = Math.round(texW / 2);
@@ -698,6 +697,13 @@
     if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
     // Horizontal flip — only walls that need it (side walls).
     if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
+    // Horizontal-only compression around the centre (vertical untouched → no
+    // vertical deformation). Used for mobile front/back at 80% width.
+    if (hCompress !== 1){
+      ctx.translate(x, 0);
+      ctx.scale(hCompress, 1);
+      ctx.translate(-x, 0);
+    }
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.shadowColor = "rgba(218,255,62,0.20)";
     ctx.shadowBlur  = Math.max(2, Math.round(fitPx * 0.22));
@@ -707,6 +713,22 @@
     dt.update(false); // FIX 4 — single upload per swap/fade step, not per frame
   }
 
+  /* Compute one consistent font size so EVERY sentence in `texts` fits the safe
+     width — sized from the longest sentence. Uniform (no vertical deform). When
+     hCompress<1 the effective width budget grows (text is squeezed horizontally),
+     so we account for it here so the chosen size still never clips. */
+  function fixedFontPxForSet(ctx, texts, texW, baseFontPx, hCompress=1){
+    let smallest = baseFontPx;
+    for (const t of (texts || [])){
+      // Effective width available is divided by hCompress because horizontal
+      // scaling shrinks the drawn width afterwards.
+      const effTexW = texW / Math.max(0.01, hCompress);
+      const px = fitFontPx(ctx, t, effTexW, baseFontPx);
+      if (px < smallest) smallest = px;
+    }
+    return smallest;
+  }
+
   /* Returns a controller with a .stop() so we can clean up on rebuild. */
   function runSentenceCyclerToDT(dt, opts = {}){
     const {
@@ -714,7 +736,9 @@
       texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX,
       holdMs = 2600,     // how long a full sentence stays
       fadeMs = 320,      // fade in/out duration
-      hFlip = false
+      hFlip = false,
+      fixedPx = null,    // consistent size across all sentences (mobile front/back)
+      hCompress = 1      // horizontal compression (mobile front/back = 0.8)
     } = opts;
 
     const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
@@ -731,7 +755,7 @@
         if (stopped) return;
         const r = Math.min(1, (now - t0) / fadeMs);
         const a = from + (to - from) * r;
-        drawFullSentence(dt, { text, texW, texH, alpha:a, color, fontPx, hFlip });
+        drawFullSentence(dt, { text, texW, texH, alpha:a, color, fontPx, hFlip, fixedPx, hCompress });
         if (r < 1) rafId = requestAnimationFrame(step);
         else if (done) done();
       }
@@ -754,7 +778,10 @@
     }
 
     showCurrent();
-    intervalId = setInterval(next, holdMs + fadeMs); // hold + the fade-out time
+    // Only auto-cycle when there's more than one sentence.
+    if (texts.length > 1){
+      intervalId = setInterval(next, holdMs + fadeMs); // hold + the fade-out time
+    }
 
     return {
       stop(){
@@ -763,6 +790,46 @@
         if (rafId) cancelAnimationFrame(rafId);
       }
     };
+  }
+
+  /* Static side-wall text (Poppins SemiBold, centered, no cycling, no deform).
+     Auto-fits uniformly so the full sentence is always visible and never clipped. */
+  function drawStaticSideText(dt, { text, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
+    const ctx = dt.getContext();
+    ctx.clearRect(0, 0, texW, texH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Uniform fit using Poppins SemiBold metrics (measured at the draw font).
+    const maxW = texW * TW_SAFE_FRAC;
+    let size = fontPx;
+    ctx.font = `600 ${size}px Poppins, sans-serif`;
+    let w = ctx.measureText(text).width;
+    if (w > maxW){
+      size = Math.max(8, Math.floor(size * (maxW / w)));
+      for (let i = 0; i < 24; i++){
+        ctx.font = `600 ${size}px Poppins, sans-serif`;
+        if (ctx.measureText(text).width <= maxW) break;
+        size -= Math.max(1, Math.round(size * 0.04));
+        if (size <= 8){ size = 8; break; }
+      }
+    }
+    ctx.font = `600 ${size}px Poppins, sans-serif`;
+
+    const x = Math.round(texW / 2);
+    const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
+
+    ctx.save();
+    if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
+    if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
+    ctx.shadowColor = "rgba(218,255,62,0.20)";
+    ctx.shadowBlur  = Math.max(2, Math.round(size * 0.18));
+    ctx.fillStyle   = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+    dt.update(false); // single upload — static, no per-frame cost
   }
 
   /* ========= Scene setup ========= */
@@ -1347,16 +1414,34 @@
     // BACK walls read correctly WITHOUT a horizontal flip, while the SIDE walls
     // (left/right) need the horizontal flip to read left-to-right.
     const hFlip = (wallKey === 'left' || wallKey === 'right');
+    const isSide = (wallKey === 'left' || wallKey === 'right');
+
+    // ── SIDE WALLS: static Poppins SemiBold sentence (desktop + mobile, no cycle).
+    if (isSide){
+      drawStaticSideText(dt, {
+        text: SIDE_WALL_TEXT, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
+      });
+      return { rafId: 0, controller: null };
+    }
+
+    // ── FRONT / BACK ──
     if (IS_MOBILE){
-      // tear down any previous cycler for this wall
+      // MOBILE: fixed full-sentence cycler. One consistent size derived from the
+      // LONGEST sentence (so every message uses the same size & none clip), then
+      // horizontally compressed to 80% (no vertical deformation).
       try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+      const H_COMPRESS = 0.8;
+      const measCtx = dt.getContext();
+      const fixedPx = fixedFontPxForSet(measCtx, texts, texW, TW_FONT_PX, H_COMPRESS);
       const ctrl = runSentenceCyclerToDT(dt, {
         texts, texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX,
-        holdMs: 2600, fadeMs: 320, hFlip
+        holdMs: 2600, fadeMs: 320, hFlip,
+        fixedPx, hCompress: H_COMPRESS
       });
       __cyclers[wallKey] = ctrl;
       return { rafId: 0, controller: ctrl };
     } else {
+      // DESKTOP: original typewriter effect (richer animated experience).
       const rafId = runTypewriterToDT(dt, {
         texts, speedMs: TW_SPEED_MS, pauseMs: TW_PAUSE_MS,
         texW, texH, color: TW_COLOR_HEX, fontPx: TW_FONT_PX, hFlip
