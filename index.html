@@ -114,6 +114,10 @@
     /* auto-tour sits to the LEFT of fullscreen (two slots in) */
     #autoTourIcon{ right:calc(12px + var(--safe-right) + (56px + 8px) * 2); }
     #autoTourIcon.is-active{ filter: drop-shadow(0 0 12px rgba(218,255,62,.55)); opacity:1; }
+.hudHidden{
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 
     /* LEFT HUD group: instagram (far left), share (right of instagram), email (right of share) */
     .hudIconLeft{
@@ -129,22 +133,18 @@
 
     /* Desktop icon strip (NEW): subtle plain black 75%, no blur, sits just
        above the SoundCloud bar behind the HUD icon row. Not tall/intrusive. */
- #mobileIconDock{
+#mobileIconDock{
   display:block;
   position:fixed; left:0; right:0;
-  bottom: calc(var(--bar-h) + var(--safe-bottom));
-  height: calc(56px + 24px);
+  bottom:0;
+  height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
   background: rgba(0,0,0,.75);
-  z-index: 40;
-  pointer-events:auto; /* desktop toggle click */
-  will-change: transform, opacity;
+  z-index: 9990;
+  pointer-events:none; /* mobile stays unchanged */
+  will-change: transform;
   transform: translateZ(0);
-  opacity: 1;
-  transition: opacity .18s ease;
 }
-#mobileIconDock.is-hidden{
-  opacity: 0;
-}
+
 
 
     @media (pointer:coarse), (max-width: 900px){
@@ -2500,9 +2500,49 @@ __logoRight.material   = makeMat("logoMat_right");
   // also stop auto-tour if the user grabs the camera directly
   canvas.addEventListener('pointerdown', ()=>{ if (AutoTour.active) stopAutoTour(); }, { passive:true });
 
-  const instaIcon = document.getElementById('instaIcon');
-  const shareIcon = document.getElementById('shareIcon');
-  const emailIcon = document.getElementById('emailIcon');
+const instaIcon = document.getElementById('instaIcon');
+const shareIcon = document.getElementById('shareIcon');
+const emailIcon = document.getElementById('emailIcon');
+
+/* ========= Desktop dock toggle ========= */
+const iconDock = document.getElementById('mobileIconDock');
+
+const desktopHudIcons = [
+  document.getElementById('instaIcon'),
+  document.getElementById('shareIcon'),
+  document.getElementById('emailIcon'),
+  document.getElementById('autoTourIcon'),
+  document.getElementById('fullscreenIcon'),
+  document.getElementById('resetCamIcon')
+].filter(Boolean);
+
+let desktopDockHidden = false;
+
+function isDesktopDockMode(){
+  return !IS_MOBILE;
+}
+
+function applyDesktopDockVisibility(hidden){
+  desktopDockHidden = !!hidden;
+
+  if (!iconDock) return;
+
+  iconDock.classList.toggle('is-hidden', hidden);
+
+  desktopHudIcons.forEach(el => {
+    el.classList.toggle('hudHidden', hidden);
+  });
+}
+
+if (iconDock && isDesktopDockMode()){
+  iconDock.addEventListener('click', (e) => {
+    // toggle only when clicking the strip itself
+    if (e.target !== iconDock) return;
+    applyDesktopDockVisibility(!desktopDockHidden);
+  });
+}
+
+function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
 
   function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
   async function sharePage(){
