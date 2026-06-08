@@ -45,7 +45,7 @@
     #loadingOverlay{
       position:fixed; inset:0; z-index:20000;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:26px; background:#000; color:var(--txt);
+      gap:14px; background:#000; color:var(--txt);
       opacity:1; transition:opacity .55s ease;
       will-change:opacity; transform:translateZ(0);
       -webkit-tap-highlight-color:transparent;
@@ -58,15 +58,15 @@
       user-select:none; -webkit-user-drag:none;
     }
     #loadingBarWrap{
-      width:min(72vw, 360px); display:flex; flex-direction:column; align-items:center; gap:12px;
+      width:min(86vw, 520px); display:flex; flex-direction:column; align-items:center; gap:10px;
     }
     #loadingBarTrack{
-      width:100%; height:4px; border-radius:4px; background:rgba(255,255,255,.12);
+      width:100%; height:2px; border-radius:2px; background:rgba(255,255,255,.12);
       overflow:hidden; position:relative;
     }
     #loadingBarFill{
       position:absolute; left:0; top:0; bottom:0; width:0%;
-      background:var(--phaser-green); border-radius:4px;
+      background:var(--phaser-green); border-radius:2px;
       transition:width .25s ease;
     }
     #loadingPct{
@@ -228,7 +228,7 @@
 
   <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
   <img id="autoTourIcon" class="hudIcon"
-    src="./assets/Auto tour.svg"
+    src="./assets/auto tour.svg"
     alt="Auto tour" title="Auto tour"
     role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
   <img id="fullscreenIcon" class="hudIcon"
@@ -247,7 +247,7 @@
     src="./assets/Share.svg" alt="Share" title="Share"
     role="button" tabindex="0" aria-label="Share this page" />
   <img id="emailIcon" class="hudIconLeft"
-    src="./assets/Email.svg" alt="Email" title="Email"
+    src="./assets/email.svg" alt="Email" title="Email"
     role="button" tabindex="0" aria-label="Email" />
 
   <div id="scBar" aria-label="SoundCloud Bar">
@@ -407,14 +407,15 @@
   };
 
   /* Usable text-box width as a FRACTION of the available wall length.
-     Smaller = safer side margins, text stays centered and never reaches the
-     edges (prevents the stretched/deformed look). Front/back narrower; the
-     longer side walls get a wider box but still keep safe margins. */
+     These set how wide the drawing texture is. Combined with the uniform
+     auto-fit (fitFontPx), the FULL sentence always fits with safe margins and
+     the font is never stretched/squashed. Front/back are wide enough for their
+     longest sentence; side walls (longer walls) get a longer box. */
   const TW_WIDTH_FRAC = {
-    front: 0.52,  // shorter text box
-    back:  0.52,
-    left:  0.70,  // longer text box (side walls are deeper)
-    right: 0.70
+    front: 0.82,  // wide enough for the full front sentence (safe margins kept)
+    back:  0.82,
+    left:  0.80,  // long side walls — generous box, still safe margins
+    right: 0.80
   };
 
   const TW_SPEED_MS     = 75;
@@ -516,6 +517,30 @@
   /* ─────────────────────────────────────────────────────────────────
    * FIX 5 — drawTypeLine: dt.update(false) everywhere (no mipmap regen/frame).
    * ───────────────────────────────────────────────────────────────── */
+  /* Uniform font auto-fit (NO deformation):
+     Given the full sentence and the texture width, returns the largest font size
+     (≤ baseFontPx) at which the WHOLE sentence fits inside the safe drawing area.
+     Scaling is uniform — letterforms keep their exact proportions, never stretched
+     or squashed. Used by both the desktop typewriter and the mobile cycler so the
+     full sentence is always visible and never clipped. */
+  const TW_SAFE_FRAC = 0.88; // use 88% of texture width → safe left/right margins
+  function fitFontPx(ctx, fullText, texW, baseFontPx){
+    const maxW = texW * TW_SAFE_FRAC;
+    let size = baseFontPx;
+    ctx.font = `600 ${size}px Doto, monospace`;
+    let w = ctx.measureText(fullText).width;
+    if (w <= maxW) return size;
+    // scale down proportionally, then fine-tune so it definitely fits
+    size = Math.max(8, Math.floor(size * (maxW / w)));
+    for (let i = 0; i < 24; i++){
+      ctx.font = `600 ${size}px Doto, monospace`;
+      if (ctx.measureText(fullText).width <= maxW) break;
+      size -= Math.max(1, Math.round(size * 0.04));
+      if (size <= 8){ size = 8; break; }
+    }
+    return size;
+  }
+
   function drawTypeLine(dt, {
     text,
     progress,
@@ -530,10 +555,13 @@
 
     ctx.imageSmoothingEnabled  = true;
     ctx.imageSmoothingQuality  = "high";
+    // Size the font so the FULL sentence fits (measured on the complete string so
+    // the layout never shifts mid-type). Uniform scale → no deformation.
+    const fitPx = fitFontPx(ctx, text, texW, fontPx);
     ctx.fillStyle              = color;
     ctx.textAlign              = "center";
     ctx.textBaseline           = "middle";
-    ctx.font                   = `600 ${fontPx}px Doto, monospace`;
+    ctx.font                   = `600 ${fitPx}px Doto, monospace`;
 
     const x = Math.round(texW / 2);
     const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
@@ -545,15 +573,15 @@
       ctx.translate(0, texH);
       ctx.scale(1, -1);
     }
-    // Horizontal flip — applied ONLY to walls that need it (front/back), so the
-    // text reads left-to-right there. Side walls (left/right) are left as-is.
+    // Horizontal flip — only walls that need it (side walls). Front/back read
+    // correctly without it.
     if (hFlip){
       ctx.translate(texW, 0);
       ctx.scale(-1, 1);
     }
 
     ctx.shadowColor = "rgba(218,255,62,0.20)";
-    ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
+    ctx.shadowBlur  = Math.max(2, Math.round(fitPx * 0.22));
 
     ctx.fillText(content, x, y);
 
@@ -659,18 +687,20 @@
     ctx.imageSmoothingQuality = "high";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `600 ${fontPx}px Doto, monospace`;
+    // Uniform auto-fit so the full sentence is visible and never clipped (no deform).
+    const fitPx = fitFontPx(ctx, text, texW, fontPx);
+    ctx.font = `600 ${fitPx}px Doto, monospace`;
 
     const x = Math.round(texW / 2);
     const y = Math.round(texH / 2) + (TW_OFFSET_PX | 0);
 
     ctx.save();
     if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
-    // Horizontal flip — ONLY for walls that need it (front/back). Side walls stay as-is.
+    // Horizontal flip — only walls that need it (side walls).
     if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.shadowColor = "rgba(218,255,62,0.20)";
-    ctx.shadowBlur  = Math.max(2, Math.round(fontPx * 0.22));
+    ctx.shadowBlur  = Math.max(2, Math.round(fitPx * 0.22));
     ctx.fillStyle   = color;
     ctx.fillText(text, x, y);
     ctx.restore();
@@ -1168,6 +1198,11 @@
       if (fontPx < 16) { fontPx = 16; break; }
     }
 
+    // Reduce the placard text by ~2 points. The fitted size is in high-res
+    // texture pixels, so "2 points" maps to a small proportional trim (~4%).
+    // Uniform — no deformation. Floors at 14 so it stays readable.
+    fontPx = Math.max(14, Math.round(fontPx * 0.96));
+
     // Final wrap + ellipsis if still overflowing 2 lines
     c.font = `600 ${fontPx}px Poppins, sans-serif`;
     lines = wrapAt(fontPx);
@@ -1306,8 +1341,12 @@
      store handles for teardown. */
   function startWallText(wallKey, dt, texW, texH){
     const texts = TW_STRINGS[wallKey];
-    // Horizontal flip ONLY on front/back walls; side walls keep current orientation.
-    const hFlip = (wallKey === 'front' || wallKey === 'back');
+    // Orientation correction (verified against rendered output):
+    // The text planes use rotation.y = rotY directly (front:0, back:π, left:+π/2,
+    // right:-π/2). With the vertical flip applied in the draw step, the FRONT and
+    // BACK walls read correctly WITHOUT a horizontal flip, while the SIDE walls
+    // (left/right) need the horizontal flip to read left-to-right.
+    const hFlip = (wallKey === 'left' || wallKey === 'right');
     if (IS_MOBILE){
       // tear down any previous cycler for this wall
       try { __cyclers[wallKey]?.stop?.(); } catch(_){}
