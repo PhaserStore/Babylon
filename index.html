@@ -1611,16 +1611,21 @@ __logoRight.material   = makeMat("logoMat_right");
       yText = Math.max(yText, minSafePlaneY);
 
       // Available wall lengths
-      const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2; // front/back run along width
-      const panelH = Math.max(0.20, TW_FONT_PX / 100);
+const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2; // front/back run along width
+const panelH = Math.max(0.20, TW_FONT_PX / 100);
 
-      // Front/back text-box widths = fraction of the front/back available length.
-      const panelW_front = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.front);
-      const panelW_back  = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.back);
-      // SIDE WALLS: use the SAME width as the BACK-wall typographer text box
-      // (same absolute world-space width), just centered on the longer side wall.
-      const panelW_left  = panelW_back;
-      const panelW_right = panelW_back;
+// boční text potřebuje vyšší box a být blíž k logu
+const sidePanelH = panelH * 1.85;
+const sideYText = yText + 1.55;
+
+// Front/back text-box widths = fraction of the front/back available length.
+const panelW_front = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.front);
+const panelW_back  = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.back);
+
+// SIDE WALLS: same width as back-wall text box
+const panelW_left  = panelW_back;
+const panelW_right = panelW_back;
+
 
       // Cleanup any previous front/back/side planes + animations/cyclers.
       try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
