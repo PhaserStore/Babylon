@@ -1694,6 +1694,13 @@ const panelW_right = panelW_back;
 
 Assets.markLogoReady(); // NEW: tell loader the logo is up
 hint("Logo shown (front + back) + text on all four walls ✔");
+      };
+    img.onerror = (e) => {
+      console.error("Logo SVG decode failed.", e);
+      Assets.markLogoReady();
+      hint("Error: logo SVG decode failed.");
+    };
+  }
 
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
