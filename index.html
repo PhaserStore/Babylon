@@ -913,23 +913,25 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
     return m;
   }
 
-  function unlitTex(tex, { doubleSided = false, gain = 1.18 } = {}) {
-    const m = new BABYLON.StandardMaterial("mt", scene);
-    m.disableLighting = true;
-    m.diffuseTexture  = tex;
-    m.emissiveTexture = tex;
-    m.emissiveColor   = new BABYLON.Color3(1, 1, 1);
-    m.backFaceCulling = !doubleSided;
-    m.specularColor   = new BABYLON.Color3(0, 0, 0);
-    if (tex) {
-      tex.gammaSpace = true;
-      tex.level      = gain;
-      tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-      tex.anisotropicFilteringLevel = MAX_ANISO;
-    }
-    return m;
+  function unlitTex(tex, { doubleSided = false, gain = 1.0 } = {}) {
+  const m = new BABYLON.StandardMaterial("mt", scene);
+  m.disableLighting = true;
+  m.diffuseTexture  = tex;
+  m.emissiveTexture = null;
+  m.emissiveColor   = new BABYLON.Color3(0, 0, 0);
+  m.backFaceCulling = !doubleSided;
+  m.specularColor   = new BABYLON.Color3(0, 0, 0);
+
+  if (tex) {
+    tex.gammaSpace = true;
+    tex.level      = gain; // 1.0 = original brightness
+    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = MAX_ANISO;
   }
+
+  return m;
+}
 
   function makeDT(name, w, h, genMipmaps=true) {
     const dt = new BABYLON.DynamicTexture(
