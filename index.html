@@ -2599,9 +2599,39 @@ if (iconDock && isDesktopDockMode()){
   }
   function openEmail(){ window.location.href = "mailto:hello@phaserstore.com"; }
 
-  if (instaIcon){ instaIcon.addEventListener('dragstart',e=>e.preventDefault()); instaIcon.addEventListener('click',openInsta); instaIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openInsta();}}); }
-  if (shareIcon){ shareIcon.addEventListener('dragstart',e=>e.preventDefault()); shareIcon.addEventListener('click',sharePage); shareIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();sharePage();}}); }
-  if (emailIcon){ emailIcon.addEventListener('dragstart',e=>e.preventDefault()); emailIcon.addEventListener('click',openEmail); emailIcon.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openEmail();}}); }
+  if (instaIcon){
+  instaIcon.addEventListener('dragstart', e=>e.preventDefault());
+  instaIcon.addEventListener('click', openInsta);
+  instaIcon.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      openInsta();
+    }
+  });
+}
+
+if (shareIcon){
+  shareIcon.addEventListener('dragstart', e=>e.preventDefault());
+  shareIcon.addEventListener('click', sharePage);
+  shareIcon.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      sharePage();
+    }
+  });
+}
+
+if (emailIcon){
+  emailIcon.addEventListener('dragstart', e=>e.preventDefault());
+  emailIcon.addEventListener('click', openEmail);
+  emailIcon.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      openEmail();
+    }
+  });
+}
+ventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openEmail();}}); }
   </script>
 </body>
 </html>
