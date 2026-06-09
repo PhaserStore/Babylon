@@ -2592,18 +2592,40 @@ if (iconDock && isDesktopDockMode()){
 
 
 
-  function openInsta(){ window.open("https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr","_blank","noopener"); }
-  async function sharePage(){
-    const shareData = { title: document.title||"Virtual Gallery", text: "Check out the Virtual Gallery", url: window.location.href };
-    try{ if(navigator.share){ await navigator.share(shareData); } else { await navigator.clipboard?.writeText?.(shareData.url); alert("Link copied to clipboard."); } }catch(e){}
-  }
-  function openEmail(){ window.location.href = "mailto:hello@phaserstore.com"; }
+  ffunction openInsta(){
+  window.open(
+    "https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr",
+    "_blank",
+    "noopener"
+  );
+}
 
-  if (instaIcon){
-  instaIcon.addEventListener('dragstart', e=>e.preventDefault());
+async function sharePage(){
+  const shareData = {
+    title: document.title || "Virtual Gallery",
+    text: "Check out the Virtual Gallery",
+    url: window.location.href
+  };
+
+  try{
+    if (navigator.share){
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard?.writeText?.(shareData.url);
+      alert("Link copied to clipboard.");
+    }
+  } catch(e){}
+}
+
+function openEmail(){
+  window.location.href = "mailto:hello@phaserstore.com";
+}
+
+if (instaIcon){
+  instaIcon.addEventListener('dragstart', (e)=>e.preventDefault());
   instaIcon.addEventListener('click', openInsta);
-  instaIcon.addEventListener('keydown',(e)=>{
-    if(e.key==='Enter'||e.key===' '){
+  instaIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){
       e.preventDefault();
       openInsta();
     }
@@ -2611,10 +2633,10 @@ if (iconDock && isDesktopDockMode()){
 }
 
 if (shareIcon){
-  shareIcon.addEventListener('dragstart', e=>e.preventDefault());
+  shareIcon.addEventListener('dragstart', (e)=>e.preventDefault());
   shareIcon.addEventListener('click', sharePage);
-  shareIcon.addEventListener('keydown',(e)=>{
-    if(e.key==='Enter'||e.key===' '){
+  shareIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){
       e.preventDefault();
       sharePage();
     }
@@ -2622,16 +2644,15 @@ if (shareIcon){
 }
 
 if (emailIcon){
-  emailIcon.addEventListener('dragstart', e=>e.preventDefault());
+  emailIcon.addEventListener('dragstart', (e)=>e.preventDefault());
   emailIcon.addEventListener('click', openEmail);
-  emailIcon.addEventListener('keydown',(e)=>{
-    if(e.key==='Enter'||e.key===' '){
+  emailIcon.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){
       e.preventDefault();
       openEmail();
     }
   });
 }
-ventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openEmail();}}); }
-  </script>
+</script>
 </body>
 </html>
