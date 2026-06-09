@@ -1316,10 +1316,11 @@ function makeDT(name, w, h, genMipmaps = true) {
 
   const text = (data.title || "(untitled)").trim();
   const maxLines = 2;
+  const labelFont = `"Michroma", sans-serif`;
 
   function wrapAt(fontPx){
-    const labelFont = `"Michroma", sans-serif`;
-ctx.font = `500 ${size}px ${labelFont}`;
+    c.font = `500 ${fontPx}px ${labelFont}`;
+
     const words = text.split(/\s+/);
     const lines = [];
     let buf = "";
@@ -1333,6 +1334,7 @@ ctx.font = `500 ${size}px ${labelFont}`;
         buf = w;
       }
     }
+
     if (buf) lines.push(buf);
     return lines;
   }
@@ -1362,7 +1364,7 @@ ctx.font = `500 ${size}px ${labelFont}`;
   // o 2 pt menší
   fontPx = Math.max(12, Math.round(fontPx * 0.96) - 2);
 
-  c.font = `400 ${fontPx}px Poppins, sans-serif`;
+  c.font = `500 ${fontPx}px ${labelFont}`;
   lines = wrapAt(fontPx);
 
   // Final wrap + ellipsis if still overflowing 2 lines
@@ -1392,7 +1394,7 @@ ctx.font = `500 ${size}px ${labelFont}`;
   lines.forEach((ln, i) => c.fillText(ln, texW / 2, startY + i * lineH));
   c.restore();
 
-  dt.update(false); // FIX 4
+  dt.update(false);
   const mat = unlitTex(dt);
   mat.zOffset = -2;
 
