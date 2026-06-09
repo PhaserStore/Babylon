@@ -1269,12 +1269,12 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
   const dt = makeDT("pl", texW, texH, !IS_MOBILE);
   const c = dt.getContext();
   c.fillStyle = "#6b6b6b";
-  c.fillRect(0,0,texW,texH);
+  c.fillRect(0, 0, texW, texH);
 
   const padX = Math.round(texW * 0.05);
   const padY = Math.round(texH * 0.16);
-  const maxW = texW - padX*2;
-  const maxBlockH = texH - padY*2;
+  const maxW = texW - padX * 2;
+  const maxBlockH = texH - padY * 2;
 
   c.fillStyle = "#ffffff";
   c.textAlign = "center";
@@ -1302,9 +1302,10 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
     return lines;
   }
 
-  let fontPx = Math.round(texH * 0.46);
+  let fontPx = Math.round(texH * 0.46); // start generous
   let lines = wrapAt(fontPx);
 
+  // shrink until it fits both width (per line) and height (line count)
   let guard = 40;
   while (guard-- > 0){
     lines = wrapAt(fontPx);
@@ -1329,6 +1330,7 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
   c.font = `400 ${fontPx}px Poppins, sans-serif`;
   lines = wrapAt(fontPx);
 
+  // Final wrap + ellipsis if still overflowing 2 lines
   if (lines.length > maxLines){
     const keep = lines.slice(0, maxLines);
     let last = keep[maxLines - 1];
@@ -1341,7 +1343,7 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
 
   const lineH = fontPx * 1.18;
   const blockH = lines.length * lineH;
-  const startY = Math.round(texH/2 - blockH/2 + lineH/2);
+  const startY = Math.round(texH / 2 - blockH / 2 + lineH / 2);
 
   // výška textu -20 %
   const VSCALE = 0.8;
@@ -1352,7 +1354,7 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
   c.scale(1, VSCALE);
   c.translate(0, -cy);
 
-  lines.forEach((ln, i) => c.fillText(ln, texW/2, startY + i*lineH));
+  lines.forEach((ln, i) => c.fillText(ln, texW / 2, startY + i * lineH));
   c.restore();
 
   dt.update(false); // FIX 4
@@ -1366,62 +1368,79 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
   plac.material = mat;
 }
 
-  /* ===== addFrame =====
-     pos here is the FRAME CENTER. Placard offset below the frame is preserved
-     proportionally (same gap language as before: -0.72 * H below center, plus a
-     little extra so it clears the taller square frame cleanly). */
-  function addFrame(pos, rotY=0, wall='front'){
-    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-      depth: 0.06
-    }, scene);
-    box.position = pos.add(normalOffset(rotY, 0.0));
-    box.rotation.y = rotY;
-    box.isPickable = true;
-    box.subMeshes = [];
-    const indices = box.getIndices();
-    const verticesCount = box.getTotalVertices();
-    let idx = 0;
-    const perFace = indices.length / 6;
-    for (let f=0; f<6; f++){ new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box); idx += perFace; }
-    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+function normalOffset(rotY, dist){
+  const nx = Math.sin(rotY) * dist;
+  const nz = Math.cos(rotY) * dist;
+  return new BABYLON.Vector3(nx, 0, nz);
+}
 
-    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-      width: FRAME_SIZE.W, height: FRAME_SIZE.H, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    f.position = pos.add(normalOffset(rotY, 0.04));
-    f.rotation.y = rotY + Math.PI;
-    f.isPickable = true;
-
-    const { texW: phW, texH: phH } = getFrameTexSize();
-    const dt = makeDT("ph_img", phW, phH, true);
-    const ctx = dt.getContext();
-    drawChecker(ctx, phW, phH);
-    dt.update(false); // FIX 4
-    const fMat = unlitTex(dt);
-    fMat.zOffset = -1;
-    fMat.name = "ph_img_mat";
-    f.material = fMat;
-
-    // Placard: width MATCHES the square frame width (more room for titles).
-    const placW = FRAME_SIZE.W;
-    const placH = Math.max(0.26, FRAME_SIZE.W * 0.16); // slightly taller, proportional to wider frame
-    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-      width: placW, height: placH, sideOrientation: BABYLON.Mesh.FRONTSIDE
-    }, scene);
-    // keep the same visual gap below the frame bottom as before.
-    const PLAC_GAP = 0.28; // distance from frame bottom edge to placard top edge
-    const placCenterY = pos.y - (FRAME_SIZE.H/2) - PLAC_GAP - (placH/2);
-    plac.position = new BABYLON.Vector3(pos.x, placCenterY, pos.z).add(normalOffset(rotY, 0.03));
-    plac.rotation.y = rotY + Math.PI;
-    plac.isPickable = true;
-    plac._width = placW; plac._height = placH;
-
-    const data = { title: "(untitled)", url: "", src: "" };
-    drawPlacard(plac, data, rotY, placW, placH);
-    return { frame:f, box, placard:plac, data, wall, rotY, pos };
+/* ===== addFrame =====
+   pos here is the FRAME CENTER. Placard offset below the frame is preserved
+   proportionally (same gap language as before: -0.72 * H below center, plus a
+   little extra so it clears the taller square frame cleanly). */
+function addFrame(pos, rotY=0, wall='front'){
+  const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+    width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+    height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+    depth: 0.06
+  }, scene);
+  box.position = pos.add(normalOffset(rotY, 0.0));
+  box.rotation.y = rotY;
+  box.isPickable = true;
+  box.subMeshes = [];
+  const indices = box.getIndices();
+  const verticesCount = box.getTotalVertices();
+  let idx = 0;
+  const perFace = indices.length / 6;
+  for (let f = 0; f < 6; f++){
+    new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
+    idx += perFace;
   }
+  box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+
+  const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+    width: FRAME_SIZE.W,
+    height: FRAME_SIZE.H,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+  f.position = pos.add(normalOffset(rotY, 0.04));
+  f.rotation.y = rotY + Math.PI;
+  f.isPickable = true;
+
+  const { texW: phW, texH: phH } = getFrameTexSize();
+  const dt = makeDT("ph_img", phW, phH, true);
+  const ctx = dt.getContext();
+  drawChecker(ctx, phW, phH);
+  dt.update(false); // FIX 4
+
+  const fMat = unlitTex(dt);
+  fMat.zOffset = -1;
+  fMat.name = "ph_img_mat";
+  f.material = fMat;
+
+  // Placard: width MATCHES the square frame width (more room for titles).
+  const placW = FRAME_SIZE.W;
+  const placH = Math.max(0.26, FRAME_SIZE.W * 0.16);
+  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+    width: placW,
+    height: placH,
+    sideOrientation: BABYLON.Mesh.FRONTSIDE
+  }, scene);
+
+  // keep the same visual gap below the frame bottom as before.
+  const PLAC_GAP = 0.28;
+  const placCenterY = pos.y - (FRAME_SIZE.H / 2) - PLAC_GAP - (placH / 2);
+  plac.position = new BABYLON.Vector3(pos.x, placCenterY, pos.z).add(normalOffset(rotY, 0.03));
+  plac.rotation.y = rotY + Math.PI;
+  plac.isPickable = true;
+  plac._width = placW;
+  plac._height = placH;
+
+  const data = { title: "(untitled)", url: "", src: "" };
+  drawPlacard(plac, data, rotY, placW, placH);
+
+  return { frame: f, box, placard: plac, data, wall, rotY, pos };
+}
 
   /* ========================= LOGO ========================= */
   const GALLERY_LOGO_SVG = `
