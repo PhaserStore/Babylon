@@ -432,7 +432,7 @@
 
 
   /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
-  const SIDE_WALL_TEXT = "Future-ready. Powered by the beat.";
+  const SIDE_WALL_TEXT = "Future ready. Powered by the beat.";
 
   /* Usable text-box width as a FRACTION of the available wall length (front/back).
      Combined with the uniform auto-fit, the full sentence always fits with safe
@@ -850,20 +850,23 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
 const maxW = (texW * 0.90) / SIDE_HSCALE;
 
 let size = fontPx;
-const sideFont = `"Orbitron", sans-serif`;
+const sideFont = `"Michroma", sans-serif`;
 
-ctx.font = `500 ${size}px ${sideFont}`;
+ctx.font = `400 ${size}px ${sideFont}`;
 let w = ctx.measureText(text).width;
 
 if (w > maxW){
   size = Math.max(8, Math.floor(size * (maxW / w)));
   for (let i = 0; i < 24; i++){
-    ctx.font = `500 ${size}px ${sideFont}`;
+    ctx.font = `400 ${size}px ${sideFont}`;
     if (ctx.measureText(text).width <= maxW) break;
     size -= Math.max(1, Math.round(size * 0.04));
     if (size <= 8){ size = 8; break; }
   }
 }
+
+ctx.font = `400 ${size}px ${sideFont}`;
+``
 
 ctx.font = `500 ${size}px ${sideFont}`;
 
