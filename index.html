@@ -904,55 +904,59 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
     step: 0.05, minLevel: 0.33, maxLevel: 1.00, accMs: 0, frames: 0, lastEval: performance.now()
   };
 
-  function unlit(hex){
-    const m = new BABYLON.StandardMaterial("m", scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString(hex);
-    m.disableLighting = true;
-    m.backFaceCulling = false;
-    m.specularColor = new BABYLON.Color3(0,0,0);
-    return m;
-  }
+  function unlit(hex) {
+  const m = new BABYLON.StandardMaterial("m", scene);
+  m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+  m.disableLighting = true;
+  m.backFaceCulling = false;
+  m.specularColor = new BABYLON.Color3(0, 0, 0);
+  return m;
+}
 
- function unlitTex(tex, { doubleSided = false, gain = 1.0 } = {}) {
+function unlitTex(tex, opts) {
+  opts = opts || {};
+  const doubleSided = !!opts.doubleSided;
+  const gain = (typeof opts.gain === "number") ? opts.gain : 1.0;
+
   const m = new BABYLON.StandardMaterial("mt", scene);
   m.disableLighting = true;
 
-  // show the texture as-is, without extra contrast boost
-  m.diffuseTexture  = null;
-  m.diffuseColor    = new BABYLON.Color3(0, 0, 0);
+  // Keep images visible, but without extra brightening boost
+  m.diffuseTexture = null;
+  m.diffuseColor = new BABYLON.Color3(0, 0, 0);
 
   m.emissiveTexture = tex;
-  m.emissiveColor   = new BABYLON.Color3(1, 1, 1);
+  m.emissiveColor = new BABYLON.Color3(1, 1, 1);
 
   m.backFaceCulling = !doubleSided;
-  m.specularColor   = new BABYLON.Color3(0, 0, 0);
+  m.specularColor = new BABYLON.Color3(0, 0, 0);
 
   if (tex) {
     tex.gammaSpace = true;
-    tex.level      = gain; // 1.0 = no extra brightening
-    tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.level = gain; // 1.0 = no extra boost
+    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
     tex.anisotropicFilteringLevel = MAX_ANISO;
   }
 
-
-
   return m;
 }
 
-  function makeDT(name, w, h, genMipmaps=true) {
-    const dt = new BABYLON.DynamicTexture(
-      name,
-      { width: w, height: h },
-      scene,
-      genMipmaps,
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-    );
-    dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dt.hasAlpha = false;
-    dt.anisotropicFilteringLevel = MAX_ANISO;
-    return dt;
-  }
+function makeDT(name, w, h, genMipmaps = true) {
+  const dt = new BABYLON.DynamicTexture(
+    name,
+    { width: w, height: h },
+    scene,
+    genMipmaps,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  );
+  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  dt.hasAlpha = false;
+  dt.anisotropicFilteringLevel = MAX_ANISO;
+  return dt;
+}
 
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
