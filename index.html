@@ -2516,40 +2516,93 @@ hint("Logo shown (front + back) + text on all four walls ✔");
 
   /* ========= Render loop ========= */
   let __firstRenderSignalled = false;
-  engine.runRenderLoop(()=>{
-    if (!scene) return;
-    updateAutoTour();           // NEW: advance cinematic orbit (no-op when inactive)
-    constrainTarget?.();
-    constrainCameraRadius?.();
-    scene.render();
+  engine.runRenderLoop(() => {
+  if (!scene) return;
 
-    // NEW: signal first stable render to the loader (a couple frames in for safety)
-    if (!__firstRenderSignalled){
-      __firstRenderSignalled = true;
-      // wait 2 rAF so textures are bound before we call it "stable"
-      requestAnimationFrame(()=>requestAnimationFrame(()=>Assets.markFirstRender()));
+  updateAutoTour(); // NEW: advance cinematic orbit (no-op when inactive)
+  constrainTarget?.();
+  constrainCameraRadius?.();
+
+  // Desktop-only "Apple breathing" effect for side-wall text
+  if (!IS_MOBILE && __twLeftPlane && __twRightPlane) {
+    const now = performance.now();
+
+    // slow elegant pulse
+    const wave = (Math.sin(now * 0.0011) + 1) * 0.5;
+
+    // dark gray -> light gray / near white
+    const gray = Math.round(40 + wave * (210 - 40));
+    const color = `rgb(${gray}, ${gray}, ${gray})`;
+
+    if (__twLeftPlane?.material?.diffuseTexture) {
+      const dt = __twLeftPlane.material.diffuseTexture;
+      const size = dt.getSize();
+      drawStaticSideText(dt, {
+        text: SIDE_WALL_TEXT,
+        texW: size.width,
+        texH: size.height,
+        color,
+        fontPx: TW_FONT_PX,
+        hFlip: true
+      });
     }
 
-    if (AutoScale.enabled){
-      const now = performance.now();
-      AutoScale.accMs += engine.getDeltaTime();
-      AutoScale.frames++;
-      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs){
-        const avgMs = AutoScale.accMs / AutoScale.frames;
-        let changed = false;
-        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel){
-          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step); changed = true;
-        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel){
-          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step); changed = true;
-        }
-        if (changed){
-          applyHardwareScale(currentScaleLevel);
-          if (glow){ const base = IS_MOBILE ? 36 : 96; glow.blurKernelSize = Math.round(base * (0.9 + 0.2*(1-(currentScaleLevel-0.33)/(1-0.33)))); }
-        }
-        AutoScale.accMs = 0; AutoScale.frames = 0; AutoScale.lastEval = now;
+    if (__twRightPlane?.material?.diffuseTexture) {
+      const dt = __twRightPlane.material.diffuseTexture;
+      const size = dt.getSize();
+      drawStaticSideText(dt, {
+        text: SIDE_WALL_TEXT,
+        texW: size.width,
+        texH: size.height,
+        color,
+        fontPx: TW_FONT_PX,
+        hFlip: true
+      });
+    }
+  }
+
+  scene.render();
+
+  // NEW: signal first stable render to the loader (a couple frames in for safety)
+  if (!__firstRenderSignalled) {
+    __firstRenderSignalled = true;
+    // wait 2 rAF so textures are bound before we call it "stable"
+    requestAnimationFrame(() => requestAnimationFrame(() => Assets.markFirstRender()));
+  }
+
+  if (AutoScale.enabled) {
+    const now = performance.now();
+    AutoScale.accMs += engine.getDeltaTime();
+    AutoScale.frames++;
+
+    if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs) {
+      const avgMs = AutoScale.accMs / AutoScale.frames;
+      let changed = false;
+
+      if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel) {
+        currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
+        changed = true;
+      } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel) {
+        currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
+        changed = true;
       }
+
+      if (changed) {
+        applyHardwareScale(currentScaleLevel);
+        if (glow) {
+          const base = IS_MOBILE ? 36 : 96;
+          glow.blurKernelSize = Math.round(
+            base * (0.9 + 0.2 * (1 - (currentScaleLevel - 0.33) / (1 - 0.33)))
+          );
+        }
+      }
+
+      AutoScale.accMs = 0;
+      AutoScale.frames = 0;
+      AutoScale.lastEval = now;
     }
-  });
+  }
+});
 
   /* ========= Resize & UI ========= */
   function handleResize(){ applyHardwareScale(); engine.resize(true); }
