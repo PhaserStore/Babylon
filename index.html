@@ -1420,7 +1420,7 @@ function addFrame(pos, rotY=0, wall='front'){
 
   // Placard: width MATCHES the square frame width (more room for titles).
   const placW = FRAME_SIZE.W;
-  const placH = Math.max(0.26, FRAME_SIZE.W * 0.16);
+  const placH = Math.max(0.22, FRAME_SIZE.W * 0.128);
   const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
     width: placW,
     height: placH,
