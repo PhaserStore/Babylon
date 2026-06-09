@@ -817,7 +817,7 @@
 
   /* Static side-wall text (Poppins SemiBold, centered, no cycling, no deform).
      Auto-fits uniformly so the full sentence is always visible and never clipped. */
-  function drawStaticSideText(dt, { text, texW, texH, color=SIDE_ACCENT_HEX, fontPx=TW_FONT_PX, hFlip=false }){
+ function drawStaticSideText(dt, { text, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
   const ctx = dt.getContext();
   ctx.clearRect(0, 0, texW, texH);
   ctx.imageSmoothingEnabled = true;
@@ -825,7 +825,13 @@
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const maxW = texW * 0.92;
+  // víc roztáhneme text
+  const SIDE_HSCALE = IS_MOBILE ? 0.72 : 1.16;
+  const SIDE_VSCALE = IS_MOBILE ? 1.0 : 1.22;
+
+  // důležité: kompenzace proti ořezu při scale
+  const maxW = (texW * 0.90) / SIDE_HSCALE;
+
   let size = fontPx;
 
   ctx.font = `400 ${size}px Poppins, sans-serif`;
@@ -845,11 +851,6 @@
 
   const x = Math.round(texW / 2);
   const y = Math.round(texH / 2);
-
-  // výrazně normálnější proporce na desktopu
-const SIDE_HSCALE = IS_MOBILE ? 0.72 : 1.08;
-const SIDE_VSCALE = IS_MOBILE ? 1.0 : 1.22;
-
 
   ctx.save();
 
@@ -875,6 +876,7 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 1.22;
   ctx.restore();
   dt.update(false);
 }
+
 
 
   /* ========= Scene setup ========= */
