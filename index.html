@@ -1260,102 +1260,111 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
      pick the largest size that fits the width — so titles look natural and
      readable. Poppins SemiBold (600). */
   function drawPlacard(plac, data, rotY, planeW, planeH){
-    const aspect = Math.max(0.05, planeW / planeH); // real placard W:H (wide)
-    // Base the texture on HEIGHT so wide placards get a wide texture (no squeeze).
-    const baseH = IS_MOBILE ? 256 : 512;
-    let texH = nearestPOT(baseH, IS_MOBILE ? 1024 : 2048);
-    let texW = nearestPOT(Math.max(2, Math.round(texH * aspect)), IS_MOBILE ? 2048 : 4096);
+  const aspect = Math.max(0.05, planeW / planeH); // real placard W:H (wide)
+  // Base the texture on HEIGHT so wide placards get a wide texture (no squeeze).
+  const baseH = IS_MOBILE ? 256 : 512;
+  let texH = nearestPOT(baseH, IS_MOBILE ? 1024 : 2048);
+  let texW = nearestPOT(Math.max(2, Math.round(texH * aspect)), IS_MOBILE ? 2048 : 4096);
 
-    const dt = makeDT("pl", texW, texH, !IS_MOBILE);
-    const c = dt.getContext();
-    c.fillStyle = "#6b6b6b"; c.fillRect(0,0,texW,texH);
+  const dt = makeDT("pl", texW, texH, !IS_MOBILE);
+  const c = dt.getContext();
+  c.fillStyle = "#6b6b6b";
+  c.fillRect(0,0,texW,texH);
 
-    const padX = Math.round(texW * 0.05);
-    const padY = Math.round(texH * 0.16);
-    const maxW = texW - padX*2;
-    const maxBlockH = texH - padY*2;
+  const padX = Math.round(texW * 0.05);
+  const padY = Math.round(texH * 0.16);
+  const maxW = texW - padX*2;
+  const maxBlockH = texH - padY*2;
 
-    c.fillStyle = "#ffffff";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
+  c.fillStyle = "#ffffff";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
 
-    const text = (data.title || "(untitled)").trim();
+  const text = (data.title || "(untitled)").trim();
+  const maxLines = 2;
 
-    // Pick the largest font size (from height) whose wrapped text fits the box.
-    // This avoids any horizontal scaling/condensing — letters keep their shape.
-    const maxLines = 2;
-    function wrapAt(fontPx){
-      c.font = `600 ${fontPx}px Poppins, sans-serif`;
-      const words = text.split(/\s+/);
-      const lines = []; let buf = "";
-      for (const w of words){
-        const test = buf ? (buf + " " + w) : w;
-        if (c.measureText(test).width <= maxW) buf = test;
-        else { if (buf) lines.push(buf); buf = w; }
+  function wrapAt(fontPx){
+    c.font = `400 ${fontPx}px Poppins, sans-serif`;
+    const words = text.split(/\s+/);
+    const lines = [];
+    let buf = "";
+
+    for (const w of words){
+      const test = buf ? (buf + " " + w) : w;
+      if (c.measureText(test).width <= maxW) {
+        buf = test;
+      } else {
+        if (buf) lines.push(buf);
+        buf = w;
       }
-      if (buf) lines.push(buf);
-      return lines;
     }
+    if (buf) lines.push(buf);
+    return lines;
+  }
 
-    let fontPx = Math.round(texH * 0.46); // start generous
-    let lines = wrapAt(fontPx);
-    // shrink until it fits both width (per line) and height (line count)
-    let guard = 40;
-    while (guard-- > 0){
-      lines = wrapAt(fontPx);
-      const tooMany = lines.length > maxLines;
-      const lineH = fontPx * 1.18;
-      const blockH = Math.min(lines.length, maxLines) * lineH;
-      const tooTall = blockH > maxBlockH;
-      const tooWide = lines.some(ln => c.measureText(ln).width > maxW);
-      if (!tooMany && !tooTall && !tooWide) break;
-      fontPx -= Math.max(2, Math.round(fontPx * 0.06));
-      if (fontPx < 16) { fontPx = 16; break; }
-    }
+  let fontPx = Math.round(texH * 0.46);
+  let lines = wrapAt(fontPx);
 
-    // Reduce the placard text by ~2 points. The fitted size is in high-res
-    // texture pixels, so "2 points" maps to a small proportional trim (~4%).
-    // Uniform — no deformation. Floors at 14 so it stays readable.
-    fontPx = Math.max(14, Math.round(fontPx * 0.96));
-
-    // Final wrap + ellipsis if still overflowing 2 lines
-    c.font = `600 ${fontPx}px Poppins, sans-serif`;
+  let guard = 40;
+  while (guard-- > 0){
     lines = wrapAt(fontPx);
-    if (lines.length > maxLines){
-      const keep = lines.slice(0, maxLines);
-      let last = keep[maxLines-1];
-      while (c.measureText(last + "…").width > maxW && last.length > 0) last = last.slice(0, -1);
-      keep[maxLines-1] = last + "…";
-      lines = keep;
-    }
-
+    const tooMany = lines.length > maxLines;
     const lineH = fontPx * 1.18;
-    const blockH = lines.length * lineH;
-    const startY = Math.round(texH/2 - blockH/2 + lineH/2);
+    const blockH = Math.min(lines.length, maxLines) * lineH;
+    const tooTall = blockH > maxBlockH;
+    const tooWide = lines.some(ln => c.measureText(ln).width > maxW);
 
-    // Reduce text HEIGHT by ~10% without touching horizontal width (no stretch):
-    // scale the canvas vertically by 0.9 around the vertical center, then draw.
-    const VSCALE = 0.9;
-    const cy = texH / 2;
-    c.save();
-    c.translate(0, cy);
-    c.scale(1, VSCALE);
-    c.translate(0, -cy);
-    lines.forEach((ln, i)=> c.fillText(ln, texW/2, startY + i*lineH));
-    c.restore();
+    if (!tooMany && !tooTall && !tooWide) break;
 
-    dt.update(false); // FIX 4
-    const mat = unlitTex(dt); mat.zOffset = -2;
-    // placard flip: plane rotated rotY + Math.PI → only V mirrored (text upright, not mirrored).
-    dt.vScale = -1; dt.vOffset = 1;
-    plac.material = mat;
+    fontPx -= Math.max(2, Math.round(fontPx * 0.06));
+    if (fontPx < 16){
+      fontPx = 16;
+      break;
+    }
   }
 
-  function normalOffset(rotY, dist){
-    const nx = Math.sin(rotY) * dist;
-    const nz = Math.cos(rotY) * dist;
-    return new BABYLON.Vector3(nx, 0, nz);
+  // o 2 pt menší
+  fontPx = Math.max(12, Math.round(fontPx * 0.96) - 2);
+
+  c.font = `400 ${fontPx}px Poppins, sans-serif`;
+  lines = wrapAt(fontPx);
+
+  if (lines.length > maxLines){
+    const keep = lines.slice(0, maxLines);
+    let last = keep[maxLines - 1];
+    while (c.measureText(last + "…").width > maxW && last.length > 0){
+      last = last.slice(0, -1);
+    }
+    keep[maxLines - 1] = last + "…";
+    lines = keep;
   }
+
+  const lineH = fontPx * 1.18;
+  const blockH = lines.length * lineH;
+  const startY = Math.round(texH/2 - blockH/2 + lineH/2);
+
+  // výška textu -20 %
+  const VSCALE = 0.8;
+  const cy = texH / 2;
+
+  c.save();
+  c.translate(0, cy);
+  c.scale(1, VSCALE);
+  c.translate(0, -cy);
+
+  lines.forEach((ln, i) => c.fillText(ln, texW/2, startY + i*lineH));
+  c.restore();
+
+  dt.update(false); // FIX 4
+  const mat = unlitTex(dt);
+  mat.zOffset = -2;
+
+  // placard flip: plane rotated rotY + Math.PI → only V mirrored
+  dt.vScale = -1;
+  dt.vOffset = 1;
+
+  plac.material = mat;
+}
 
   /* ===== addFrame =====
      pos here is the FRAME CENTER. Placard offset below the frame is preserved
