@@ -86,8 +86,13 @@
       transition:width .25s ease;
     }
     #loadingPct{
-      font-family:'Poppins',sans-serif; font-weight:400; font-size:13px; letter-spacing:.06em;
-      color:var(--txt-dim); font-variant-numeric:tabular-nums;
+  font-family:"Michroma", sans-serif;
+  font-weight:400;
+  font-size:13px;
+  letter-spacing:.06em;
+  color:var(--txt-dim);
+  font-variant-numeric:tabular-nums;
+}
     }
 
     #scBar{
@@ -866,7 +871,7 @@ if (w > maxW){
 }
 
 ctx.font = `400 ${size}px ${sideFont}`;
-``
+
 
 ctx.font = `500 ${size}px ${sideFont}`;
 
@@ -1313,7 +1318,8 @@ function makeDT(name, w, h, genMipmaps = true) {
   const maxLines = 2;
 
   function wrapAt(fontPx){
-    c.font = `400 ${fontPx}px Poppins, sans-serif`;
+    const labelFont = `"Michroma", sans-serif`;
+ctx.font = `500 ${size}px ${labelFont}`;
     const words = text.split(/\s+/);
     const lines = [];
     let buf = "";
