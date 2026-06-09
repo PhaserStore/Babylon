@@ -1585,16 +1585,17 @@ const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
       __logoBack.material   = matBack;
 
 // LEFT wall logo
-__logoLeft = BABYLON.MeshBuilder.CreatePlane("logo_left", { width: logoW, height: logoH }, scene);
-__logoLeft.position.set(xLeft, yPos, 0);
-__logoLeft.rotation.y = -Math.PI / 2;
-__logoLeft.material   = makeMat("logoMat_left");
+// __logoLeft = BABYLON.MeshBuilder.CreatePlane("logo_left", { width: logoW, height: logoH }, scene);
+// __logoLeft.position.set(xLeft, yPos, 0);
+// __logoLeft.rotation.y = -Math.PI / 2;
+// __logoLeft.material   = makeMat("logoMat_left");
 
 // RIGHT wall logo
-__logoRight = BABYLON.MeshBuilder.CreatePlane("logo_right", { width: logoW, height: logoH }, scene);
-__logoRight.position.set(xRight, yPos, 0);
-__logoRight.rotation.y = Math.PI / 2;
-__logoRight.material   = makeMat("logoMat_right");
+// __logoRight = BABYLON.MeshBuilder.CreatePlane("logo_right", { width: logoW, height: logoH }, scene);
+// __logoRight.position.set(xRight, yPos, 0);
+// __logoRight.rotation.y = Math.PI / 2;
+// __logoRight.material   = makeMat("logoMat_right");
+
 
 
 
@@ -1659,29 +1660,40 @@ const panelW_right = panelW_back;
         const r = startWallText('back', twDT, texW, texH);
         __twBackRAF = r.rafId;
       }
-      // LEFT — runs along the wall at x = -ROOM.W/2, faces +X (rotY = +π/2)
+      // LEFT — text only, no logo
 {
   const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-    name:"tw_left", x:(-ROOM.W/2 + 0.05), y:yText, z:0, rotY:Math.PI/2, width:panelW_left, height:panelH
+    name:"tw_left",
+    x:(-ROOM.W/2 + 0.05),
+    y:sideYText,
+    z:0,
+    rotY:Math.PI/2,
+    width:panelW_left,
+    height:sidePanelH
   });
   __twLeftPlane = plane;
   const r = startWallText('left', twDT, texW, texH);
   __twLeftRAF = r.rafId;
 }
-// RIGHT — runs along the wall at x = +ROOM.W/2, faces -X (rotY = -π/2)
+
+// RIGHT — text only, no logo
 {
   const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-    name:"tw_right", x:(ROOM.W/2 - 0.05), y:yText, z:0, rotY:-Math.PI/2, width:panelW_right, height:panelH
+    name:"tw_right",
+    x:(ROOM.W/2 - 0.05),
+    y:sideYText,
+    z:0,
+    rotY:-Math.PI/2,
+    width:panelW_right,
+    height:sidePanelH
   });
   __twRightPlane = plane;
   const r = startWallText('right', twDT, texW, texH);
   __twRightRAF = r.rafId;
 }
-      Assets.markLogoReady(); // NEW: tell loader the logo is up
-      hint("Logo shown (front + back) + text on all four walls ✔");
-    };
-    img.onerror = (e) => { console.error("Logo SVG decode failed.", e); Assets.markLogoReady(); hint("Error: logo SVG decode failed."); };
-  }
+
+Assets.markLogoReady(); // NEW: tell loader the logo is up
+hint("Logo shown (front + back) + text on all four walls ✔");
 
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
