@@ -850,7 +850,7 @@ const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
 const maxW = (texW * 0.90) / SIDE_HSCALE;
 
 let size = fontPx;
-const sideFont = `"Tektur", sans-serif`;
+const sideFont = `"Orbitron", sans-serif`;
 
 ctx.font = `500 ${size}px ${sideFont}`;
 let w = ctx.measureText(text).width;
@@ -864,6 +864,8 @@ if (w > maxW){
     if (size <= 8){ size = 8; break; }
   }
 }
+
+ctx.font = `500 ${size}px ${sideFont}`;
 
 ctx.font = `500 ${size}px ${sideFont}`;
 ctx.font = `400 ${size}px ${sideFont}`;
