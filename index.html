@@ -8,17 +8,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600&display=swap" rel="stylesheet" />
-  
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Danfo&family=DotGothic16&family=Geostar+Fill&family=Handjet:wght@100..900&family=Jacquard+12&family=Kelly+Slab&family=Michroma&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Rubik+Broken+Fax&family=Tektur:wght@400..900&family=Tomorrow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Tourney:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 
+  <link href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Danfo&family=DotGothic16&family=Geostar+Fill&family=Handjet:wght@100..900&family=Jacquard+12&family=Kelly+Slab&family=Michroma&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Rubik+Broken+Fax&family=Tektur:wght@400..900&family=Tomorrow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Tourney:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Tektur:wght@400..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tektur:wght@400..900&display=swap" rel="stylesheet">
 
-  
   <style>
     :root{
       --txt:#fff; --txt-dim:#ccc;
@@ -32,6 +26,8 @@
       --btn-brd:rgba(255,255,255,.15);
       --accent:#ff6a00;
       --phaser-green:#daff3e; /* shared brand green (matches logo + typewriter) */
+      --icon-size: 56px;
+      --dock-pad: 10px;
     }
     html,body{
       width:100%; height:100%; margin:0; overflow:hidden; background:#111; color:var(--txt);
@@ -49,340 +45,340 @@
     }
 
     /* ===== FUTURISTIC SCANNER LOADING ===== */
-#loadingOverlay{
-  position:fixed; inset:0; z-index:20000;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:14px;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(218,255,62,.05) 0%, rgba(218,255,62,.02) 18%, transparent 42%),
-    linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)),
-    #000;
-  color:var(--txt);
-  opacity:1;
-  transition:opacity .55s ease;
-  will-change:opacity;
-  transform:translateZ(0);
-  -webkit-tap-highlight-color:transparent;
-  padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
-  overflow:hidden;
-}
+    #loadingOverlay{
+      position:fixed; inset:0; z-index:20000;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:14px;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(218,255,62,.05) 0%, rgba(218,255,62,.02) 18%, transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)),
+        #000;
+      color:var(--txt);
+      opacity:1;
+      transition:opacity .55s ease;
+      will-change:opacity;
+      transform:translateZ(0);
+      -webkit-tap-highlight-color:transparent;
+      padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
+      overflow:hidden;
+    }
 
-#loadingOverlay::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(255,255,255,.028) 0px,
-      rgba(255,255,255,.028) 1px,
-      transparent 1px,
-      transparent 6px
-    );
-  opacity:.18;
-  mix-blend-mode:screen;
-}
+    #loadingOverlay::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,.028) 0px,
+          rgba(255,255,255,.028) 1px,
+          transparent 1px,
+          transparent 6px
+        );
+      opacity:.18;
+      mix-blend-mode:screen;
+    }
 
-#loadingOverlay::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(218,255,62,.035), transparent 55%);
-  animation:loadingOverlayPulse 3.2s ease-in-out infinite;
-}
+    #loadingOverlay::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(218,255,62,.035), transparent 55%);
+      animation:loadingOverlayPulse 3.2s ease-in-out infinite;
+    }
 
-#loadingOverlay.is-hidden{
-  opacity:0;
-  pointer-events:none;
-}
+    #loadingOverlay.is-hidden{
+      opacity:0;
+      pointer-events:none;
+    }
 
-#loadingLogo{
-  position:relative;
-  z-index:2;
-  width:min(60vw, 360px);
-  height:auto;
-  display:block;
-  filter:
-    drop-shadow(0 0 12px rgba(218,255,62,.18))
-    drop-shadow(0 0 26px rgba(218,255,62,.10));
-  user-select:none;
-  -webkit-user-drag:none;
-  animation:loadingLogoBreath 2.6s ease-in-out infinite;
-}
+    #loadingLogo{
+      position:relative;
+      z-index:2;
+      width:min(60vw, 360px);
+      height:auto;
+      display:block;
+      filter:
+        drop-shadow(0 0 12px rgba(218,255,62,.18))
+        drop-shadow(0 0 26px rgba(218,255,62,.10));
+      user-select:none;
+      -webkit-user-drag:none;
+      animation:loadingLogoBreath 2.6s ease-in-out infinite;
+    }
 
-#loadingBarWrap{
-  position:relative;
-  z-index:2;
-  width:min(86vw, 540px);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
-  margin-top:-2px;
-}
+    #loadingBarWrap{
+      position:relative;
+      z-index:2;
+      width:min(86vw, 540px);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      margin-top:-2px;
+    }
 
-#loadingScanLabel{
-  font-family:"Michroma", sans-serif;
-  font-weight:400;
-  font-size:10px;
-  letter-spacing:.30em;
-  text-transform:uppercase;
-  color:rgba(218,255,62,.72);
-  opacity:.95;
-  text-align:center;
-}
+    #loadingScanLabel{
+      font-family:"Michroma", sans-serif;
+      font-weight:400;
+      font-size:10px;
+      letter-spacing:.30em;
+      text-transform:uppercase;
+      color:rgba(218,255,62,.72);
+      opacity:.95;
+      text-align:center;
+    }
 
-#loadingBarTrack{
-  position:relative;
-  width:100%;
-  height:2px;
-  border-radius:4px;
-  overflow:hidden;
-  background:
-    linear-gradient(90deg,
-      rgba(255,255,255,.05) 0%,
-      rgba(255,255,255,.16) 50%,
-      rgba(255,255,255,.05) 100%);
-  box-shadow:
-    0 0 0 1px rgba(218,255,62,.04) inset,
-    0 0 14px rgba(218,255,62,.04);
-}
+    #loadingBarTrack{
+      position:relative;
+      width:100%;
+      height:2px;
+      border-radius:4px;
+      overflow:hidden;
+      background:
+        linear-gradient(90deg,
+          rgba(255,255,255,.05) 0%,
+          rgba(255,255,255,.16) 50%,
+          rgba(255,255,255,.05) 100%);
+      box-shadow:
+        0 0 0 1px rgba(218,255,62,.04) inset,
+        0 0 14px rgba(218,255,62,.04);
+    }
 
-#loadingBarTrack::before{
-  content:"";
-  position:absolute;
-  left:0; right:0; top:50%;
-  height:1px;
-  transform:translateY(-50%);
-  background:rgba(218,255,62,.10);
-  filter:blur(.4px);
-  opacity:.75;
-}
+    #loadingBarTrack::before{
+      content:"";
+      position:absolute;
+      left:0; right:0; top:50%;
+      height:1px;
+      transform:translateY(-50%);
+      background:rgba(218,255,62,.10);
+      filter:blur(.4px);
+      opacity:.75;
+    }
 
-#loadingBarFill{
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:0;
-  width:0%;
-  border-radius:4px;
-  background:
-    linear-gradient(90deg,
-      rgba(218,255,62,.18) 0%,
-      rgba(218,255,62,.85) 45%,
-      rgba(244,255,158,.95) 100%);
-  box-shadow:
-    0 0 10px rgba(218,255,62,.36),
-    0 0 22px rgba(218,255,62,.16);
-  transition:width .24s ease;
-  overflow:visible;
-}
+    #loadingBarFill{
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:0%;
+      border-radius:4px;
+      background:
+        linear-gradient(90deg,
+          rgba(218,255,62,.18) 0%,
+          rgba(218,255,62,.85) 45%,
+          rgba(244,255,158,.95) 100%);
+      box-shadow:
+        0 0 10px rgba(218,255,62,.36),
+        0 0 22px rgba(218,255,62,.16);
+      transition:width .24s ease;
+      overflow:visible;
+    }
 
-#loadingBarFill::after{
-  content:"";
-  position:absolute;
-  right:-16px;
-  top:50%;
-  width:46px;
-  height:14px;
-  transform:translateY(-50%);
-  pointer-events:none;
-  background:
-    linear-gradient(90deg,
-      rgba(218,255,62,0) 0%,
-      rgba(218,255,62,.95) 48%,
-      rgba(244,255,158,0) 100%);
-  filter:blur(4px);
-  opacity:.95;
-}
+    #loadingBarFill::after{
+      content:"";
+      position:absolute;
+      right:-16px;
+      top:50%;
+      width:46px;
+      height:14px;
+      transform:translateY(-50%);
+      pointer-events:none;
+      background:
+        linear-gradient(90deg,
+          rgba(218,255,62,0) 0%,
+          rgba(218,255,62,.95) 48%,
+          rgba(244,255,158,0) 100%);
+      filter:blur(4px);
+      opacity:.95;
+    }
 
-#loadingScanSweep{
-  position:absolute;
-  inset:-12px 0;
-  pointer-events:none;
-  overflow:hidden;
-  z-index:1;
-}
+    #loadingScanSweep{
+      position:absolute;
+      inset:-12px 0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:1;
+    }
 
-#loadingScanSweep::before{
-  content:"";
-  position:absolute;
-  top:50%;
-  left:-20%;
-  width:20%;
-  height:18px;
-  transform:translateY(-50%);
-  background:
-    linear-gradient(90deg,
-      rgba(218,255,62,0) 0%,
-      rgba(218,255,62,.06) 20%,
-      rgba(218,255,62,.55) 50%,
-      rgba(244,255,158,.18) 70%,
-      rgba(218,255,62,0) 100%);
-  filter:blur(5px);
-  opacity:.65;
-  animation:scannerSweep 1.85s ease-in-out infinite;
-}
+    #loadingScanSweep::before{
+      content:"";
+      position:absolute;
+      top:50%;
+      left:-20%;
+      width:20%;
+      height:18px;
+      transform:translateY(-50%);
+      background:
+        linear-gradient(90deg,
+          rgba(218,255,62,0) 0%,
+          rgba(218,255,62,.06) 20%,
+          rgba(218,255,62,.55) 50%,
+          rgba(244,255,158,.18) 70%,
+          rgba(218,255,62,0) 100%);
+      filter:blur(5px);
+      opacity:.65;
+      animation:scannerSweep 1.85s ease-in-out infinite;
+    }
 
-#loadingMeta{
-  width:100%;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:18px;
-}
+    #loadingMeta{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+    }
 
-#loadingStatus{
-  min-width:0;
-  flex:1;
-  font-family:"Michroma", sans-serif;
-  font-weight:400;
-  font-size:10px;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  color:rgba(255,255,255,.62);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  animation:statusFlicker 2.8s ease-in-out infinite;
-}
+    #loadingStatus{
+      min-width:0;
+      flex:1;
+      font-family:"Michroma", sans-serif;
+      font-weight:400;
+      font-size:10px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.62);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      animation:statusFlicker 2.8s ease-in-out infinite;
+    }
 
-#loadingPctWrap{
-  position:relative;
-  min-width:90px;
-  text-align:right;
-}
+    #loadingPctWrap{
+      position:relative;
+      min-width:90px;
+      text-align:right;
+    }
 
-#loadingPct{
-  position:relative;
-  display:inline-block;
-  font-family:"Michroma", sans-serif;
-  font-weight:400;
-  font-size:13px;
-  letter-spacing:.14em;
-  color:#edf8bf;
-  font-variant-numeric:tabular-nums;
-  text-shadow:
-    0 0 8px rgba(218,255,62,.14),
-    0 0 16px rgba(218,255,62,.10);
-  animation:pctPulse 2.2s ease-in-out infinite;
-}
+    #loadingPct{
+      position:relative;
+      display:inline-block;
+      font-family:"Michroma", sans-serif;
+      font-weight:400;
+      font-size:13px;
+      letter-spacing:.14em;
+      color:#edf8bf;
+      font-variant-numeric:tabular-nums;
+      text-shadow:
+        0 0 8px rgba(218,255,62,.14),
+        0 0 16px rgba(218,255,62,.10);
+      animation:pctPulse 2.2s ease-in-out infinite;
+    }
 
-#loadingPct::before,
-#loadingPct::after{
-  content:attr(data-text);
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  opacity:0;
-}
+    #loadingPct::before,
+    #loadingPct::after{
+      content:attr(data-text);
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      opacity:0;
+    }
 
-#loadingPct.glitch::before{
-  opacity:.55;
-  color:rgba(218,255,62,.85);
-  transform:translateX(1px);
-}
+    #loadingPct.glitch::before{
+      opacity:.55;
+      color:rgba(218,255,62,.85);
+      transform:translateX(1px);
+    }
 
-#loadingPct.glitch::after{
-  opacity:.35;
-  color:rgba(255,255,255,.8);
-  transform:translateX(-1px);
-}
+    #loadingPct.glitch::after{
+      opacity:.35;
+      color:rgba(255,255,255,.8);
+      transform:translateX(-1px);
+    }
 
-#loadingPct.glitch{
-  animation:
-    pctPulse 2.2s ease-in-out infinite,
-    pctGlitchMain .16s steps(2, end) 1;
-}
+    #loadingPct.glitch{
+      animation:
+        pctPulse 2.2s ease-in-out infinite,
+        pctGlitchMain .16s steps(2, end) 1;
+    }
 
-#loadingPct.glitch::before{
-  animation:pctGlitchBefore .16s steps(2, end) 1;
-}
+    #loadingPct.glitch::before{
+      animation:pctGlitchBefore .16s steps(2, end) 1;
+    }
 
-#loadingPct.glitch::after{
-  animation:pctGlitchAfter .16s steps(2, end) 1;
-}
+    #loadingPct.glitch::after{
+      animation:pctGlitchAfter .16s steps(2, end) 1;
+    }
 
-@keyframes scannerSweep{
-  0%   { left:-22%; opacity:.15; }
-  14%  { opacity:.60; }
-  50%  { opacity:.95; }
-  86%  { opacity:.55; }
-  100% { left:102%; opacity:.12; }
-}
+    @keyframes scannerSweep{
+      0%   { left:-22%; opacity:.15; }
+      14%  { opacity:.60; }
+      50%  { opacity:.95; }
+      86%  { opacity:.55; }
+      100% { left:102%; opacity:.12; }
+    }
 
-@keyframes loadingLogoBreath{
-  0%,100%{
-    transform:translateZ(0) scale(1);
-    filter:
-      drop-shadow(0 0 10px rgba(218,255,62,.16))
-      drop-shadow(0 0 22px rgba(218,255,62,.08));
-  }
-  50%{
-    transform:translateZ(0) scale(1.008);
-    filter:
-      drop-shadow(0 0 14px rgba(218,255,62,.24))
-      drop-shadow(0 0 30px rgba(218,255,62,.12));
-  }
-}
+    @keyframes loadingLogoBreath{
+      0%,100%{
+        transform:translateZ(0) scale(1);
+        filter:
+          drop-shadow(0 0 10px rgba(218,255,62,.16))
+          drop-shadow(0 0 22px rgba(218,255,62,.08));
+      }
+      50%{
+        transform:translateZ(0) scale(1.008);
+        filter:
+          drop-shadow(0 0 14px rgba(218,255,62,.24))
+          drop-shadow(0 0 30px rgba(218,255,62,.12));
+      }
+    }
 
-@keyframes loadingOverlayPulse{
-  0%,100%{ opacity:.55; }
-  50%{ opacity:1; }
-}
+    @keyframes loadingOverlayPulse{
+      0%,100%{ opacity:.55; }
+      50%{ opacity:1; }
+    }
 
-@keyframes pctPulse{
-  0%,100%{ opacity:.88; }
-  50%{ opacity:1; }
-}
+    @keyframes pctPulse{
+      0%,100%{ opacity:.88; }
+      50%{ opacity:1; }
+    }
 
-@keyframes statusFlicker{
-  0%,100%{ opacity:.78; }
-  48%{ opacity:.92; }
-  49%{ opacity:.58; }
-  50%{ opacity:.92; }
-  51%{ opacity:.72; }
-  52%{ opacity:.92; }
-}
+    @keyframes statusFlicker{
+      0%,100%{ opacity:.78; }
+      48%{ opacity:.92; }
+      49%{ opacity:.58; }
+      50%{ opacity:.92; }
+      51%{ opacity:.72; }
+      52%{ opacity:.92; }
+    }
 
-@keyframes pctGlitchMain{
-  0%   { transform:translate(0,0); }
-  25%  { transform:translate(-1px,0); }
-  50%  { transform:translate(1px,0); }
-  75%  { transform:translate(-.5px,0); }
-  100% { transform:translate(0,0); }
-}
+    @keyframes pctGlitchMain{
+      0%   { transform:translate(0,0); }
+      25%  { transform:translate(-1px,0); }
+      50%  { transform:translate(1px,0); }
+      75%  { transform:translate(-.5px,0); }
+      100% { transform:translate(0,0); }
+    }
 
-@keyframes pctGlitchBefore{
-  0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
-  30%  { transform:translate(2px,-1px); clip-path:inset(8% 0 45% 0); }
-  65%  { transform:translate(-1px,1px); clip-path:inset(55% 0 8% 0); }
-  100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
-}
+    @keyframes pctGlitchBefore{
+      0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+      30%  { transform:translate(2px,-1px); clip-path:inset(8% 0 45% 0); }
+      65%  { transform:translate(-1px,1px); clip-path:inset(55% 0 8% 0); }
+      100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+    }
 
-@keyframes pctGlitchAfter{
-  0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
-  25%  { transform:translate(-2px,0); clip-path:inset(50% 0 14% 0); }
-  60%  { transform:translate(1px,0); clip-path:inset(12% 0 52% 0); }
-  100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
-}
-  /* Hide gallery HUD / dock / audio bar until loading is fully finished */
-body.is-loading .hudIcon,
-body.is-loading .hudIconLeft,
-body.is-loading #mobileIconDock,
-body.is-loading #scBar{
-  opacity:0 !important;
-  visibility:hidden !important;
-  pointer-events:none !important;
-}
+    @keyframes pctGlitchAfter{
+      0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+      25%  { transform:translate(-2px,0); clip-path:inset(50% 0 14% 0); }
+      60%  { transform:translate(1px,0); clip-path:inset(12% 0 52% 0); }
+      100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+    }
 
-body.is-loading #scIframeHost{
-  display:none !important;
-}
-  
+    /* Hide gallery HUD / dock / audio bar until loading is fully finished */
+    body.is-loading .hudIcon,
+    body.is-loading .hudIconLeft,
+    body.is-loading #mobileIconDock,
+    body.is-loading #scBar{
+      opacity:0 !important;
+      visibility:hidden !important;
+      pointer-events:none !important;
+    }
+
+    body.is-loading #scIframeHost{
+      display:none !important;
+    }
 
     #scBar{
       position:fixed; left:0; right:0; bottom:0;
@@ -424,10 +420,11 @@ body.is-loading #scIframeHost{
     /* auto-tour sits to the LEFT of fullscreen (two slots in) */
     #autoTourIcon{ right:calc(12px + var(--safe-right) + (56px + 8px) * 2); }
     #autoTourIcon.is-active{ filter: drop-shadow(0 0 12px rgba(218,255,62,.55)); opacity:1; }
-.hudHidden{
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
+
+    .hudHidden{
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
 
     /* LEFT HUD group: instagram (far left), share (right of instagram), email (right of share) */
     .hudIconLeft{
@@ -441,21 +438,24 @@ body.is-loading #scIframeHost{
     /* email sits to the RIGHT of share (two slots in) */
     #emailIcon{ left:calc(12px + var(--safe-left) + (56px + 8px) * 2); }
 
-    /* Desktop icon strip (NEW): subtle plain black 75%, no blur, sits just
+    /* Desktop icon strip: subtle plain black 75%, no blur, sits just
        above the SoundCloud bar behind the HUD icon row. Not tall/intrusive. */
-#mobileIconDock{
-  display:block;
-  position:fixed; left:0; right:0;
-  bottom:0;
-  height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
-  background: rgba(0,0,0,.75);
-  z-index: 9990;
-  pointer-events:none; /* mobile stays unchanged */
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-
+    #mobileIconDock{
+      display:block;
+      position:fixed; left:0; right:0;
+      bottom:0;
+      height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
+      background: rgba(0,0,0,.75);
+      z-index: 9990;
+      pointer-events:none; /* mobile stays unchanged */
+      will-change: transform;
+      transform: translateZ(0);
+    }
+    #mobileIconDock.is-hidden{
+      opacity:0 !important;
+      visibility:hidden !important;
+      pointer-events:none !important;
+    }
 
     @media (pointer:coarse), (max-width: 900px){
       :root{
@@ -486,9 +486,7 @@ body.is-loading #scIframeHost{
       .hudIcon:hover, .hudIconLeft:hover{ transform: translateX(-50%) translateY(-1px); }
 
       /* fullscreen stays hidden on mobile; 5 visible icons:
-         instagram, share, email, auto-tour, reset — evenly spaced at
-         ~16.7% steps across the width (centers of 5 equal slots → 1/6 … 5/6 ish).
-         We use a tidy spread that keeps comfortable edge margins. */
+         instagram, share, email, auto-tour, reset — evenly spaced. */
       #fullscreenIcon{ display:none !important; }
 
       #instaIcon   { left: 12% !important; right:auto !important; }
@@ -511,117 +509,119 @@ body.is-loading #scIframeHost{
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 
-<body>
+<body class="is-loading">
   <canvas id="renderCanvas"></canvas>
 
   <!-- Mobile-only dark translucent strip behind the icon row (improves icon
-     visibility over the patterned floor). Hidden on desktop. -->
-<div id="mobileIconDock" aria-hidden="true"></div>
+       visibility over the patterned floor). Hidden on desktop. -->
+  <div id="mobileIconDock" aria-hidden="true"></div>
 
-<!-- ===== LOADING OVERLAY (NEW) ===== -->
-<div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
-  <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-    <g fill="#daff3e">
-      <path d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-      <path d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-      <path d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
-      <path d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
-      <path d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-      <path d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-      <path d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-      <path d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-      <path d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
-      <path d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
-      <path d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
-      <path d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-      <path d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
-    </g>
-  </svg>
+  <!-- ===== LOADING OVERLAY ===== -->
+  <div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
+    <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <g fill="#daff3e">
+        <path d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M299.75,179.35c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-17.31,75.4c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M222.8,180.12c-.28,0-.56-.03-.84-.1-2-.46-3.25-2.45-2.79-4.45l27.14-117.91c.46-2,2.45-3.25,4.46-2.79 2,.46 3.25,2.46 2.79,4.46l-27.14,117.91c-.4,1.72-1.93,2.88-3.62,2.88Z"/>
+        <path d="M439.3,179.34h-139.39c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h136.43l15.6-67.97h-70.53c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.72,3.15l-17.31,75.4c-.39,1.69-1.89,2.88-3.62,2.88Z"/>
+        <path d="M785.01,179.34c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.96c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-74l-16.65,72.52c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M211.85,180.13l-170.7-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l170.7.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+        <path d="M72.27,221.31c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l26.94-117.36c.46-2,2.46-3.25,4.45-2.79,2,.46,3.25,2.45,2.79,4.45l-26.94,117.36c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M784.97,179.34h-141.2c-1.13,0-2.2-.52-2.91-1.4-.71-.89-.97-2.04-.72-3.15l17.31-75.4c.39-1.69,1.89-2.88,3.62-2.88h76.41c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72h-73.45l-15.6,67.97h136.53c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M158.76,180.12c-.28,0-.55-.03-.83-.1-2-.46-3.25-2.45-2.79-4.45l16.44-71.63h-72.37c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h77.03c1.13,0,2.2.52,2.91,1.4.71.89.97,2.04.71,3.15l-17.49,76.18c-.39,1.72-1.93,2.89-3.62,2.89Z"/>
+        <path d="M222.74,180.13l-182.02-.27c-2.05,0-3.71-1.67-3.71-3.72,0-2.05,1.67-3.71,3.72-3.71l182.02.27c2.05,0,3.71,1.67,3.71,3.72,0,2.05-1.67,3.71-3.72,3.71Z"/>
+        <path d="M602.74,212.29c-.55,0-1.09-.12-1.61-.37-.76-.36-1.35-.96-1.71-1.68l-103.95-136.78-129.09,105.46c-1.59,1.3-3.93,1.06-5.23-.53-1.3-1.59-1.06-3.93.53-5.23l131.89-107.74c.39-.36.86-.64,1.38-.81,1.5-.48,3.14.02,4.1,1.28l104.39,137.36 131.99-105.98c1.6-1.29,3.94-1.03,5.22.57 1.28,1.6 1.03,3.94-.57,5.22l-135.02,108.4c-.67.54-1.5.82-2.33.82Z"/>
+        <path d="M596.11,104.5h-75.2c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h75.2c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+        <path d="M577.73,179.9h-74.12c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h74.12c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
+      </g>
+    </svg>
 
-  <div id="loadingBarWrap">
-    <div id="loadingScanLabel">SYSTEM SCAN</div>
+    <div id="loadingBarWrap">
+      <div id="loadingScanLabel">SYSTEM SCAN</div>
 
-    <div id="loadingBarTrack">
-      <div id="loadingBarFill"></div>
-      <div id="loadingScanSweep" aria-hidden="true"></div>
-    </div>
+      <div id="loadingBarTrack">
+        <div id="loadingBarFill"></div>
+        <div id="loadingScanSweep" aria-hidden="true"></div>
+      </div>
 
-    <div id="loadingMeta">
-      <div id="loadingStatus">SCANNING ASSETS...</div>
-      <div id="loadingPctWrap">
-        <div id="loadingPct" data-text="0%">0%</div>
+      <div id="loadingMeta">
+        <div id="loadingStatus">SCANNING ASSETS...</div>
+        <div id="loadingPctWrap">
+          <div id="loadingPct" data-text="0%">0%</div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
-<img id="autoTourIcon" class="hudIcon"
-  src="./assets/Auto tour2.svg"
-  alt="Auto tour" title="Auto tour"
-  role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
+  <!-- RIGHT HUD: auto-tour, fullscreen, reset -->
+  <img id="autoTourIcon" class="hudIcon"
+    src="./assets/Auto tour2.svg"
+    alt="Auto tour" title="Auto tour"
+    role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
 
-<img id="fullscreenIcon" class="hudIcon"
-  src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-  alt="Full screen" title="Full screen"
-  role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
+  <img id="fullscreenIcon" class="hudIcon"
+    src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
+    alt="Full screen" title="Full screen"
+    role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
 
-<img id="resetCamIcon" class="hudIcon"
-  src="./assets/focus.svg"
-  alt="Reset camera" title="Reset camera (R)"
-  role="button" tabindex="0" aria-label="Reset camera" />
+  <img id="resetCamIcon" class="hudIcon"
+    src="./assets/focus.svg"
+    alt="Reset camera" title="Reset camera (R)"
+    role="button" tabindex="0" aria-label="Reset camera" />
 
-<!-- LEFT HUD: instagram, share, email -->
-<img id="instaIcon" class="hudIconLeft"
-  src="./assets/Insta.svg"
-  alt="Instagram" title="Open Instagram @__phaser__"
-  role="button" tabindex="0" aria-label="Open Instagram" />
+  <!-- LEFT HUD: instagram, share, email -->
+  <img id="instaIcon" class="hudIconLeft"
+    src="./assets/Insta.svg"
+    alt="Instagram" title="Open Instagram @__phaser__"
+    role="button" tabindex="0" aria-label="Open Instagram" />
 
-<img id="shareIcon" class="hudIconLeft"
-  src="./assets/Share.svg"
-  alt="Share" title="Share"
-  role="button" tabindex="0" aria-label="Share this page" />
+  <img id="shareIcon" class="hudIconLeft"
+    src="./assets/Share.svg"
+    alt="Share" title="Share"
+    role="button" tabindex="0" aria-label="Share this page" />
 
-<img id="emailIcon" class="hudIconLeft"
-  src="./assets/Email.svg"
-  alt="Email" title="Email"
-  role="button" tabindex="0" aria-label="Email" />
+  <img id="emailIcon" class="hudIconLeft"
+    src="./assets/Email.svg"
+    alt="Email" title="Email"
+    role="button" tabindex="0" aria-label="Email" />
 
-<div id="scBar" aria-label="SoundCloud Bar">
-  <div class="sc-left">
-    <button id="barPrev" title="Previous" aria-label="Previous">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
-    </button>
-    <button id="barPlay" title="Play" aria-label="Play">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-    </button>
-    <button id="barPause" title="Pause" aria-label="Pause">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-    </button>
-    <button id="barNext" title="Next" aria-label="Next">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
-    </button>
-  </div>
-
-  <div class="sc-center">
-    <span id="scTimeCur" class="time">0:00</span>
-    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-      <div id="scSeekFill"></div>
+  <div id="scBar" aria-label="SoundCloud Bar">
+    <div class="sc-left">
+      <button id="barPrev" title="Previous" aria-label="Previous">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
+      </button>
+      <button id="barPlay" title="Play" aria-label="Play">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button id="barPause" title="Pause" aria-label="Pause">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button id="barNext" title="Next" aria-label="Next">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
+      </button>
     </div>
-    <span id="scTimeDur" class="time">0:00</span>
+
+    <div class="sc-center">
+      <span id="scTimeCur" class="time">0:00</span>
+      <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+        <div id="scSeekFill"></div>
+      </div>
+      <span id="scTimeDur" class="time">0:00</span>
+    </div>
+
+    <div class="sc-right">
+      <button id="barMute" title="Mute" aria-label="Mute">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
+      </button>
+      <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+      <img id="scThumb" src="" alt="cover" />
+      <span id="scTitle">–</span>
+    </div>
   </div>
 
-  <div class="sc-right">
-    <button id="barMute" title="Mute" aria-label="Mute">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
-    </button>
-    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-    <img id="scThumb" src="" alt="cover" />
-    <span id="scTitle">–</span>
-  </div>
-</div>
+  <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
-<div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
+  <script>
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
@@ -630,12 +630,12 @@ body.is-loading #scIframeHost{
     Math.min(window.innerWidth, window.innerHeight) <= 900
   );
 
-    console.log("IS_MOBILE =", IS_MOBILE, {
-  width: window.innerWidth,
-  height: window.innerHeight,
-  pointerCoarse: window.matchMedia?.('(pointer:coarse)').matches,
-  ua: navigator.userAgent
-});
+  console.log("IS_MOBILE =", IS_MOBILE, {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    pointerCoarse: window.matchMedia?.('(pointer:coarse)').matches,
+    ua: navigator.userAgent
+  });
 
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
   const SC_ENABLED = !IS_MOBILE;
@@ -654,131 +654,141 @@ body.is-loading #scIframeHost{
     return pick;
   })();
 
-  /* ===== LOADING OVERLAY controller (NEW) =====
+  /* ===== LOADING OVERLAY controller =====
      Drives a deterministic, smooth progress bar that reaches 100% only when the
      gallery's first stable render is ready, then fades the overlay out. */
   const Loader = (() => {
-  const overlay     = document.getElementById('loadingOverlay');
-  const fill        = document.getElementById('loadingBarFill');
-  const pctEl       = document.getElementById('loadingPct');
-  const statusEl    = document.getElementById('loadingStatus');
-  const scanLabelEl = document.getElementById('loadingScanLabel');
+    const overlay     = document.getElementById('loadingOverlay');
+    const fill        = document.getElementById('loadingBarFill');
+    const pctEl       = document.getElementById('loadingPct');
+    const statusEl    = document.getElementById('loadingStatus');
+    const scanLabelEl = document.getElementById('loadingScanLabel');
 
-  let shown = 0;
-  let target = 0;
-  let raf = 0;
-  let done = false;
-  let lastGlitchAt = 0;
-  let lastShownValue = -1;
+    let shown = 0;
+    let target = 0;
+    let raf = 0;
+    let done = false;
+    let lastGlitchAt = 0;
+    let lastShownValue = -1;
+    let finished = false; // guards against double finish()
 
-  const statusSteps = [
-    { upTo: 16, label: 'SCANNING ASSETS...' },
-    { upTo: 34, label: 'LOADING TEXTURES...' },
-    { upTo: 52, label: 'MAPPING WALL PANELS...' },
-    { upTo: 72, label: 'RENDERING SPACE...' },
-    { upTo: 90, label: 'CALIBRATING VIEWPORT...' },
-    { upTo: 99, label: 'FINALIZING SYSTEM...' },
-    { upTo: 100, label: 'GALLERY READY...' }
-  ];
+    const statusSteps = [
+      { upTo: 16, label: 'SCANNING ASSETS...' },
+      { upTo: 34, label: 'LOADING TEXTURES...' },
+      { upTo: 52, label: 'MAPPING WALL PANELS...' },
+      { upTo: 72, label: 'RENDERING SPACE...' },
+      { upTo: 90, label: 'CALIBRATING VIEWPORT...' },
+      { upTo: 99, label: 'FINALIZING SYSTEM...' },
+      { upTo: 100, label: 'GALLERY READY...' }
+    ];
 
-  function getStatus(v){
-    const hit = statusSteps.find(step => v <= step.upTo);
-    return hit ? hit.label : 'INITIALIZING...';
-  }
+    function getStatus(v){
+      const hit = statusSteps.find(step => v <= step.upTo);
+      return hit ? hit.label : 'INITIALIZING...';
+    }
 
-  function pulseGlitch(now, v){
-    if (!pctEl) return;
+    function pulseGlitch(now, v){
+      if (!pctEl) return;
 
-    const valueChanged = v !== lastShownValue;
-    if (!valueChanged) return;
+      const valueChanged = v !== lastShownValue;
+      if (!valueChanged) return;
 
-    const minDelay = 380 + Math.random() * 520;
-    if (now - lastGlitchAt < minDelay) {
+      const minDelay = 380 + Math.random() * 520;
+      if (now - lastGlitchAt < minDelay) {
+        lastShownValue = v;
+        return;
+      }
+
       lastShownValue = v;
-      return;
-    }
+      lastGlitchAt = now;
 
-    lastShownValue = v;
-    lastGlitchAt = now;
-
-    pctEl.classList.remove('glitch');
-    void pctEl.offsetWidth;
-    pctEl.classList.add('glitch');
-
-    setTimeout(() => {
       pctEl.classList.remove('glitch');
-    }, 170);
-  }
-
-  function render(){
-    shown += (target - shown) * 0.18;
-    if (Math.abs(target - shown) < 0.3) shown = target;
-
-    const v = Math.max(0, Math.min(100, Math.round(shown)));
-    const txt = v + '%';
-
-    if (fill) {
-      fill.style.width = txt;
-    }
-
-    if (pctEl) {
-      pctEl.textContent = txt;
-      pctEl.dataset.text = txt;
-      pulseGlitch(performance.now(), v);
-    }
-
-    if (statusEl) {
-      statusEl.textContent = getStatus(v);
-    }
-
-    if (scanLabelEl) {
-      scanLabelEl.textContent = v >= 100 ? 'SYSTEM READY' : 'SYSTEM SCAN';
-    }
-
-    if (!done || v < 100) {
-      raf = requestAnimationFrame(render);
-    }
-  }
-
-  raf = requestAnimationFrame(render);
-
-  return {
-    set(p){
-      target = Math.max(target, Math.min(100, p));
-    },
-   finish(){
-  target = 100;
-
-  const check = () => {
-    if (shown >= 99.5){
-      done = true;
-
-      if (statusEl) statusEl.textContent = 'Gallery ready...';
-      if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
-
-      overlay?.classList.add('is-hidden');
+      void pctEl.offsetWidth;
+      pctEl.classList.add('glitch');
 
       setTimeout(() => {
-        document.body.classList.remove("is-loading");
-
-        document.querySelectorAll('.hudIcon, .hudIconLeft').forEach(el => {
-          el.classList.remove('hudHidden');
-        });
-
-        try { overlay?.remove(); } catch(_){}
-        cancelAnimationFrame(raf);
-      }, 650);
-    } else {
-      requestAnimationFrame(check);
+        pctEl.classList.remove('glitch');
+      }, 170);
     }
-  };
 
-  check();
-}
+    function render(){
+      shown += (target - shown) * 0.18;
+      if (Math.abs(target - shown) < 0.3) shown = target;
 
+      const v = Math.max(0, Math.min(100, Math.round(shown)));
+      const txt = v + '%';
 
-  };
-})();
+      if (fill) {
+        fill.style.width = txt;
+      }
+
+      if (pctEl) {
+        pctEl.textContent = txt;
+        pctEl.dataset.text = txt;
+        pulseGlitch(performance.now(), v);
+      }
+
+      if (statusEl) {
+        statusEl.textContent = getStatus(v);
+      }
+
+      if (scanLabelEl) {
+        scanLabelEl.textContent = v >= 100 ? 'SYSTEM READY' : 'SYSTEM SCAN';
+      }
+
+      // Keep the progress RAF alive until we are both done AND visually at 100%.
+      if (!done || v < 100) {
+        raf = requestAnimationFrame(render);
+      } else {
+        raf = 0; // render loop has stopped; nothing pending
+      }
+    }
+
+    raf = requestAnimationFrame(render);
+
+    function reveal(){
+      // Remove the loading state and reveal all HUD elements safely.
+      document.body.classList.remove('is-loading');
+
+      document.querySelectorAll('.hudIcon, .hudIconLeft').forEach(el => {
+        el.classList.remove('hudHidden');
+      });
+
+      try { overlay?.remove(); } catch (_) {}
+
+      // Cancel the progress RAF only if one is still pending.
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    }
+
+    return {
+      set(p){
+        target = Math.max(target, Math.min(100, p));
+      },
+      finish(){
+        if (finished) return;       // never run twice
+        finished = true;
+        target = 100;
+
+        const check = () => {
+          if (shown >= 99.5){
+            done = true;
+
+            if (statusEl) statusEl.textContent = 'Gallery ready...';
+            if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
+
+            overlay?.classList.add('is-hidden');
+
+            // After the CSS fade, reveal the gallery UI and drop the overlay.
+            setTimeout(reveal, 650);
+          } else {
+            requestAnimationFrame(check);
+          }
+        };
+
+        check();
+      }
+    };
+  })();
 
   const canvas = document.getElementById("renderCanvas");
 
@@ -801,43 +811,34 @@ body.is-loading #scIframeHost{
   TEX_SIZE = nearestPOT(Math.min(TEX_SIZE, IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP), IS_MOBILE ? MOBILE_TEX_CAP : DESKTOP_TEX_CAP);
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
-  /* ===== Wall text content =====
-     Front/back: editable arrays — desktop types them out (typewriter), mobile
-     shows them as fixed full sentences (no typewriter). Side walls: a single
-     STATIC sentence shown on both desktop and mobile (no cycling/typewriter). */
- const TW_STRINGS = {
-  front: [
-    "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
-    "EXPLORE_THE_COLLECTIONS",
-    "FOLLOW_US_ON_INSTAGRAM"
-  ],
-  back: [
-    "THANK_YOU_FOR_VISITING",
-    "NEW_DROPS_THIS_MONTH",
-    "LIMITED_EDITION_OUT_NOW"
-  ],
-  left: [
-    "Future ready. Powered by the beat."
-  ],
-  right: [
-    "Future ready. Powered by the beat."
-  ]
-};
-
+  /* ===== Wall text content ===== */
+  const TW_STRINGS = {
+    front: [
+      "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
+      "EXPLORE_THE_COLLECTIONS",
+      "FOLLOW_US_ON_INSTAGRAM"
+    ],
+    back: [
+      "THANK_YOU_FOR_VISITING",
+      "NEW_DROPS_THIS_MONTH",
+      "LIMITED_EDITION_OUT_NOW"
+    ],
+    left: [
+      "Future ready. Powered by the beat."
+    ],
+    right: [
+      "Future ready. Powered by the beat."
+    ]
+  };
 
   /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
   const SIDE_WALL_TEXT = "Future ready. Powered by the beat.";
 
-  /* Usable text-box width as a FRACTION of the available wall length (front/back).
-     Combined with the uniform auto-fit, the full sentence always fits with safe
-     margins and the font is never stretched/squashed. The SIDE walls do NOT use
-     left/right here — they reuse the BACK-wall text-box width (see panel sizing
-     in buildGalleryLogo). The left/right values are kept only for reference. */
   const TW_WIDTH_FRAC = {
-    front: 0.82,  // wide enough for the full front sentence (safe margins kept)
-    back:  0.82,  // ← side walls reuse THIS width
-    left:  0.82,  // (unused for sizing — sides match back)
-    right: 0.82   // (unused for sizing — sides match back)
+    front: 0.82,
+    back:  0.82,
+    left:  0.82,
+    right: 0.82
   };
 
   const TW_SPEED_MS     = 75;
@@ -858,10 +859,8 @@ body.is-loading #scIframeHost{
   let twFrontAnchor = null;
   let twBackAnchor  = null;
 
-  // NEW: side-wall (left/right) text planes + animation handles
   let __twLeftPlane = null, __twRightPlane = null;
   let __twLeftRAF = 0, __twRightRAF = 0;
-  // NEW: mobile sentence-cycler controllers (one per wall) for clean teardown
   const __cyclers = { front:null, back:null, left:null, right:null };
 
   function projectToScreen(worldPos){
@@ -907,8 +906,6 @@ body.is-loading #scIframeHost{
     plane.isPickable = false;
 
     const nextPOT = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
-    // Cap texture width so very wide side-wall panels don't allocate huge textures.
-    // 4096 desktop / 2048 mobile keeps text crisp while bounding memory use.
     const TW_TEX_CAP = IS_MOBILE ? 2048 : 4096;
     const texW = Math.min(TW_TEX_CAP, Math.max(1024, nextPOT(Math.round(1024 * (width / 4)))));
     const texH = Math.max(256, nextPOT(Math.round(TW_FONT_PX * 2)));
@@ -931,28 +928,18 @@ body.is-loading #scIframeHost{
 
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
-    dt.update(false); // FIX 4: false = skip mipmap regen on init clear
+    dt.update(false);
 
     return { plane, dt, texW, texH };
   }
 
-  /* ─────────────────────────────────────────────────────────────────
-   * FIX 5 — drawTypeLine: dt.update(false) everywhere (no mipmap regen/frame).
-   * ───────────────────────────────────────────────────────────────── */
-  /* Uniform font auto-fit (NO deformation):
-     Given the full sentence and the texture width, returns the largest font size
-     (≤ baseFontPx) at which the WHOLE sentence fits inside the safe drawing area.
-     Scaling is uniform — letterforms keep their exact proportions, never stretched
-     or squashed. Used by both the desktop typewriter and the mobile cycler so the
-     full sentence is always visible and never clipped. */
-  const TW_SAFE_FRAC = 0.88; // use 88% of texture width → safe left/right margins
+  const TW_SAFE_FRAC = 0.88;
   function fitFontPx(ctx, fullText, texW, baseFontPx){
     const maxW = texW * TW_SAFE_FRAC;
     let size = baseFontPx;
     ctx.font = `600 ${size}px Doto, monospace`;
     let w = ctx.measureText(fullText).width;
     if (w <= maxW) return size;
-    // scale down proportionally, then fine-tune so it definitely fits
     size = Math.max(8, Math.floor(size * (maxW / w)));
     for (let i = 0; i < 24; i++){
       ctx.font = `600 ${size}px Doto, monospace`;
@@ -978,8 +965,6 @@ body.is-loading #scIframeHost{
 
     ctx.imageSmoothingEnabled  = true;
     ctx.imageSmoothingQuality  = "high";
-    // Size the font so the FULL sentence fits (measured on the complete string so
-    // the layout never shifts mid-type). Uniform scale → no deformation.
     const fitPx = fitFontPx(ctx, text, texW, fontPx);
     ctx.fillStyle              = color;
     ctx.textAlign              = "center";
@@ -991,19 +976,14 @@ body.is-loading #scIframeHost{
     const content = text.slice(0, progress);
 
     ctx.save();
-    // Vertical flip (existing) keeps text upright on the rotated planes.
     if (TW_FLIP_VERTICAL){
       ctx.translate(0, texH);
       ctx.scale(1, -1);
     }
-    // Horizontal flip — only walls that need it (side walls). Front/back read
-    // correctly without it.
     if (hFlip){
       ctx.translate(texW, 0);
       ctx.scale(-1, 1);
     }
-    // Horizontal-only compression around the centre (vertical untouched → no
-    // vertical deformation). Front/back use 0.8; applies to typed text + cursor.
     if (hCompress !== 1){
       ctx.translate(x, 0);
       ctx.scale(hCompress, 1);
@@ -1044,7 +1024,7 @@ body.is-loading #scIframeHost{
     }
 
     ctx.restore();
-    dt.update(false); // ← KEY FIX: no mipmap regen every frame
+    dt.update(false);
   }
 
   function runTypewriterToDT(dt, opts = {}){
@@ -1068,7 +1048,6 @@ body.is-loading #scIframeHost{
     let start = performance.now();
     let rafId = 0;
 
-    /* FIX 6 — throttled typewriter updates (skip upload when nothing changed). */
     let lastChars = -1;
     let lastCursorBucket = -1;
 
@@ -1105,12 +1084,7 @@ body.is-loading #scIframeHost{
     return (rafId = requestAnimationFrame(tick));
   }
 
-  /* ===== MOBILE full-sentence cycler (NEW) =====
-     Performance-friendly alternative to the typewriter for mobile. Instead of
-     redrawing one character per frame, it draws a COMPLETE sentence once, holds
-     it, then fades to the next sentence. Uses a setInterval-driven swap plus a
-     short rAF fade, so there is no per-frame texture upload during the hold
-     phase (cheap on memory and GPU). Same font/size/placement as desktop. */
+  /* ===== MOBILE full-sentence cycler ===== */
   function drawFullSentence(dt, { text, texW, texH, alpha=1, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false, fixedPx=null, hCompress=1 }){
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, texW, texH);
@@ -1118,8 +1092,6 @@ body.is-loading #scIframeHost{
     ctx.imageSmoothingQuality = "high";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // If a fixedPx is provided (mobile front/back: consistent size from the
-    // longest sentence) use it as-is; otherwise auto-fit so nothing is clipped.
     const fitPx = (fixedPx != null) ? fixedPx : fitFontPx(ctx, text, texW, fontPx);
     ctx.font = `600 ${fitPx}px Doto, monospace`;
 
@@ -1128,10 +1100,7 @@ body.is-loading #scIframeHost{
 
     ctx.save();
     if (TW_FLIP_VERTICAL){ ctx.translate(0, texH); ctx.scale(1, -1); }
-    // Horizontal flip — only walls that need it (side walls).
     if (hFlip){ ctx.translate(texW, 0); ctx.scale(-1, 1); }
-    // Horizontal-only compression around the centre (vertical untouched → no
-    // vertical deformation). Used for mobile front/back at 80% width.
     if (hCompress !== 1){
       ctx.translate(x, 0);
       ctx.scale(hCompress, 1);
@@ -1143,18 +1112,12 @@ body.is-loading #scIframeHost{
     ctx.fillStyle   = color;
     ctx.fillText(text, x, y);
     ctx.restore();
-    dt.update(false); // FIX 4 — single upload per swap/fade step, not per frame
+    dt.update(false);
   }
 
-  /* Compute one consistent font size so EVERY sentence in `texts` fits the safe
-     width — sized from the longest sentence. Uniform (no vertical deform). When
-     hCompress<1 the effective width budget grows (text is squeezed horizontally),
-     so we account for it here so the chosen size still never clips. */
   function fixedFontPxForSet(ctx, texts, texW, baseFontPx, hCompress=1){
     let smallest = baseFontPx;
     for (const t of (texts || [])){
-      // Effective width available is divided by hCompress because horizontal
-      // scaling shrinks the drawn width afterwards.
       const effTexW = texW / Math.max(0.01, hCompress);
       const px = fitFontPx(ctx, t, effTexW, baseFontPx);
       if (px < smallest) smallest = px;
@@ -1162,16 +1125,15 @@ body.is-loading #scIframeHost{
     return smallest;
   }
 
-  /* Returns a controller with a .stop() so we can clean up on rebuild. */
   function runSentenceCyclerToDT(dt, opts = {}){
     const {
       texts: _texts, text: _text,
       texW, texH, color = TW_COLOR_HEX, fontPx = TW_FONT_PX,
-      holdMs = 2600,     // how long a full sentence stays
-      fadeMs = 320,      // fade in/out duration
+      holdMs = 2600,
+      fadeMs = 320,
       hFlip = false,
-      fixedPx = null,    // consistent size across all sentences (mobile front/back)
-      hCompress = 1      // horizontal compression (mobile front/back = 0.8)
+      fixedPx = null,
+      hCompress = 1
     } = opts;
 
     const texts = Array.isArray(_texts) && _texts.length ? _texts : [(_text || "")];
@@ -1197,13 +1159,12 @@ body.is-loading #scIframeHost{
 
     function showCurrent(){
       const text = texts[idx];
-      fade(0, 1, text); // fade in
+      fade(0, 1, text);
     }
 
     function next(){
       if (stopped) return;
       const cur = texts[idx];
-      // fade out current, then swap + fade in next
       fade(1, 0, cur, () => {
         idx = (idx + 1) % texts.length;
         fade(0, 1, texts[idx]);
@@ -1211,9 +1172,8 @@ body.is-loading #scIframeHost{
     }
 
     showCurrent();
-    // Only auto-cycle when there's more than one sentence.
     if (texts.length > 1){
-      intervalId = setInterval(next, holdMs + fadeMs); // hold + the fade-out time
+      intervalId = setInterval(next, holdMs + fadeMs);
     }
 
     return {
@@ -1225,76 +1185,64 @@ body.is-loading #scIframeHost{
     };
   }
 
-  /* Static side-wall text (Poppins SemiBold, centered, no cycling, no deform).
-     Auto-fits uniformly so the full sentence is always visible and never clipped. */
- function drawStaticSideText(dt, { text, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
-  const ctx = dt.getContext();
-  ctx.clearRect(0, 0, texW, texH);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  function drawStaticSideText(dt, { text, texW, texH, color=TW_COLOR_HEX, fontPx=TW_FONT_PX, hFlip=false }){
+    const ctx = dt.getContext();
+    ctx.clearRect(0, 0, texW, texH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-  // víc roztáhneme text
- const SIDE_HSCALE = IS_MOBILE ? 0.72 : 1.15;
-const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
+    const SIDE_HSCALE = IS_MOBILE ? 0.72 : 1.15;
+    const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
 
+    const maxW = (texW * 0.90) / SIDE_HSCALE;
 
- // důležité: kompenzace proti ořezu při scale
-const maxW = (texW * 0.90) / SIDE_HSCALE;
+    let size = fontPx;
+    const sideFont = `"Michroma", sans-serif`;
 
-let size = fontPx;
-const sideFont = `"Michroma", sans-serif`;
-
-ctx.font = `400 ${size}px ${sideFont}`;
-let w = ctx.measureText(text).width;
-
-if (w > maxW){
-  size = Math.max(8, Math.floor(size * (maxW / w)));
-  for (let i = 0; i < 24; i++){
     ctx.font = `400 ${size}px ${sideFont}`;
-    if (ctx.measureText(text).width <= maxW) break;
-    size -= Math.max(1, Math.round(size * 0.04));
-    if (size <= 8){ size = 8; break; }
+    let w = ctx.measureText(text).width;
+
+    if (w > maxW){
+      size = Math.max(8, Math.floor(size * (maxW / w)));
+      for (let i = 0; i < 24; i++){
+        ctx.font = `400 ${size}px ${sideFont}`;
+        if (ctx.measureText(text).width <= maxW) break;
+        size -= Math.max(1, Math.round(size * 0.04));
+        if (size <= 8){ size = 8; break; }
+      }
+    }
+
+    ctx.font = `400 ${size}px ${sideFont}`;
+
+    const x = Math.round(texW / 2);
+    const y = Math.round(texH / 2);
+
+    ctx.save();
+
+    if (TW_FLIP_VERTICAL){
+      ctx.translate(0, texH);
+      ctx.scale(1, -1);
+    }
+
+    if (hFlip){
+      ctx.translate(texW, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.translate(x, y);
+    ctx.scale(SIDE_HSCALE, SIDE_VSCALE);
+    ctx.translate(-x, -y);
+
+    ctx.shadowColor = "rgba(95,95,95,0.18)";
+    ctx.shadowBlur  = Math.max(1, Math.round(size * 0.10));
+    ctx.fillStyle   = color;
+    ctx.fillText(text, x, y);
+
+    ctx.restore();
+    dt.update(false);
   }
-}
-
-ctx.font = `400 ${size}px ${sideFont}`;
-
-
-ctx.font = `500 ${size}px ${sideFont}`;
-
-ctx.font = `500 ${size}px ${sideFont}`;
-ctx.font = `400 ${size}px ${sideFont}`;
-  const x = Math.round(texW / 2);
-  const y = Math.round(texH / 2);
-
-  ctx.save();
-
-  if (TW_FLIP_VERTICAL){
-    ctx.translate(0, texH);
-    ctx.scale(1, -1);
-  }
-
-  if (hFlip){
-    ctx.translate(texW, 0);
-    ctx.scale(-1, 1);
-  }
-
-  ctx.translate(x, y);
-  ctx.scale(SIDE_HSCALE, SIDE_VSCALE);
-  ctx.translate(-x, -y);
-
-  ctx.shadowColor = "rgba(95,95,95,0.18)";
-  ctx.shadowBlur  = Math.max(1, Math.round(size * 0.10));
-  ctx.fillStyle   = color;
-  ctx.fillText(text, x, y);
-
-  ctx.restore();
-  dt.update(false);
-}
-
-
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
@@ -1315,52 +1263,51 @@ ctx.font = `400 ${size}px ${sideFont}`;
   };
 
   function unlit(hex) {
-  const m = new BABYLON.StandardMaterial("m", scene);
-  m.diffuseColor = BABYLON.Color3.FromHexString(hex);
-  m.disableLighting = true;
-  m.backFaceCulling = false;
-  m.specularColor = new BABYLON.Color3(0, 0, 0);
-  return m;
-}
-
-function unlitTex(tex, { doubleSided = false, gain = 1.0 } = {}) {
-  const m = new BABYLON.StandardMaterial("mt", scene);
-  m.disableLighting = true;
-
-  // keep original texture visible even without scene lighting
-  m.diffuseTexture = tex;
-  m.emissiveTexture = tex;
-  m.emissiveColor = new BABYLON.Color3(1, 1, 1);
-
-  m.backFaceCulling = !doubleSided;
-  m.specularColor = new BABYLON.Color3(0, 0, 0);
-
-  if (tex) {
-    tex.gammaSpace = true;
-    tex.level = gain; // 1.0 = no extra brightening
-    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-    tex.anisotropicFilteringLevel = MAX_ANISO;
+    const m = new BABYLON.StandardMaterial("m", scene);
+    m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+    m.disableLighting = true;
+    m.backFaceCulling = false;
+    m.specularColor = new BABYLON.Color3(0, 0, 0);
+    return m;
   }
 
-  return m;
-}
-    
-function makeDT(name, w, h, genMipmaps = true) {
-  const dt = new BABYLON.DynamicTexture(
-    name,
-    { width: w, height: h },
-    scene,
-    genMipmaps,
-    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-  );
-  dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-  dt.hasAlpha = false;
-  dt.anisotropicFilteringLevel = MAX_ANISO;
-  return dt;
-}
+  function unlitTex(tex, { doubleSided = false, gain = 1.0 } = {}) {
+    const m = new BABYLON.StandardMaterial("mt", scene);
+    m.disableLighting = true;
+
+    m.diffuseTexture = tex;
+    m.emissiveTexture = tex;
+    m.emissiveColor = new BABYLON.Color3(1, 1, 1);
+
+    m.backFaceCulling = !doubleSided;
+    m.specularColor = new BABYLON.Color3(0, 0, 0);
+
+    if (tex) {
+      tex.gammaSpace = true;
+      tex.level = gain;
+      tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+      tex.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+      tex.anisotropicFilteringLevel = MAX_ANISO;
+    }
+
+    return m;
+  }
+
+  function makeDT(name, w, h, genMipmaps = true) {
+    const dt = new BABYLON.DynamicTexture(
+      name,
+      { width: w, height: h },
+      scene,
+      genMipmaps,
+      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+    );
+    dt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dt.hasAlpha = false;
+    dt.anisotropicFilteringLevel = MAX_ANISO;
+    return dt;
+  }
 
   function buildMySkybox() {
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 2000 }, scene);
@@ -1546,7 +1493,6 @@ function makeDT(name, w, h, genMipmaps = true) {
     return { texW, texH };
   }
 
-  /* FIX 7 — setWebPToFrame: atomic material swap, no mid-frame flicker. */
   function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
     if (!isWebP(url)) {
       console.warn("Only WebP is allowed for frame images. Skipping:", url);
@@ -1563,15 +1509,14 @@ function makeDT(name, w, h, genMipmaps = true) {
       dt.gammaSpace = true;
       const ctx = dt.getContext();
       fitDrawToCanvas(ctx, img, texW, texH, FRAME_SIZE.W, FRAME_SIZE.H, fitMode, "#000");
-      dt.update(false); // FIX 4
+      dt.update(false);
 
       const newMat = unlitTex(dt);
       newMat.zOffset = -1;
-      // image flip: frame plane rotated rotY + Math.PI → mirror V so it reads upright.
       dt.vScale  = -1;
       dt.vOffset = 1;
 
-      const swapObserver = scene.onBeforeRenderObservable.addOnce(() => {
+      scene.onBeforeRenderObservable.addOnce(() => {
         const oldMat = targetItem.frame.material;
         targetItem.frame.material = newMat;
         scene.onBeforeRenderObservable.addOnce(() => {
@@ -1583,7 +1528,6 @@ function makeDT(name, w, h, genMipmaps = true) {
         });
       });
 
-      // NEW: report image load to the loader for accurate progress
       Assets.markFrameImageLoaded();
     };
 
@@ -1629,8 +1573,7 @@ function makeDT(name, w, h, genMipmaps = true) {
     }
   }
 
-  /* ===== Frame sizing =====
-     Square frames now. Width/height set in applyFixedLayout(). */
+  /* ===== Frame sizing ===== */
   const FRAME_SIZE = { W: 2, H: 2 };
   let FRAME_BOX_BORDER = 0.08;
   let FRAME_COLOR = "#717171";
@@ -1644,7 +1587,7 @@ function makeDT(name, w, h, genMipmaps = true) {
     const g = vertical ? ctx.createLinearGradient(0,0,0,h) : ctx.createLinearGradient(0,0,w,0);
     g.addColorStop(0, from); g.addColorStop(1, to);
     ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    dt.update(false); // FIX 4
+    dt.update(false);
     dt.wrapU = dt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     dt.anisotropicFilteringLevel = MAX_ANISO;
     return dt;
@@ -1676,198 +1619,181 @@ function makeDT(name, w, h, genMipmaps = true) {
     return mm;
   }
 
-  /* ===== Placard =====
-     Premium, non-condensed text. The texture resolution is derived from the
-     placard's real-world aspect ratio (W:H) so letterforms are never squeezed
-     horizontally. Font size is driven by texture HEIGHT, and we measure text to
-     pick the largest size that fits the width — so titles look natural and
-     readable. Poppins SemiBold (600). */
+  /* ===== Placard ===== */
   function drawPlacard(plac, data, rotY, planeW, planeH){
-  const aspect = Math.max(0.05, planeW / planeH); // real placard W:H (wide)
-  // Base the texture on HEIGHT so wide placards get a wide texture (no squeeze).
-  const baseH = IS_MOBILE ? 256 : 512;
-  let texH = nearestPOT(baseH, IS_MOBILE ? 1024 : 2048);
-  let texW = nearestPOT(Math.max(2, Math.round(texH * aspect)), IS_MOBILE ? 2048 : 4096);
+    const aspect = Math.max(0.05, planeW / planeH);
+    const baseH = IS_MOBILE ? 256 : 512;
+    let texH = nearestPOT(baseH, IS_MOBILE ? 1024 : 2048);
+    let texW = nearestPOT(Math.max(2, Math.round(texH * aspect)), IS_MOBILE ? 2048 : 4096);
 
-  const dt = makeDT("pl", texW, texH, !IS_MOBILE);
-  const c = dt.getContext();
-  c.fillStyle = "#6b6b6b";
-  c.fillRect(0, 0, texW, texH);
+    const dt = makeDT("pl", texW, texH, !IS_MOBILE);
+    const c = dt.getContext();
+    c.fillStyle = "#6b6b6b";
+    c.fillRect(0, 0, texW, texH);
 
-  const padX = Math.round(texW * 0.05);
-  const padY = Math.round(texH * 0.16);
-  const maxW = texW - padX * 2;
-  const maxBlockH = texH - padY * 2;
+    const padX = Math.round(texW * 0.05);
+    const padY = Math.round(texH * 0.16);
+    const maxW = texW - padX * 2;
+    const maxBlockH = texH - padY * 2;
 
-  c.fillStyle = "#ffffff";
-  c.textAlign = "center";
-  c.textBaseline = "middle";
+    c.fillStyle = "#ffffff";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
 
-  const text = (data.title || "(untitled)").trim();
-  const maxLines = 2;
-  const labelFont = `"Poppins", sans-serif`;
+    const text = (data.title || "(untitled)").trim();
+    const maxLines = 2;
+    const labelFont = `"Poppins", sans-serif`;
 
+    function wrapAt(fontPx){
+      c.font = `400 ${fontPx}px Poppins, sans-serif`;
 
-  function wrapAt(fontPx){
-    c.font = `400 ${fontPx}px Poppins, sans-serif`;
+      const words = text.split(/\s+/);
+      const lines = [];
+      let buf = "";
 
-    const words = text.split(/\s+/);
-    const lines = [];
-    let buf = "";
+      for (const w of words){
+        const test = buf ? (buf + " " + w) : w;
+        if (c.measureText(test).width <= maxW) {
+          buf = test;
+        } else {
+          if (buf) lines.push(buf);
+          buf = w;
+        }
+      }
 
-    for (const w of words){
-      const test = buf ? (buf + " " + w) : w;
-      if (c.measureText(test).width <= maxW) {
-        buf = test;
-      } else {
-        if (buf) lines.push(buf);
-        buf = w;
+      if (buf) lines.push(buf);
+      return lines;
+    }
+
+    let fontPx = Math.round(texH * 0.46);
+    let lines = wrapAt(fontPx);
+
+    let guard = 40;
+    while (guard-- > 0){
+      lines = wrapAt(fontPx);
+      const tooMany = lines.length > maxLines;
+      const lineH = fontPx * 1.18;
+      const blockH = Math.min(lines.length, maxLines) * lineH;
+      const tooTall = blockH > maxBlockH;
+      const tooWide = lines.some(ln => c.measureText(ln).width > maxW);
+
+      if (!tooMany && !tooTall && !tooWide) break;
+
+      fontPx -= Math.max(2, Math.round(fontPx * 0.06));
+      if (fontPx < 16){
+        fontPx = 16;
+        break;
       }
     }
 
-    if (buf) lines.push(buf);
-    return lines;
-  }
+    fontPx = Math.max(12, Math.round(fontPx * 0.96) - 2);
 
-  let fontPx = Math.round(texH * 0.46); // start generous
-  let lines = wrapAt(fontPx);
-
-  // shrink until it fits both width (per line) and height (line count)
-  let guard = 40;
-  while (guard-- > 0){
+    c.font = `500 ${fontPx}px ${labelFont}`;
     lines = wrapAt(fontPx);
-    const tooMany = lines.length > maxLines;
+
+    if (lines.length > maxLines){
+      const keep = lines.slice(0, maxLines);
+      let last = keep[maxLines - 1];
+      while (c.measureText(last + "…").width > maxW && last.length > 0){
+        last = last.slice(0, -1);
+      }
+      keep[maxLines - 1] = last + "…";
+      lines = keep;
+    }
+
     const lineH = fontPx * 1.18;
-    const blockH = Math.min(lines.length, maxLines) * lineH;
-    const tooTall = blockH > maxBlockH;
-    const tooWide = lines.some(ln => c.measureText(ln).width > maxW);
+    const blockH = lines.length * lineH;
+    const startY = Math.round(texH / 2 - blockH / 2 + lineH / 2);
 
-    if (!tooMany && !tooTall && !tooWide) break;
+    const VSCALE = 0.8;
+    const cy = texH / 2;
 
-    fontPx -= Math.max(2, Math.round(fontPx * 0.06));
-    if (fontPx < 16){
-      fontPx = 16;
-      break;
+    c.save();
+    c.translate(0, cy);
+    c.scale(1, VSCALE);
+    c.translate(0, -cy);
+
+    lines.forEach((ln, i) => c.fillText(ln, texW / 2, startY + i * lineH));
+    c.restore();
+
+    dt.update(false);
+    const mat = unlitTex(dt);
+    mat.zOffset = -2;
+
+    dt.vScale = -1;
+    dt.vOffset = 1;
+
+    plac.material = mat;
+  }
+
+  function normalOffset(rotY, dist){
+    const nx = Math.sin(rotY) * dist;
+    const nz = Math.cos(rotY) * dist;
+    return new BABYLON.Vector3(nx, 0, nz);
+  }
+
+  /* ===== addFrame ===== */
+  function addFrame(pos, rotY=0, wall='front'){
+    const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
+      width: FRAME_SIZE.W + FRAME_BOX_BORDER,
+      height: FRAME_SIZE.H + FRAME_BOX_BORDER,
+      depth: 0.06
+    }, scene);
+    box.position = pos.add(normalOffset(rotY, 0.0));
+    box.rotation.y = rotY;
+    box.isPickable = true;
+    box.subMeshes = [];
+    const indices = box.getIndices();
+    const verticesCount = box.getTotalVertices();
+    let idx = 0;
+    const perFace = indices.length / 6;
+    for (let f = 0; f < 6; f++){
+      new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
+      idx += perFace;
     }
+    box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
+
+    const f = BABYLON.MeshBuilder.CreatePlane("frame", {
+      width: FRAME_SIZE.W,
+      height: FRAME_SIZE.H,
+      sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+    f.position = pos.add(normalOffset(rotY, 0.04));
+    f.rotation.y = rotY + Math.PI;
+    f.isPickable = true;
+
+    const { texW: phW, texH: phH } = getFrameTexSize();
+    const dt = makeDT("ph_img", phW, phH, true);
+    const ctx = dt.getContext();
+    drawChecker(ctx, phW, phH);
+    dt.update(false);
+
+    const fMat = unlitTex(dt);
+    fMat.zOffset = -1;
+    fMat.name = "ph_img_mat";
+    f.material = fMat;
+
+    const placW = FRAME_SIZE.W;
+    const placH = Math.max(0.22, FRAME_SIZE.W * 0.128);
+    const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
+      width: placW,
+      height: placH,
+      sideOrientation: BABYLON.Mesh.FRONTSIDE
+    }, scene);
+
+    const PLAC_GAP = 0.28;
+    const placCenterY = pos.y - (FRAME_SIZE.H / 2) - PLAC_GAP - (placH / 2);
+    plac.position = new BABYLON.Vector3(pos.x, placCenterY, pos.z).add(normalOffset(rotY, 0.03));
+    plac.rotation.y = rotY + Math.PI;
+    plac.isPickable = true;
+    plac._width = placW;
+    plac._height = placH;
+
+    const data = { title: "(untitled)", url: "", src: "" };
+    drawPlacard(plac, data, rotY, placW, placH);
+
+    return { frame: f, box, placard: plac, data, wall, rotY, pos };
   }
-
-  // o 2 pt menší
-  fontPx = Math.max(12, Math.round(fontPx * 0.96) - 2);
-
-  c.font = `500 ${fontPx}px ${labelFont}`;
-  lines = wrapAt(fontPx);
-
-  // Final wrap + ellipsis if still overflowing 2 lines
-  if (lines.length > maxLines){
-    const keep = lines.slice(0, maxLines);
-    let last = keep[maxLines - 1];
-    while (c.measureText(last + "…").width > maxW && last.length > 0){
-      last = last.slice(0, -1);
-    }
-    keep[maxLines - 1] = last + "…";
-    lines = keep;
-  }
-
-  const lineH = fontPx * 1.18;
-  const blockH = lines.length * lineH;
-  const startY = Math.round(texH / 2 - blockH / 2 + lineH / 2);
-
-  // výška textu -20 %
-  const VSCALE = 0.8;
-  const cy = texH / 2;
-
-  c.save();
-  c.translate(0, cy);
-  c.scale(1, VSCALE);
-  c.translate(0, -cy);
-
-  lines.forEach((ln, i) => c.fillText(ln, texW / 2, startY + i * lineH));
-  c.restore();
-
-  dt.update(false);
-  const mat = unlitTex(dt);
-  mat.zOffset = -2;
-
-  // placard flip: plane rotated rotY + Math.PI → only V mirrored
-  dt.vScale = -1;
-  dt.vOffset = 1;
-
-  plac.material = mat;
-}
-
-function normalOffset(rotY, dist){
-  const nx = Math.sin(rotY) * dist;
-  const nz = Math.cos(rotY) * dist;
-  return new BABYLON.Vector3(nx, 0, nz);
-}
-
-/* ===== addFrame =====
-   pos here is the FRAME CENTER. Placard offset below the frame is preserved
-   proportionally (same gap language as before: -0.72 * H below center, plus a
-   little extra so it clears the taller square frame cleanly). */
-function addFrame(pos, rotY=0, wall='front'){
-  const box = BABYLON.MeshBuilder.CreateBox("frameBox", {
-    width: FRAME_SIZE.W + FRAME_BOX_BORDER,
-    height: FRAME_SIZE.H + FRAME_BOX_BORDER,
-    depth: 0.06
-  }, scene);
-  box.position = pos.add(normalOffset(rotY, 0.0));
-  box.rotation.y = rotY;
-  box.isPickable = true;
-  box.subMeshes = [];
-  const indices = box.getIndices();
-  const verticesCount = box.getTotalVertices();
-  let idx = 0;
-  const perFace = indices.length / 6;
-  for (let f = 0; f < 6; f++){
-    new BABYLON.SubMesh(f, 0, verticesCount, idx, perFace, box);
-    idx += perFace;
-  }
-  box.material = makeShadedFrameBoxMultiMat(FRAME_COLOR);
-
-  const f = BABYLON.MeshBuilder.CreatePlane("frame", {
-    width: FRAME_SIZE.W,
-    height: FRAME_SIZE.H,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-  f.position = pos.add(normalOffset(rotY, 0.04));
-  f.rotation.y = rotY + Math.PI;
-  f.isPickable = true;
-
-  const { texW: phW, texH: phH } = getFrameTexSize();
-  const dt = makeDT("ph_img", phW, phH, true);
-  const ctx = dt.getContext();
-  drawChecker(ctx, phW, phH);
-  dt.update(false); // FIX 4
-
-  const fMat = unlitTex(dt);
-  fMat.zOffset = -1;
-  fMat.name = "ph_img_mat";
-  f.material = fMat;
-
-  // Placard: width MATCHES the square frame width (more room for titles).
-  const placW = FRAME_SIZE.W;
-  const placH = Math.max(0.22, FRAME_SIZE.W * 0.128);
-  const plac = BABYLON.MeshBuilder.CreatePlane("plac", {
-    width: placW,
-    height: placH,
-    sideOrientation: BABYLON.Mesh.FRONTSIDE
-  }, scene);
-
-  // keep the same visual gap below the frame bottom as before.
-  const PLAC_GAP = 0.28;
-  const placCenterY = pos.y - (FRAME_SIZE.H / 2) - PLAC_GAP - (placH / 2);
-  plac.position = new BABYLON.Vector3(pos.x, placCenterY, pos.z).add(normalOffset(rotY, 0.03));
-  plac.rotation.y = rotY + Math.PI;
-  plac.isPickable = true;
-  plac._width = placW;
-  plac._height = placH;
-
-  const data = { title: "(untitled)", url: "", src: "" };
-  drawPlacard(plac, data, rotY, placW, placH);
-
-  return { frame: f, box, placard: plac, data, wall, rotY, pos };
-}
 
   /* ========================= LOGO ========================= */
   const GALLERY_LOGO_SVG = `
@@ -1901,82 +1827,74 @@ function addFrame(pos, rotY=0, wall='front'){
   let FRAME_CENTER_Y = 0;
   const LOGO_EXTRA_UP = 2.5;
   let __logoFront = null;
-let __logoBack  = null;
-let __logoLeft  = null;
-let __logoRight = null;
-
+  let __logoBack  = null;
+  let __logoLeft  = null;
+  let __logoRight = null;
 
   function hint(msg){ console.log(msg); }
 
-  /* NEW: choose the text engine per platform.
-     Desktop → existing typewriter (rich). Mobile → lightweight full-sentence
-     cycler (no per-char typing). Returns { rafId, controller } so callers can
-     store handles for teardown. */
   function startWallText(wallKey, dt, texW, texH){
-  const texts = TW_STRINGS[wallKey];
-  const hFlip = (wallKey === 'left' || wallKey === 'right');
-  const isSide = (wallKey === 'left' || wallKey === 'right');
+    const texts = TW_STRINGS[wallKey];
+    const hFlip = (wallKey === 'left' || wallKey === 'right');
+    const isSide = (wallKey === 'left' || wallKey === 'right');
 
-  // SIDE WALLS = vždy statický text (desktop + mobile)
-  if (isSide){
-    drawStaticSideText(dt, {
-      text: SIDE_WALL_TEXT,
-      texW,
-      texH,
-      color: TW_COLOR_HEX,
-      fontPx: TW_FONT_PX,
-      hFlip
-    });
-    return { rafId: 0, controller: null };
-  }
+    if (isSide){
+      drawStaticSideText(dt, {
+        text: SIDE_WALL_TEXT,
+        texW,
+        texH,
+        color: TW_COLOR_HEX,
+        fontPx: TW_FONT_PX,
+        hFlip
+      });
+      return { rafId: 0, controller: null };
+    }
 
-  // MOBILE = úsporná ne-běžící verze pouze pro front/back
-  if (IS_MOBILE){
-    try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+    if (IS_MOBILE){
+      try { __cyclers[wallKey]?.stop?.(); } catch(_){}
 
-    const H_COMPRESS = 0.8;
-    const measCtx = dt.getContext();
-    const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
-    const fixedPx = fixedFontPxForSet(measCtx, combinedFB, texW, TW_FONT_PX, H_COMPRESS);
+      const H_COMPRESS = 0.8;
+      const measCtx = dt.getContext();
+      const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
+      const fixedPx = fixedFontPxForSet(measCtx, combinedFB, texW, TW_FONT_PX, H_COMPRESS);
 
-    const ctrl = runSentenceCyclerToDT(dt, {
+      const ctrl = runSentenceCyclerToDT(dt, {
+        texts,
+        texW,
+        texH,
+        color: TW_COLOR_HEX,
+        fontPx: TW_FONT_PX,
+        holdMs: 2600,
+        fadeMs: 320,
+        hFlip: false,
+        fixedPx,
+        hCompress: H_COMPRESS
+      });
+
+      __cyclers[wallKey] = ctrl;
+      return { rafId: 0, controller: ctrl };
+    }
+
+    const rafId = runTypewriterToDT(dt, {
       texts,
+      speedMs: TW_SPEED_MS,
+      pauseMs: TW_PAUSE_MS,
       texW,
       texH,
       color: TW_COLOR_HEX,
       fontPx: TW_FONT_PX,
-      holdMs: 2600,
-      fadeMs: 320,
       hFlip: false,
-      fixedPx,
-      hCompress: H_COMPRESS
+      hCompress: 1.2
     });
 
-    __cyclers[wallKey] = ctrl;
-    return { rafId: 0, controller: ctrl };
+    return { rafId, controller: null };
   }
-
-  // DESKTOP = původní běžící typewriter pouze pro front/back
-  const rafId = runTypewriterToDT(dt, {
-    texts,
-    speedMs: TW_SPEED_MS,
-    pauseMs: TW_PAUSE_MS,
-    texW,
-    texH,
-    color: TW_COLOR_HEX,
-    fontPx: TW_FONT_PX,
-    hFlip: false,
-    hCompress: 1.2
-  });
-
-  return { rafId, controller: null };
-}
 
   function buildGalleryLogo(){
     try { __logoFront?.dispose?.(); __logoFront = null; } catch(_){}
-try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
-try { __logoLeft ?.dispose?.(); __logoLeft  = null; } catch(_){}
-try { __logoRight?.dispose?.(); __logoRight = null; } catch(_){}
+    try { __logoBack ?.dispose?.(); __logoBack  = null; } catch(_){}
+    try { __logoLeft ?.dispose?.(); __logoLeft  = null; } catch(_){}
+    try { __logoRight?.dispose?.(); __logoRight = null; } catch(_){}
 
     try { twFrontAnchor?.dispose?.(); twFrontAnchor = null; } catch(_){}
     try { twBackAnchor ?.dispose?.(); twBackAnchor  = null; } catch(_){}
@@ -1995,7 +1913,7 @@ try { __logoRight?.dispose?.(); __logoRight = null; } catch(_){}
       const y    = Math.round((SIZE - h) / 2);
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.drawImage(img, x, y, w, h);
-      dt.update(false); // FIX 4
+      dt.update(false);
 
       const mul = IS_MOBILE ? LOGO_SIZE_MULT_MOBILE : LOGO_SIZE_MULT_DESKTOP;
       const LOGO_EXTRA_SCALE = 1.25;
@@ -2011,10 +1929,8 @@ try { __logoRight?.dispose?.(); __logoRight = null; } catch(_){}
       const zFront =  ROOM.D / 2 - FRONT_BACK_OFFSET;
       const zBack  = -ROOM.D / 2 + FRONT_BACK_OFFSET;
       const xLeft  = -ROOM.W / 2 + FRONT_BACK_OFFSET;
-const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
+      const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
 
-
-      // PRESERVED logo orientation fix: only V mirrored (upright, not horizontally mirrored).
       dt.vScale = -1; dt.vOffset = 1;
 
       const makeMat = (name) => {
@@ -2040,21 +1956,6 @@ const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
       __logoBack.rotation.y = Math.PI;
       __logoBack.material   = matBack;
 
-// LEFT wall logo
-// __logoLeft = BABYLON.MeshBuilder.CreatePlane("logo_left", { width: logoW, height: logoH }, scene);
-// __logoLeft.position.set(xLeft, yPos, 0);
-// __logoLeft.rotation.y = -Math.PI / 2;
-// __logoLeft.material   = makeMat("logoMat_left");
-
-// RIGHT wall logo
-// __logoRight = BABYLON.MeshBuilder.CreatePlane("logo_right", { width: logoW, height: logoH }, scene);
-// __logoRight.position.set(xRight, yPos, 0);
-// __logoRight.rotation.y = Math.PI / 2;
-// __logoRight.material   = makeMat("logoMat_right");
-
-
-
-
       const nextPOTLocal = (n) => Math.pow(2, Math.ceil(Math.log2(Math.max(1, n))));
       const panelHeightForCalc = Math.max(0.20, TW_FONT_PX / 100);
       const panelTexH = Math.max(256, nextPOTLocal(Math.round(TW_FONT_PX * 2)));
@@ -2070,24 +1971,18 @@ const xRight =  ROOM.W / 2 - FRONT_BACK_OFFSET;
       const minSafePlaneY = frameTopYLocal + TW_MIN_CLEARANCE_ABOVE_FRAMES_M + textCenterOffsetInPlane;
       yText = Math.max(yText, minSafePlaneY);
 
-      // Available wall lengths
-const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2; // front/back run along width
-const panelH = Math.max(0.20, TW_FONT_PX / 100);
+      const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2;
+      const panelH = Math.max(0.20, TW_FONT_PX / 100);
 
-// boční text potřebuje vyšší box a být blíž k logu
-const sidePanelH = panelH * 1.85;
-const sideYText = yText + 1.8;
+      const sidePanelH = panelH * 1.85;
+      const sideYText = yText + 1.8;
 
-// Front/back text-box widths = fraction of the front/back available length.
-const panelW_front = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.front);
-const panelW_back  = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.back);
+      const panelW_front = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.front);
+      const panelW_back  = Math.max(1.0, frontBackAvail * TW_WIDTH_FRAC.back);
 
-// SIDE WALLS: same width as back-wall text box
-const panelW_left  = panelW_back;
-const panelW_right = panelW_back;
+      const panelW_left  = panelW_back;
+      const panelW_right = panelW_back;
 
-
-      // Cleanup any previous front/back/side planes + animations/cyclers.
       try { if (__twFrontRAF) cancelAnimationFrame(__twFrontRAF); } catch(_){}
       try { if (__twBackRAF)  cancelAnimationFrame(__twBackRAF);  } catch(_){}
       try { if (__twLeftRAF)  cancelAnimationFrame(__twLeftRAF);  } catch(_){}
@@ -2117,40 +2012,40 @@ const panelW_right = panelW_back;
         __twBackRAF = r.rafId;
       }
       // LEFT — text only, no logo
-{
-  const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-    name:"tw_left",
-    x:(-ROOM.W/2 + 0.05),
-    y:sideYText,
-    z:0,
-    rotY:Math.PI/2,
-    width:panelW_left,
-    height:sidePanelH
-  });
-  __twLeftPlane = plane;
-  const r = startWallText('left', twDT, texW, texH);
-  __twLeftRAF = r.rafId;
-}
+      {
+        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+          name:"tw_left",
+          x:(-ROOM.W/2 + 0.05),
+          y:sideYText,
+          z:0,
+          rotY:Math.PI/2,
+          width:panelW_left,
+          height:sidePanelH
+        });
+        __twLeftPlane = plane;
+        const r = startWallText('left', twDT, texW, texH);
+        __twLeftRAF = r.rafId;
+      }
+      // RIGHT — text only, no logo
+      {
+        const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
+          name:"tw_right",
+          x:(ROOM.W/2 - 0.05),
+          y:sideYText,
+          z:0,
+          rotY:-Math.PI/2,
+          width:panelW_right,
+          height:sidePanelH
+        });
+        __twRightPlane = plane;
+        const r = startWallText('right', twDT, texW, texH);
+        __twRightRAF = r.rafId;
+      }
 
-// RIGHT — text only, no logo
-{
-  const { plane, dt: twDT, texW, texH } = makeTypewriterPlane({
-    name:"tw_right",
-    x:(ROOM.W/2 - 0.05),
-    y:sideYText,
-    z:0,
-    rotY:-Math.PI/2,
-    width:panelW_right,
-    height:sidePanelH
-  });
-  __twRightPlane = plane;
-  const r = startWallText('right', twDT, texW, texH);
-  __twRightRAF = r.rafId;
-}
+      Assets.markLogoReady();
+      hint("Logo shown (front + back) + text on all four walls ✔");
+    };
 
-Assets.markLogoReady(); // NEW: tell loader the logo is up
-hint("Logo shown (front + back) + text on all four walls ✔");
-      };
     img.onerror = (e) => {
       console.error("Logo SVG decode failed.", e);
       Assets.markLogoReady();
@@ -2161,14 +2056,12 @@ hint("Logo shown (front + back) + text on all four walls ✔");
   /* ========= Frames & layout ========= */
   const framesByWall = { back: [], front: [], left: [], right: [] };
 
-  /* Counts: front/back = 2, left/right = 4. */
   const FIXED_LAYOUT = {
     safeWall: 1.0, cornerSafe: 1.0,
     frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
     counts: { front: 2, back: 2, left: 4, right: 4 }
   };
 
-  /* DATA trimmed to the new counts (2 / 2 / 3 / 3). */
   const DATA = {
     front: [
       { img: "./assets/acid smiley 2.webp", label: "Acid Smiley", href: "https://phaserstore.etsy.com/listing/4495434398" },
@@ -2211,9 +2104,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     const rotY = wall==='front' ? Math.PI : wall==='back' ? 0 : wall==='left' ? Math.PI/2 : -Math.PI/2;
     const axisX  = (wall==='front'||wall==='back');
     const length = axisX ? ROOM.W : ROOM.D;
-    // Side walls are much longer (ROOM.D) and now hold 4 square frames. Use a
-    // slightly tighter corner margin there so the 4 frames spread out with gaps
-    // that read as consistent with the front/back composition (not cramped).
     const isSide = !axisX;
     const sw = isSide ? Math.max(0.6, safeWall * 0.8) : safeWall;
     const cs = isSide ? Math.max(0.6, cornerSafe * 0.8) : cornerSafe;
@@ -2262,9 +2152,7 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     });
   }
 
-  /* ===== Asset/loader bookkeeping (NEW) =====
-     Counts the essential first-view assets and reports progress to the Loader.
-     "Ready" = logo built + all frame images resolved + first stable render. */
+  /* ===== Asset/loader bookkeeping ===== */
   const Assets = (() => {
     let totalFrameImages = 0;
     let loadedFrameImages = 0;
@@ -2277,7 +2165,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     }
 
     function recompute(){
-      // weight: logo 20%, frame images 60%, first render 20%
       const imgFrac = totalFrameImages ? (loadedFrameImages / totalFrameImages) : 1;
       let pct = (logoReady ? 20 : 0) + imgFrac * 60 + (firstRenderReady ? 20 : 0);
       Loader.set(pct);
@@ -2298,7 +2185,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
       markLogoReady(){ logoReady = true; recompute(); },
       markFrameImageLoaded(){ loadedFrameImages++; recompute(); },
       markFirstRender(){ if (!firstRenderReady){ firstRenderReady = true; recompute(); } },
-      // safety net: never let the overlay hang forever
       forceFinishAfter(ms){ setTimeout(()=>{ if (!finished){ logoReady = true; firstRenderReady = true; loadedFrameImages = totalFrameImages; recompute(); } }, ms); }
     };
   })();
@@ -2326,7 +2212,7 @@ hint("Logo shown (front + back) + text on all four walls ✔");
   function setupZoomUX(){
     const canvasEl = canvas;
     canvasEl.addEventListener("dblclick", ()=>{
-      stopAutoTour(); // manual interaction cancels auto-tour
+      stopAutoTour();
       zoomToPointer(scene.pointerX, scene.pointerY, {
         scale: camera.radius < 1.2 ? 1.0 : 0.55, forceMin: camera.radius < 0.6
       });
@@ -2343,18 +2229,14 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     }, { passive:true });
   }
 
-  /* ========= Camera reset =========
-     NEW: mobile gets a raised framing (higher target + lower beta) so the top
-     wall/ceiling edge is not visible; the view starts around the logo area.
-     Desktop composition is unchanged. */
+  /* ========= Camera reset ========= */
   const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
   const RESET_TARGET_Y = WALL_CENTER_Y - 1.05;
   const FRONT_ALPHA = -Math.PI / 2;
 
-  // Mobile-only framing tweaks (raised further so the top wall/ceiling edge is hidden):
-  const MOBILE_TARGET_Y = WALL_CENTER_Y + 2.45; // look-at lifted toward the logo/text band
-  const MOBILE_BETA     = Math.PI / 2.42;       // closer to horizontal-up → top edge stays off-screen
-  const MOBILE_RADIUS   = 15.0;                 // slightly closer so upper content fills the frame
+  const MOBILE_TARGET_Y = WALL_CENTER_Y + 2.45;
+  const MOBILE_BETA     = Math.PI / 2.42;
+  const MOBILE_RADIUS   = 15.0;
 
   function normAlpha(a){
     const TAU = Math.PI * 2;
@@ -2444,7 +2326,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     if (!IS_MOBILE) { glow.intensity = 0.85; glow.blurKernelSize = 64; }
     else            { glow.intensity = 0.48; glow.blurKernelSize = 18; }
 
-    /* FIX 8 — disable image processing BEFORE scene is used. */
     const ipc = scene.imageProcessingConfiguration;
     ipc.isEnabled           = false;
     ipc.applyByPostProcess  = false;
@@ -2585,7 +2466,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     return 0.30 + 0.70 * Math.pow(dot, 0.7);
   }
 
-  /* FIX 9 — spawnOneFallingStar: safe disposal (mesh first, then material). */
   function spawnOneFallingStar({ start, end, dirXZ, yTop, yBot, speed, sizeBase, color }){
     yTop     = yTop     ?? CEIL_Y + BABYLON.Scalar.RandomRange(1.48, 1.62);
     yBot     = yBot     ?? CEIL_Y + BABYLON.Scalar.RandomRange(0.90, 1.05);
@@ -2681,30 +2561,22 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     setTimeout(()=> scheduleFallingStar(), 220);
   }
 
-  /* ========= Layout apply =========
-     NEW: SQUARE frames. Width ≈ two old frames combined. TOP edge of the new
-     square aligns with the TOP edge of the old (rectangular) frames, so the
-     square extends downward from that same top line. */
+  /* ========= Layout apply ========= */
   function applyFixedLayout() {
     const YCENTER    = ROOM.H * 0.55;
     const safeWall   = FIXED_LAYOUT.safeWall;
     const cornerSafe = FIXED_LAYOUT.cornerSafe;
-    const baseW = FIXED_LAYOUT.frame.width;   // 2.2 (old narrow width)
-    const baseH = FIXED_LAYOUT.frame.height;  // 2.2
+    const baseW = FIXED_LAYOUT.frame.width;
+    const baseH = FIXED_LAYOUT.frame.height;
     FRAME_BASE_H = baseH;
 
-    // --- Reconstruct the OLD top line so we can align to it exactly ---
-    // Old behaviour: narrow frame W = baseW, H = baseW * (16/9); anchored at top
-    // via centerY = YCENTER - (oldH - baseH)/2. Top edge = centerY + oldH/2.
     const oldW = baseW;
     const oldH = baseW * (16/9);
     const oldCenterY = YCENTER - (oldH - baseH)/2;
     const OLD_TOP_EDGE_Y = oldCenterY + oldH/2;
 
-    // --- New SQUARE frame: width ≈ two old frames combined ---
-    // Two old frames + the visual gap between them. Keep it natural on the wall.
     const SQUARE_W = Math.min(oldW * 2.0 + 0.6, ROOM.W - 2*(safeWall+cornerSafe) - 0.4);
-    const SQUARE_H = SQUARE_W; // square
+    const SQUARE_H = SQUARE_W;
 
     FRAME_SIZE.W     = SQUARE_W;
     FRAME_SIZE.H     = SQUARE_H;
@@ -2712,7 +2584,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     FRAME_COLOR      = FIXED_LAYOUT.frame.color;
     FRAME_DELTA_H    = SQUARE_H - baseH;
 
-    // Align NEW top edge to OLD top edge → centerY = topEdge - H/2
     const centerY = OLD_TOP_EDGE_Y - SQUARE_H/2;
     FRAME_CENTER_Y   = centerY;
 
@@ -2756,13 +2627,10 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
-  /* ========= AUTO TOUR (NEW) =========
-     Smooth, slow, cinematic orbit driven inside the render loop (no separate
-     timers/animations → no jitter, no flicker). Toggleable. Manual interaction
-     stops it. Uses the same alpha sweep so it reads as a gentle walkthrough. */
+  /* ========= AUTO TOUR ========= */
   const AutoTour = {
     active: false,
-    speed: 0.055,        // radians/sec — slow & elegant
+    speed: 0.055,
     lastTime: 0
   };
 
@@ -2776,7 +2644,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
 
   function startAutoTour(){
     if (AutoTour.active) return;
-    // ease to the reset/center pose first, then begin orbiting from there
     resetCamera({ animate:true });
     AutoTour.active = true;
     AutoTour.lastTime = performance.now();
@@ -2791,7 +2658,6 @@ hint("Logo shown (front + back) + text on all four walls ✔");
 
   function toggleAutoTour(){
     if (AutoTour.active){ stopAutoTour(); return; }
-    // enter fullscreen automatically (desktop). On mobile FS may be unavailable; ignore.
     if (!isFullscreen()){ try { requestFs(document.documentElement); } catch(_){} }
     startAutoTour();
   }
@@ -2801,8 +2667,7 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     const now = performance.now();
     let dt = (now - AutoTour.lastTime) / 1000;
     AutoTour.lastTime = now;
-    if (dt > 0.1) dt = 0.1; // clamp after tab switches to avoid jumps
-    // gentle continuous orbit; beta/radius/target stay at the (mobile/desktop) reset pose
+    if (dt > 0.1) dt = 0.1;
     camera.alpha += AutoTour.speed * dt;
   }
 
@@ -2944,92 +2809,86 @@ hint("Logo shown (front + back) + text on all four walls ✔");
   /* ========= Render loop ========= */
   let __firstRenderSignalled = false;
   engine.runRenderLoop(() => {
-  if (!scene) return;
+    if (!scene) return;
 
-  updateAutoTour(); // NEW: advance cinematic orbit (no-op when inactive)
-  constrainTarget?.();
-  constrainCameraRadius?.();
+    updateAutoTour();
+    constrainTarget?.();
+    constrainCameraRadius?.();
 
-  // Desktop-only "Apple breathing" effect for side-wall text
-  if (!IS_MOBILE && __twLeftPlane && __twRightPlane) {
-    const now = performance.now();
+    // Desktop-only "Apple breathing" effect for side-wall text
+    if (!IS_MOBILE && __twLeftPlane && __twRightPlane) {
+      const now = performance.now();
+      const wave = (Math.sin(now * 0.0011) + 1) * 0.5;
+      const gray = Math.round(40 + wave * (210 - 40));
+      const color = `rgb(${gray}, ${gray}, ${gray})`;
 
-    // slow elegant pulse
-    const wave = (Math.sin(now * 0.0011) + 1) * 0.5;
-
-    // dark gray -> light gray / near white
-    const gray = Math.round(40 + wave * (210 - 40));
-    const color = `rgb(${gray}, ${gray}, ${gray})`;
-
-    if (__twLeftPlane?.material?.diffuseTexture) {
-      const dt = __twLeftPlane.material.diffuseTexture;
-      const size = dt.getSize();
-      drawStaticSideText(dt, {
-        text: SIDE_WALL_TEXT,
-        texW: size.width,
-        texH: size.height,
-        color,
-        fontPx: TW_FONT_PX,
-        hFlip: true
-      });
-    }
-
-    if (__twRightPlane?.material?.diffuseTexture) {
-      const dt = __twRightPlane.material.diffuseTexture;
-      const size = dt.getSize();
-      drawStaticSideText(dt, {
-        text: SIDE_WALL_TEXT,
-        texW: size.width,
-        texH: size.height,
-        color,
-        fontPx: TW_FONT_PX,
-        hFlip: true
-      });
-    }
-  }
-
-  scene.render();
-
-  // NEW: signal first stable render to the loader (a couple frames in for safety)
-  if (!__firstRenderSignalled) {
-    __firstRenderSignalled = true;
-    // wait 2 rAF so textures are bound before we call it "stable"
-    requestAnimationFrame(() => requestAnimationFrame(() => Assets.markFirstRender()));
-  }
-
-  if (AutoScale.enabled) {
-    const now = performance.now();
-    AutoScale.accMs += engine.getDeltaTime();
-    AutoScale.frames++;
-
-    if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs) {
-      const avgMs = AutoScale.accMs / AutoScale.frames;
-      let changed = false;
-
-      if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel) {
-        currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
-        changed = true;
-      } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel) {
-        currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
-        changed = true;
+      if (__twLeftPlane?.material?.diffuseTexture) {
+        const dt = __twLeftPlane.material.diffuseTexture;
+        const size = dt.getSize();
+        drawStaticSideText(dt, {
+          text: SIDE_WALL_TEXT,
+          texW: size.width,
+          texH: size.height,
+          color,
+          fontPx: TW_FONT_PX,
+          hFlip: true
+        });
       }
 
-      if (changed) {
-        applyHardwareScale(currentScaleLevel);
-        if (glow) {
-          const base = IS_MOBILE ? 36 : 96;
-          glow.blurKernelSize = Math.round(
-            base * (0.9 + 0.2 * (1 - (currentScaleLevel - 0.33) / (1 - 0.33)))
-          );
+      if (__twRightPlane?.material?.diffuseTexture) {
+        const dt = __twRightPlane.material.diffuseTexture;
+        const size = dt.getSize();
+        drawStaticSideText(dt, {
+          text: SIDE_WALL_TEXT,
+          texW: size.width,
+          texH: size.height,
+          color,
+          fontPx: TW_FONT_PX,
+          hFlip: true
+        });
+      }
+    }
+
+    scene.render();
+
+    if (!__firstRenderSignalled) {
+      __firstRenderSignalled = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => Assets.markFirstRender()));
+    }
+
+    if (AutoScale.enabled) {
+      const now = performance.now();
+      AutoScale.accMs += engine.getDeltaTime();
+      AutoScale.frames++;
+
+      if (now - AutoScale.lastEval > AutoScale.windowMs && now > AutoScale.warmupMs) {
+        const avgMs = AutoScale.accMs / AutoScale.frames;
+        let changed = false;
+
+        if (avgMs > AutoScale.lowFpsMs && currentScaleLevel < AutoScale.maxLevel) {
+          currentScaleLevel = Math.min(AutoScale.maxLevel, currentScaleLevel + AutoScale.step);
+          changed = true;
+        } else if (avgMs < AutoScale.highFpsMs && currentScaleLevel > AutoScale.minLevel) {
+          currentScaleLevel = Math.max(AutoScale.minLevel, currentScaleLevel - AutoScale.step);
+          changed = true;
         }
-      }
 
-      AutoScale.accMs = 0;
-      AutoScale.frames = 0;
-      AutoScale.lastEval = now;
+        if (changed) {
+          applyHardwareScale(currentScaleLevel);
+          if (glow) {
+            const base = IS_MOBILE ? 36 : 96;
+            glow.blurKernelSize = Math.round(
+              base * (0.9 + 0.2 * (1 - (currentScaleLevel - 0.33) / (1 - 0.33)))
+            );
+          }
+        }
+
+        AutoScale.accMs = 0;
+        AutoScale.frames = 0;
+        AutoScale.lastEval = now;
+      }
     }
-  }
-});
+  });
 
   /* ========= Resize & UI ========= */
   function handleResize(){ applyHardwareScale(); engine.resize(true); }
@@ -3054,122 +2913,117 @@ hint("Logo shown (front + back) + text on all four walls ✔");
     document.addEventListener('webkitfullscreenchange', syncFsButton);
   }
 
-  /* AUTO TOUR icon (NEW) */
+  /* AUTO TOUR icon */
   const autoTourIcon = document.getElementById('autoTourIcon');
   if (autoTourIcon){
     autoTourIcon.addEventListener('dragstart', e=>e.preventDefault());
     autoTourIcon.addEventListener('click', toggleAutoTour);
     autoTourIcon.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleAutoTour(); } });
   }
-  // also stop auto-tour if the user grabs the camera directly
   canvas.addEventListener('pointerdown', ()=>{ if (AutoTour.active) stopAutoTour(); }, { passive:true });
 
-const instaIcon = document.getElementById('instaIcon');
-const shareIcon = document.getElementById('shareIcon');
-const emailIcon = document.getElementById('emailIcon');
+  const instaIcon = document.getElementById('instaIcon');
+  const shareIcon = document.getElementById('shareIcon');
+  const emailIcon = document.getElementById('emailIcon');
 
-/* ========= Desktop dock toggle ========= */
-const iconDock = document.getElementById('mobileIconDock');
+  /* ========= Desktop dock toggle ========= */
+  const iconDock = document.getElementById('mobileIconDock');
 
-const desktopHudIcons = [
-  document.getElementById('instaIcon'),
-  document.getElementById('shareIcon'),
-  document.getElementById('emailIcon'),
-  document.getElementById('autoTourIcon'),
-  document.getElementById('fullscreenIcon'),
-  document.getElementById('resetCamIcon')
-].filter(Boolean);
+  const desktopHudIcons = [
+    document.getElementById('instaIcon'),
+    document.getElementById('shareIcon'),
+    document.getElementById('emailIcon'),
+    document.getElementById('autoTourIcon'),
+    document.getElementById('fullscreenIcon'),
+    document.getElementById('resetCamIcon')
+  ].filter(Boolean);
 
-let desktopDockHidden = false;
+  let desktopDockHidden = false;
 
-function isDesktopDockMode(){
-  return !IS_MOBILE;
-}
+  function isDesktopDockMode(){
+    return !IS_MOBILE;
+  }
 
-function applyDesktopDockVisibility(hidden){
-  desktopDockHidden = !!hidden;
+  function applyDesktopDockVisibility(hidden){
+    desktopDockHidden = !!hidden;
 
-  if (!iconDock) return;
+    if (!iconDock) return;
 
-  iconDock.classList.toggle('is-hidden', hidden);
+    iconDock.classList.toggle('is-hidden', hidden);
 
-  desktopHudIcons.forEach(el => {
-    el.classList.toggle('hudHidden', hidden);
-  });
-}
+    desktopHudIcons.forEach(el => {
+      el.classList.toggle('hudHidden', hidden);
+    });
+  }
 
-if (iconDock && isDesktopDockMode()){
-  iconDock.addEventListener('click', (e) => {
-    // toggle only when clicking the strip itself
-    if (e.target !== iconDock) return;
-    applyDesktopDockVisibility(!desktopDockHidden);
-  });
-}
+  if (iconDock && isDesktopDockMode()){
+    iconDock.addEventListener('click', (e) => {
+      if (e.target !== iconDock) return;
+      applyDesktopDockVisibility(!desktopDockHidden);
+    });
+  }
 
+  function openInsta(){
+    window.open(
+      "https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr",
+      "_blank",
+      "noopener"
+    );
+  }
 
+  async function sharePage(){
+    const shareData = {
+      title: document.title || "Virtual Gallery",
+      text: "Check out the Virtual Gallery",
+      url: window.location.href
+    };
 
- function openInsta(){
-  window.open(
-    "https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr",
-    "_blank",
-    "noopener"
-  );
-}
+    try{
+      if (navigator.share){
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard?.writeText?.(shareData.url);
+        alert("Link copied to clipboard.");
+      }
+    } catch(e){}
+  }
 
-async function sharePage(){
-  const shareData = {
-    title: document.title || "Virtual Gallery",
-    text: "Check out the Virtual Gallery",
-    url: window.location.href
-  };
+  function openEmail(){
+    window.location.href = "mailto:hello@phaserstore.com";
+  }
 
-  try{
-    if (navigator.share){
-      await navigator.share(shareData);
-    } else {
-      await navigator.clipboard?.writeText?.(shareData.url);
-      alert("Link copied to clipboard.");
-    }
-  } catch(e){}
-}
+  if (instaIcon){
+    instaIcon.addEventListener('dragstart', (e)=>e.preventDefault());
+    instaIcon.addEventListener('click', openInsta);
+    instaIcon.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openInsta();
+      }
+    });
+  }
 
-function openEmail(){
-  window.location.href = "mailto:hello@phaserstore.com";
-}
+  if (shareIcon){
+    shareIcon.addEventListener('dragstart', (e)=>e.preventDefault());
+    shareIcon.addEventListener('click', sharePage);
+    shareIcon.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        sharePage();
+      }
+    });
+  }
 
-if (instaIcon){
-  instaIcon.addEventListener('dragstart', (e)=>e.preventDefault());
-  instaIcon.addEventListener('click', openInsta);
-  instaIcon.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      openInsta();
-    }
-  });
-}
-
-if (shareIcon){
-  shareIcon.addEventListener('dragstart', (e)=>e.preventDefault());
-  shareIcon.addEventListener('click', sharePage);
-  shareIcon.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      sharePage();
-    }
-  });
-}
-
-if (emailIcon){
-  emailIcon.addEventListener('dragstart', (e)=>e.preventDefault());
-  emailIcon.addEventListener('click', openEmail);
-  emailIcon.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      openEmail();
-    }
-  });
-}
-</script>
+  if (emailIcon){
+    emailIcon.addEventListener('dragstart', (e)=>e.preventDefault());
+    emailIcon.addEventListener('click', openEmail);
+    emailIcon.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openEmail();
+      }
+    });
+  }
+  </script>
 </body>
 </html>
-
