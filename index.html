@@ -48,50 +48,326 @@
       -webkit-backface-visibility: hidden;
     }
 
-    /* ===== LOADING OVERLAY (NEW) =====
-       Lightweight, layered cleanly above the canvas. Fades out once the first
-       stable render is ready. Uses its own compositing layer so it never forces
-       canvas repaints, and is removed from the DOM after fade to avoid overhead. */
-    #loadingOverlay{
-      position:fixed; inset:0; z-index:20000;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:5px; background:#000; color:var(--txt);
-      opacity:1; transition:opacity .55s ease;
-      will-change:opacity; transform:translateZ(0);
-      -webkit-tap-highlight-color:transparent;
-      padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
-    }
-    #loadingOverlay.is-hidden{ opacity:0; pointer-events:none; }
-    #loadingLogo{
-      width:min(60vw, 360px); height:auto; display:block;
-      filter: drop-shadow(0 0 18px rgba(218,255,62,.20));
-      user-select:none; -webkit-user-drag:none;
-    }
-   #loadingBarWrap{
-  width:min(86vw, 520px);
+    /* ===== FUTURISTIC SCANNER LOADING ===== */
+#loadingOverlay{
+  position:fixed; inset:0; z-index:20000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(218,255,62,.05) 0%, rgba(218,255,62,.02) 18%, transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)),
+    #000;
+  color:var(--txt);
+  opacity:1;
+  transition:opacity .55s ease;
+  will-change:opacity;
+  transform:translateZ(0);
+  -webkit-tap-highlight-color:transparent;
+  padding: calc(20px + var(--safe-top)) 24px calc(20px + var(--safe-bottom));
+  overflow:hidden;
+}
+
+#loadingOverlay::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.028) 0px,
+      rgba(255,255,255,.028) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+  opacity:.18;
+  mix-blend-mode:screen;
+}
+
+#loadingOverlay::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(218,255,62,.035), transparent 55%);
+  animation:loadingOverlayPulse 3.2s ease-in-out infinite;
+}
+
+#loadingOverlay.is-hidden{
+  opacity:0;
+  pointer-events:none;
+}
+
+#loadingLogo{
+  position:relative;
+  z-index:2;
+  width:min(60vw, 360px);
+  height:auto;
+  display:block;
+  filter:
+    drop-shadow(0 0 12px rgba(218,255,62,.18))
+    drop-shadow(0 0 26px rgba(218,255,62,.10));
+  user-select:none;
+  -webkit-user-drag:none;
+  animation:loadingLogoBreath 2.6s ease-in-out infinite;
+}
+
+#loadingBarWrap{
+  position:relative;
+  z-index:2;
+  width:min(86vw, 540px);
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:7px;
-  margin-top:-8px;
+  gap:10px;
+  margin-top:-2px;
+}
 
-    }
-    #loadingBarTrack{
-      width:100%; height:2px; border-radius:2px; background:rgba(255,255,255,.12);
-      overflow:hidden; position:relative;
-    }
-    #loadingBarFill{
-      position:absolute; left:0; top:0; bottom:0; width:0%;
-      background:var(--phaser-green); border-radius:2px;
-      transition:width .25s ease;
-    }
-    #loadingPct{
+#loadingScanLabel{
+  font-family:"Michroma", sans-serif;
+  font-weight:400;
+  font-size:10px;
+  letter-spacing:.30em;
+  text-transform:uppercase;
+  color:rgba(218,255,62,.72);
+  opacity:.95;
+  text-align:center;
+}
+
+#loadingBarTrack{
+  position:relative;
+  width:100%;
+  height:2px;
+  border-radius:4px;
+  overflow:hidden;
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,.05) 0%,
+      rgba(255,255,255,.16) 50%,
+      rgba(255,255,255,.05) 100%);
+  box-shadow:
+    0 0 0 1px rgba(218,255,62,.04) inset,
+    0 0 14px rgba(218,255,62,.04);
+}
+
+#loadingBarTrack::before{
+  content:"";
+  position:absolute;
+  left:0; right:0; top:50%;
+  height:1px;
+  transform:translateY(-50%);
+  background:rgba(218,255,62,.10);
+  filter:blur(.4px);
+  opacity:.75;
+}
+
+#loadingBarFill{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0%;
+  border-radius:4px;
+  background:
+    linear-gradient(90deg,
+      rgba(218,255,62,.18) 0%,
+      rgba(218,255,62,.85) 45%,
+      rgba(244,255,158,.95) 100%);
+  box-shadow:
+    0 0 10px rgba(218,255,62,.36),
+    0 0 22px rgba(218,255,62,.16);
+  transition:width .24s ease;
+  overflow:visible;
+}
+
+#loadingBarFill::after{
+  content:"";
+  position:absolute;
+  right:-16px;
+  top:50%;
+  width:46px;
+  height:14px;
+  transform:translateY(-50%);
+  pointer-events:none;
+  background:
+    linear-gradient(90deg,
+      rgba(218,255,62,0) 0%,
+      rgba(218,255,62,.95) 48%,
+      rgba(244,255,158,0) 100%);
+  filter:blur(4px);
+  opacity:.95;
+}
+
+#loadingScanSweep{
+  position:absolute;
+  inset:-12px 0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:1;
+}
+
+#loadingScanSweep::before{
+  content:"";
+  position:absolute;
+  top:50%;
+  left:-20%;
+  width:20%;
+  height:18px;
+  transform:translateY(-50%);
+  background:
+    linear-gradient(90deg,
+      rgba(218,255,62,0) 0%,
+      rgba(218,255,62,.06) 20%,
+      rgba(218,255,62,.55) 50%,
+      rgba(244,255,158,.18) 70%,
+      rgba(218,255,62,0) 100%);
+  filter:blur(5px);
+  opacity:.65;
+  animation:scannerSweep 1.85s ease-in-out infinite;
+}
+
+#loadingMeta{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+
+#loadingStatus{
+  min-width:0;
+  flex:1;
+  font-family:"Michroma", sans-serif;
+  font-weight:400;
+  font-size:10px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.62);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  animation:statusFlicker 2.8s ease-in-out infinite;
+}
+
+#loadingPctWrap{
+  position:relative;
+  min-width:90px;
+  text-align:right;
+}
+
+#loadingPct{
+  position:relative;
+  display:inline-block;
   font-family:"Michroma", sans-serif;
   font-weight:400;
   font-size:13px;
-  letter-spacing:.06em;
-  color:var(--txt-dim);
+  letter-spacing:.14em;
+  color:#edf8bf;
   font-variant-numeric:tabular-nums;
+  text-shadow:
+    0 0 8px rgba(218,255,62,.14),
+    0 0 16px rgba(218,255,62,.10);
+  animation:pctPulse 2.2s ease-in-out infinite;
+}
+
+#loadingPct::before,
+#loadingPct::after{
+  content:attr(data-text);
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+}
+
+#loadingPct.glitch::before{
+  opacity:.55;
+  color:rgba(218,255,62,.85);
+  transform:translateX(1px);
+}
+
+#loadingPct.glitch::after{
+  opacity:.35;
+  color:rgba(255,255,255,.8);
+  transform:translateX(-1px);
+}
+
+#loadingPct.glitch{
+  animation:
+    pctPulse 2.2s ease-in-out infinite,
+    pctGlitchMain .16s steps(2, end) 1;
+}
+
+#loadingPct.glitch::before{
+  animation:pctGlitchBefore .16s steps(2, end) 1;
+}
+
+#loadingPct.glitch::after{
+  animation:pctGlitchAfter .16s steps(2, end) 1;
+}
+
+@keyframes scannerSweep{
+  0%   { left:-22%; opacity:.15; }
+  14%  { opacity:.60; }
+  50%  { opacity:.95; }
+  86%  { opacity:.55; }
+  100% { left:102%; opacity:.12; }
+}
+
+@keyframes loadingLogoBreath{
+  0%,100%{
+    transform:translateZ(0) scale(1);
+    filter:
+      drop-shadow(0 0 10px rgba(218,255,62,.16))
+      drop-shadow(0 0 22px rgba(218,255,62,.08));
+  }
+  50%{
+    transform:translateZ(0) scale(1.008);
+    filter:
+      drop-shadow(0 0 14px rgba(218,255,62,.24))
+      drop-shadow(0 0 30px rgba(218,255,62,.12));
+  }
+}
+
+@keyframes loadingOverlayPulse{
+  0%,100%{ opacity:.55; }
+  50%{ opacity:1; }
+}
+
+@keyframes pctPulse{
+  0%,100%{ opacity:.88; }
+  50%{ opacity:1; }
+}
+
+@keyframes statusFlicker{
+  0%,100%{ opacity:.78; }
+  48%{ opacity:.92; }
+  49%{ opacity:.58; }
+  50%{ opacity:.92; }
+  51%{ opacity:.72; }
+  52%{ opacity:.92; }
+}
+
+@keyframes pctGlitchMain{
+  0%   { transform:translate(0,0); }
+  25%  { transform:translate(-1px,0); }
+  50%  { transform:translate(1px,0); }
+  75%  { transform:translate(-.5px,0); }
+  100% { transform:translate(0,0); }
+}
+
+@keyframes pctGlitchBefore{
+  0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+  30%  { transform:translate(2px,-1px); clip-path:inset(8% 0 45% 0); }
+  65%  { transform:translate(-1px,1px); clip-path:inset(55% 0 8% 0); }
+  100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+}
+
+@keyframes pctGlitchAfter{
+  0%   { transform:translate(0,0); clip-path:inset(0 0 0 0); }
+  25%  { transform:translate(-2px,0); clip-path:inset(50% 0 14% 0); }
+  60%  { transform:translate(1px,0); clip-path:inset(12% 0 52% 0); }
+  100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
 }
     
 
@@ -250,10 +526,21 @@
       </g>
     </svg>
     <div id="loadingBarWrap">
-      <div id="loadingBarTrack"><div id="loadingBarFill"></div></div>
-      <div id="loadingPct">0%</div>
+  <div id="loadingScanLabel">SYSTEM SCAN</div>
+
+  <div id="loadingBarTrack">
+    <div id="loadingBarFill"></div>
+    <div id="loadingScanSweep" aria-hidden="true"></div>
+  </div>
+
+  <div id="loadingMeta">
+    <div id="loadingStatus">SCANNING ASSETS...</div>
+    <div id="loadingPctWrap">
+      <div id="loadingPct" data-text="0%">0%</div>
     </div>
   </div>
+</div>
+
 
   <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
   <img id="autoTourIcon" class="hudIcon"
@@ -352,44 +639,119 @@
      Drives a deterministic, smooth progress bar that reaches 100% only when the
      gallery's first stable render is ready, then fades the overlay out. */
   const Loader = (() => {
-    const overlay = document.getElementById('loadingOverlay');
-    const fill    = document.getElementById('loadingBarFill');
-    const pctEl   = document.getElementById('loadingPct');
-    let shown = 0;          // currently displayed %
-    let target = 0;         // desired %
-    let raf = 0;
-    let done = false;
+  const overlay     = document.getElementById('loadingOverlay');
+  const fill        = document.getElementById('loadingBarFill');
+  const pctEl       = document.getElementById('loadingPct');
+  const statusEl    = document.getElementById('loadingStatus');
+  const scanLabelEl = document.getElementById('loadingScanLabel');
 
-    function render(){
-      // ease shown toward target
-      shown += (target - shown) * 0.18;
-      if (Math.abs(target - shown) < 0.3) shown = target;
-      const v = Math.max(0, Math.min(100, Math.round(shown)));
-      if (fill)  fill.style.width = v + '%';
-      if (pctEl) pctEl.textContent = v + '%';
-      if (!done || v < 100) raf = requestAnimationFrame(render);
+  let shown = 0;
+  let target = 0;
+  let raf = 0;
+  let done = false;
+  let lastGlitchAt = 0;
+  let lastShownValue = -1;
+
+  const statusSteps = [
+    { upTo: 16, label: 'SCANNING ASSETS...' },
+    { upTo: 34, label: 'LOADING TEXTURES...' },
+    { upTo: 52, label: 'MAPPING WALL PANELS...' },
+    { upTo: 72, label: 'RENDERING SPACE...' },
+    { upTo: 90, label: 'CALIBRATING VIEWPORT...' },
+    { upTo: 99, label: 'FINALIZING SYSTEM...' },
+    { upTo: 100, label: 'GALLERY READY...' }
+  ];
+
+  function getStatus(v){
+    const hit = statusSteps.find(step => v <= step.upTo);
+    return hit ? hit.label : 'INITIALIZING...';
+  }
+
+  function pulseGlitch(now, v){
+    if (!pctEl) return;
+
+    const valueChanged = v !== lastShownValue;
+    if (!valueChanged) return;
+
+    const minDelay = 380 + Math.random() * 520;
+    if (now - lastGlitchAt < minDelay) {
+      lastShownValue = v;
+      return;
     }
-    raf = requestAnimationFrame(render);
 
-    return {
-      set(p){ target = Math.max(target, Math.min(100, p)); },
-      finish(){
-        target = 100;
-        // wait until the bar visually reaches 100 before fading
-        const check = () => {
-          if (shown >= 99.5){
-            done = true;
-            overlay?.classList.add('is-hidden');
-            // remove from DOM after the fade completes (keeps it lightweight)
-            setTimeout(() => { try { overlay?.remove(); } catch(_){} cancelAnimationFrame(raf); }, 650);
-          } else {
-            requestAnimationFrame(check);
-          }
-        };
-        check();
-      }
-    };
-  })();
+    lastShownValue = v;
+    lastGlitchAt = now;
+
+    pctEl.classList.remove('glitch');
+    void pctEl.offsetWidth;
+    pctEl.classList.add('glitch');
+
+    setTimeout(() => {
+      pctEl.classList.remove('glitch');
+    }, 170);
+  }
+
+  function render(){
+    shown += (target - shown) * 0.18;
+    if (Math.abs(target - shown) < 0.3) shown = target;
+
+    const v = Math.max(0, Math.min(100, Math.round(shown)));
+    const txt = v + '%';
+
+    if (fill) {
+      fill.style.width = txt;
+    }
+
+    if (pctEl) {
+      pctEl.textContent = txt;
+      pctEl.dataset.text = txt;
+      pulseGlitch(performance.now(), v);
+    }
+
+    if (statusEl) {
+      statusEl.textContent = getStatus(v);
+    }
+
+    if (scanLabelEl) {
+      scanLabelEl.textContent = v >= 100 ? 'SYSTEM READY' : 'SYSTEM SCAN';
+    }
+
+    if (!done || v < 100) {
+      raf = requestAnimationFrame(render);
+    }
+  }
+
+  raf = requestAnimationFrame(render);
+
+  return {
+    set(p){
+      target = Math.max(target, Math.min(100, p));
+    },
+    finish(){
+      target = 100;
+
+      const check = () => {
+        if (shown >= 99.5){
+          done = true;
+
+          if (statusEl) statusEl.textContent = 'GALLERY READY...';
+          if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
+
+          overlay?.classList.add('is-hidden');
+
+          setTimeout(() => {
+            try { overlay?.remove(); } catch(_){}
+            cancelAnimationFrame(raf);
+          }, 650);
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+
+      check();
+    }
+  };
+})();
 
   const canvas = document.getElementById("renderCanvas");
 
