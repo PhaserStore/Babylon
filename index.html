@@ -238,7 +238,7 @@
       font-weight:400;
       font-size:10px;
       letter-spacing:.18em;
-      text-transform:uppercase;
+      text-transform:none;
       color:rgba(255,255,255,.62);
       white-space:nowrap;
       overflow:hidden;
@@ -257,7 +257,7 @@
       display:inline-block;
       font-family:"Michroma", sans-serif;
       font-weight:400;
-      font-size:13px;
+      font-size:10px;
       letter-spacing:.14em;
       color:#edf8bf;
       font-variant-numeric:tabular-nums;
@@ -545,7 +545,7 @@
       </div>
 
       <div id="loadingMeta">
-        <div id="loadingStatus">SCANNING ASSETS...</div>
+        <div id="loadingStatus">Scanning assets...</div>
         <div id="loadingPctWrap">
           <div id="loadingPct" data-text="0%">0%</div>
         </div>
@@ -673,18 +673,83 @@
     let finished = false; // guards against double finish()
 
     const statusSteps = [
-      { upTo: 16, label: 'SCANNING ASSETS...' },
-      { upTo: 34, label: 'LOADING TEXTURES...' },
-      { upTo: 52, label: 'MAPPING WALL PANELS...' },
-      { upTo: 72, label: 'RENDERING SPACE...' },
-      { upTo: 90, label: 'CALIBRATING VIEWPORT...' },
-      { upTo: 99, label: 'FINALIZING SYSTEM...' },
-      { upTo: 100, label: 'GALLERY READY...' }
+      { upTo: 16, label: 'Scanning assets...' },
+      { upTo: 34, label: 'Loading textures...' },
+      { upTo: 52, label: 'Mapping wall panels...' },
+      { upTo: 72, label: 'Rendering space...' },
+      { upTo: 90, label: 'Calibrating viewport...' },
+      { upTo: 99, label: 'Finalizing system...' },
+      { upTo: 100, label: 'Gallery ready...' }
     ];
 
     function getStatus(v){
       const hit = statusSteps.find(step => v <= step.upTo);
-      return hit ? hit.label : 'INITIALIZING...';
+      return hit ? hit.label : 'Initializing...';
+    }
+
+    /* ===== Status scramble =====
+       Each time the canonical phrase changes, characters resolve left-to-right
+       while unresolved positions flicker through a small glyph set. Spaces and
+       dots stay stable so punctuation/ellipsis reads cleanly. Lightweight + safe:
+       a single self-clearing setInterval per phrase, text-only writes; never
+       touches the RAF progress loop or Babylon. */
+    const SCRAMBLE_CHARS = '@#%&*!?+-_/\\=<>ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let scrambleTimer = 0;
+    let lastPhrase = null;
+
+    function randGlyph(){
+      return SCRAMBLE_CHARS[(Math.random() * SCRAMBLE_CHARS.length) | 0];
+    }
+
+    function stopScramble(){
+      if (scrambleTimer){ clearInterval(scrambleTimer); scrambleTimer = 0; }
+    }
+
+    function isStableChar(ch){
+      // keep spaces and dots stable so the silhouette/ellipsis reads cleanly
+      return ch === ' ' || ch === '.';
+    }
+
+    function scrambleTo(phrase){
+      stopScramble();
+      if (!statusEl) return;
+
+      const chars = phrase.split('');
+      const total = chars.length;
+      const TICK_MS = 26;          // fast, subtle
+      const STEP_PER_TICK = 0.62;  // chars locked per tick
+      let resolved = 0;
+      let ticks = 0;
+      const maxTicks = Math.ceil(total / STEP_PER_TICK) + 4;
+
+      scrambleTimer = setInterval(() => {
+        ticks++;
+        resolved = Math.min(total, resolved + STEP_PER_TICK);
+        const cut = Math.floor(resolved);
+
+        let out = '';
+        for (let i = 0; i < total; i++){
+          const real = chars[i];
+          if (i < cut || isStableChar(real)) {
+            out += real;
+          } else {
+            out += randGlyph();
+          }
+        }
+        statusEl.textContent = out;
+
+        if (cut >= total || ticks >= maxTicks){
+          statusEl.textContent = phrase; // ensure clean final phrase
+          stopScramble();
+        }
+      }, TICK_MS);
+    }
+
+    function setStatusPhrase(phrase){
+      if (!statusEl) return;
+      if (phrase === lastPhrase) return; // only re-scramble on an actual change
+      lastPhrase = phrase;
+      scrambleTo(phrase);
     }
 
     function pulseGlitch(now, v){
@@ -729,7 +794,8 @@
       }
 
       if (statusEl) {
-        statusEl.textContent = getStatus(v);
+        // Drive the scramble from the canonical phrase; only changes trigger it.
+        setStatusPhrase(getStatus(v));
       }
 
       if (scanLabelEl) {
@@ -773,6 +839,9 @@
           if (shown >= 99.5){
             done = true;
 
+            // Stop any in-flight scramble and write the final phrases directly.
+            stopScramble();
+            lastPhrase = 'Gallery ready...';
             if (statusEl) statusEl.textContent = 'Gallery ready...';
             if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
 
