@@ -757,8 +757,8 @@ document.body.classList.add("is-loading");
           overlay?.classList.add('is-hidden');
 
          setTimeout(() => {
-  try { overlay?.remove(); } catch(_){}
   document.body.classList.remove("is-loading");
+  try { overlay?.remove(); } catch(_){}
   cancelAnimationFrame(raf);
 }, 650);
 
