@@ -744,31 +744,30 @@ document.body.classList.add("is-loading");
     set(p){
       target = Math.max(target, Math.min(100, p));
     },
-    finish(){
-      target = 100;
+   finish(){
+  target = 100;
 
-      const check = () => {
-        if (shown >= 99.5){
-          done = true;
+  const check = () => {
+    if (shown >= 99.5){
+      done = true;
 
-          if (statusEl) statusEl.textContent = 'GALLERY READY...';
-          if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
+      if (statusEl) statusEl.textContent = 'Gallery ready...';
+      if (scanLabelEl) scanLabelEl.textContent = 'SYSTEM READY';
 
-          overlay?.classList.add('is-hidden');
+      overlay?.classList.add('is-hidden');
 
-         setTimeout(() => {
-  document.body.classList.remove("is-loading");
-  try { overlay?.remove(); } catch(_){}
-  cancelAnimationFrame(raf);
-}, 650);
-
-        } else {
-          requestAnimationFrame(check);
-        }
-      };
-
-      check();
+      setTimeout(() => {
+        document.body.classList.remove("is-loading");
+        try { overlay?.remove(); } catch(_){}
+        cancelAnimationFrame(raf);
+      }, 650);
+    } else {
+      requestAnimationFrame(check);
     }
+  };
+
+  check();
+}
   };
 })();
 
