@@ -546,13 +546,33 @@ body.is-loading #scIframeHost{
     <div id="loadingScanSweep" aria-hidden="true"></div>
   </div>
 
-  <div id="loadingMeta">
-    <div id="loadingStatus">SCANNING ASSETS...</div>
-    <div id="loadingPctWrap">
-      <div id="loadingPct" data-text="0%">0%</div>
+  <div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
+  <!-- Phaser logo -->
+  <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    ...
+  </svg>
+
+  <div id="loadingBarWrap">
+    <div id="loadingScanLabel">SYSTEM SCAN</div>
+
+    <div id="loadingBarTrack">
+      <div id="loadingBarFill"></div>
+      <div id="loadingScanSweep" aria-hidden="true"></div>
+    </div>
+
+    <div id="loadingMeta">
+      <div id="loadingStatus">SCANNING ASSETS...</div>
+      <div id="loadingPctWrap">
+        <div id="loadingPct" data-text="0%">0%</div>
+      </div>
     </div>
   </div>
-</div>
+</div> <!-- ← TADY MUSÍ KONČIT loadingOverlay -->
+
+
+<!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
+<img id="autoTourIcon" class="hudIcon"
+
 
 
   <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
