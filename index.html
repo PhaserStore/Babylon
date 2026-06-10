@@ -369,7 +369,20 @@
   60%  { transform:translate(1px,0); clip-path:inset(12% 0 52% 0); }
   100% { transform:translate(0,0); clip-path:inset(0 0 0 0); }
 }
-    
+  /* Hide gallery HUD / dock / audio bar until loading is fully finished */
+body.is-loading .hudIcon,
+body.is-loading .hudIconLeft,
+body.is-loading #mobileIconDock,
+body.is-loading #scBar{
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+
+body.is-loading #scIframeHost{
+  display:none !important;
+}
+  
 
     #scBar{
       position:fixed; left:0; right:0; bottom:0;
@@ -601,7 +614,11 @@
   <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
   <script>
-  "use strict";
+  <script>
+"use strict";
+
+document.body.classList.add("is-loading");
+
 
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
@@ -739,10 +756,12 @@
 
           overlay?.classList.add('is-hidden');
 
-          setTimeout(() => {
-            try { overlay?.remove(); } catch(_){}
-            cancelAnimationFrame(raf);
-          }, 650);
+         setTimeout(() => {
+  try { overlay?.remove(); } catch(_){}
+  document.body.classList.remove("is-loading");
+  cancelAnimationFrame(raf);
+}, 650);
+
         } else {
           requestAnimationFrame(check);
         }
