@@ -765,9 +765,7 @@ document.body.classList.add("is-loading");
       target = Math.max(target, Math.min(100, p));
     },
    finish(){
-  target = 100;
-
-  const check = () => {
+  target const check = () => {  target = 100;
     if (shown >= 99.5){
       done = true;
 
@@ -778,6 +776,11 @@ document.body.classList.add("is-loading");
 
       setTimeout(() => {
         document.body.classList.remove("is-loading");
+
+        document.querySelectorAll('.hudIcon, .hudIconLeft').forEach(el => {
+          el.classList.remove('hudHidden');
+        });
+
         try { overlay?.remove(); } catch(_){}
         cancelAnimationFrame(raf);
       }, 650);
@@ -788,6 +791,9 @@ document.body.classList.add("is-loading");
 
   check();
 }
+
+
+
   };
 })();
 
