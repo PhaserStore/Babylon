@@ -515,10 +515,11 @@ body.is-loading #scIframeHost{
   <canvas id="renderCanvas"></canvas>
 
   <!-- Mobile-only dark translucent strip behind the icon row (improves icon
-       visibility over the patterned floor). Hidden on desktop. -->
-  <div id="mobileIconDock" aria-hidden="true"></div>
+     visibility over the patterned floor). Hidden on desktop. -->
+<div id="mobileIconDock" aria-hidden="true"></div>
 
-<!-- ===== LOADING OVERLAY (NEW) ===== --><!-- ===== LOADING OVERLAY (NEW)Overlay" role="status" aria-live="polite" aria-label="Loading gallery">
+<!-- ===== LOADING OVERLAY (NEW) ===== -->
+<div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
   <!-- Phaser logo (inline SVG, same artwork as the in-scene logo) -->
   <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
     <g fill="#daff3e">
@@ -555,78 +556,69 @@ body.is-loading #scIframeHost{
   </div>
 </div>
 
-
-
-
 <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
 <img id="autoTourIcon" class="hudIcon"
+  src="./assets/Auto tour2.svg"
+  alt="Auto tour" title="Auto tour"
+  role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
 
+<img id="fullscreenIcon" class="hudIcon"
+  src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
+  alt="Full screen" title="Full screen"
+  role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
 
+<img id="resetCamIcon" class="hudIcon"
+  src="./assets/focus.svg" alt="Reset camera" title="Reset camera (R)"
+  role="button" tabindex="0" aria-label="Reset camera" />
 
-  <!-- RIGHT HUD: auto-tour (NEW), fullscreen, reset -->
-  <img id="autoTourIcon" class="hudIcon"
-    src="./assets/Auto tour2.svg"
-    alt="Auto tour" title="Auto tour"
-    role="button" tabindex="0" aria-label="Auto tour" aria-pressed="false" />
-  <img id="fullscreenIcon" class="hudIcon"
-    src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-    alt="Full screen" title="Full screen"
-    role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
-  <img id="resetCamIcon" class="hudIcon"
-    src="./assets/focus.svg" alt="Reset camera" title="Reset camera (R)"
-    role="button" tabindex="0" aria-label="Reset camera" />
+<!-- LEFT HUD: instagram, share, email -->
+<img id="instaIcon" class="hudIconLeft"
+  src="./assets/Insta.svg" alt="Instagram" title="Open Instagram @__phaser__"
+  role="button" tabindex="0" aria-label="Open Instagram" />
 
-  <!-- LEFT HUD: instagram, share, email (NEW) -->
-  <img id="instaIcon" class="hudIconLeft"
-    src="./assets/Insta.svg" alt="Instagram" title="Open Instagram @__phaser__"
-    role="button" tabindex="0" aria-label="Open Instagram" />
-  <img id="shareIcon" class="hudIconLeft"
-    src="./assets/Share.svg" alt="Share" title="Share"
-    role="button" tabindex="0" aria-label="Share this page" />
-  <img id="emailIcon" class="hudIconLeft"
-    src="./assets/Email.svg" alt="Email" title="Email"
-    role="button" tabindex="0" aria-label="Email" />
+<img id="shareIcon" class="hudIconLeft"
+  src="./assets/Share.svg" alt="Share" title="Share"
+  role="button" tabindex="0" aria-label="Share this page" />
 
-  <div id="scBar" aria-label="SoundCloud Bar">
-    <div class="sc-left">
-      <button id="barPrev" title="Previous" aria-label="Previous">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
-      </button>
-      <button id="barPlay" title="Play" aria-label="Play">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button id="barPause" title="Pause" aria-label="Pause">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-      </button>
-      <button id="barNext" title="Next" aria-label="Next">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
-      </button>
-    </div>
-    <div class="sc-center">
-      <span id="scTimeCur" class="time">0:00</span>
-      <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div id="scSeekFill"></div>
-      </div>
-      <span id="scTimeDur" class="time">0:00</span>
-    </div>
-    <div class="sc-right">
-      <button id="barMute" title="Mute" aria-label="Mute">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
-      </button>
-      <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-      <img id="scThumb" src="" alt="cover" />
-      <span id="scTitle">–</span>
-    </div>
+<img id="emailIcon" class="hudIconLeft"
+  src="./assets/Email.svg" alt="Email" title="Email"
+  role="button" tabindex="0" aria-label="Email" />
+
+<div id="scBar" aria-label="SoundCloud Bar">
+  <div class="sc-left">
+    <button id="barPrev" title="Previous" aria-label="Previous">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
+    </button>
+    <button id="barPlay" title="Play" aria-label="Play">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button id="barPause" title="Pause" aria-label="Pause">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <button id="barNext" title="Next" aria-label="Next">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
+    </button>
   </div>
 
-  <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
+  <div class="sc-center">
+    <span id="scTimeCur" class="time">0:00</span>
+    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <div id="scSeekFill"></div>
+    </div>
+    <span id="scTimeDur" class="time">0:00</span>
+  </div>
 
-  <script>
- 
-"use strict";
+  <div class="sc-right">
+    <button id="barMute" title="Mute" aria-label="Mute">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
+    </button>
+    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+    <img id="scThumb" src="" alt="cover" />
+    <span id="scTitle">–</span>
+  </div>
+</div>
 
-document.body.classList.add("is-loading");
-
+<div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
