@@ -520,7 +520,6 @@ body.is-loading #scIframeHost{
 
 <!-- ===== LOADING OVERLAY (NEW) ===== -->
 <div id="loadingOverlay" role="status" aria-live="polite" aria-label="Loading gallery">
-  <!-- Phaser logo (inline SVG, same artwork as the in-scene logo) -->
   <svg id="loadingLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 941.43 272.86" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
     <g fill="#daff3e">
       <path d="M317.06,103.94h-76.71c-2.05,0-3.72-1.66-3.72-3.72s1.66-3.72,3.72-3.72h76.71c2.05,0,3.72,1.66,3.72,3.72s-1.66,3.72-3.72,3.72Z"/>
@@ -568,20 +567,24 @@ body.is-loading #scIframeHost{
   role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
 
 <img id="resetCamIcon" class="hudIcon"
-  src="./assets/focus.svg" alt="Reset camera" title="Reset camera (R)"
+  src="./assets/focus.svg"
+  alt="Reset camera" title="Reset camera (R)"
   role="button" tabindex="0" aria-label="Reset camera" />
 
 <!-- LEFT HUD: instagram, share, email -->
 <img id="instaIcon" class="hudIconLeft"
-  src="./assets/Insta.svg" alt="Instagram" title="Open Instagram @__phaser__"
+  src="./assets/Insta.svg"
+  alt="Instagram" title="Open Instagram @__phaser__"
   role="button" tabindex="0" aria-label="Open Instagram" />
 
 <img id="shareIcon" class="hudIconLeft"
-  src="./assets/Share.svg" alt="Share" title="Share"
+  src="./assets/Share.svg"
+  alt="Share" title="Share"
   role="button" tabindex="0" aria-label="Share this page" />
 
 <img id="emailIcon" class="hudIconLeft"
-  src="./assets/Email.svg" alt="Email" title="Email"
+  src="./assets/Email.svg"
+  alt="Email" title="Email"
   role="button" tabindex="0" aria-label="Email" />
 
 <div id="scBar" aria-label="SoundCloud Bar">
@@ -619,7 +622,6 @@ body.is-loading #scIframeHost{
 </div>
 
 <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
-
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
