@@ -687,58 +687,78 @@
       return hit ? hit.label : 'Initializing...';
     }
 
-    /* ===== Status scramble =====
-       Each time the canonical phrase changes, characters resolve left-to-right
-       while unresolved positions flicker through a small glyph set. Spaces and
-       dots stay stable so punctuation/ellipsis reads cleanly. Lightweight + safe:
-       a single self-clearing setInterval per phrase, text-only writes; never
-       touches the RAF progress loop or Babylon. */
-    const SCRAMBLE_CHARS = '@#%&*!?+-_/\\=<>ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    /* ===== Status leetspeak two-step =====
+       Each time the canonical phrase changes, the label first appears in a
+       broken-but-readable leetspeak version (e.g. "$c4nn1n6 455375..."), then
+       quickly resolves letter-by-letter back into the clean phrase. Readable,
+       not random gibberish. Lightweight + safe: one self-clearing setInterval
+       per phrase, text-only writes; never touches the RAF progress loop or
+       Babylon. Spaces and punctuation are always preserved. */
+    const LEET_MAP = {
+      a:'4', A:'4',
+      b:'8', B:'8',
+      e:'3', E:'3',
+      g:'6', G:'6',
+      i:'1', I:'1',
+      o:'0', O:'0',
+      s:'5', S:'$',
+      t:'7', T:'7'
+    };
+
+    // Only letters that have a substitution can be "broken"; everything else
+    // (other letters, spaces, dots) stays as-is so the phrase reads cleanly.
+    function leetChar(ch){
+      return Object.prototype.hasOwnProperty.call(LEET_MAP, ch) ? LEET_MAP[ch] : ch;
+    }
+
     let scrambleTimer = 0;
     let lastPhrase = null;
-
-    function randGlyph(){
-      return SCRAMBLE_CHARS[(Math.random() * SCRAMBLE_CHARS.length) | 0];
-    }
 
     function stopScramble(){
       if (scrambleTimer){ clearInterval(scrambleTimer); scrambleTimer = 0; }
     }
 
-    function isStableChar(ch){
-      // keep spaces and dots stable so the silhouette/ellipsis reads cleanly
-      return ch === ' ' || ch === '.';
-    }
-
+    /* Build the fully-leeted version once, then reveal real characters
+       left-to-right. Total broken phase is kept to ~120-250ms by tuning
+       TICK_MS and the per-tick reveal step against the phrase length. */
     function scrambleTo(phrase){
       stopScramble();
       if (!statusEl) return;
 
-      const chars = phrase.split('');
-      const total = chars.length;
-      const TICK_MS = 26;          // fast, subtle
-      const STEP_PER_TICK = 0.62;  // chars locked per tick
-      let resolved = 0;
+      const chars   = phrase.split('');
+      const total   = chars.length;
+      const leeted  = chars.map(leetChar);
+
+      // Target the broken phase into the requested 120-250ms window.
+      const TICK_MS = 30;
+      const BROKEN_HOLD_TICKS = 1;            // ~30ms fully-broken hold up front
+      const RESOLVE_TICKS = Math.max(3, Math.min(7, Math.ceil(total / 3)));
+      const stepPerTick = total / RESOLVE_TICKS;  // chars locked per resolve tick
+
+      // Show the fully-broken readable version immediately (step 1).
+      statusEl.textContent = leeted.join('');
+
       let ticks = 0;
-      const maxTicks = Math.ceil(total / STEP_PER_TICK) + 4;
+      let resolved = 0;
 
       scrambleTimer = setInterval(() => {
         ticks++;
-        resolved = Math.min(total, resolved + STEP_PER_TICK);
+
+        // Hold the broken version briefly before resolving.
+        if (ticks <= BROKEN_HOLD_TICKS){
+          return;
+        }
+
+        resolved = Math.min(total, resolved + stepPerTick);
         const cut = Math.floor(resolved);
 
         let out = '';
         for (let i = 0; i < total; i++){
-          const real = chars[i];
-          if (i < cut || isStableChar(real)) {
-            out += real;
-          } else {
-            out += randGlyph();
-          }
+          out += (i < cut) ? chars[i] : leeted[i];
         }
         statusEl.textContent = out;
 
-        if (cut >= total || ticks >= maxTicks){
+        if (cut >= total){
           statusEl.textContent = phrase; // ensure clean final phrase
           stopScramble();
         }
@@ -747,7 +767,7 @@
 
     function setStatusPhrase(phrase){
       if (!statusEl) return;
-      if (phrase === lastPhrase) return; // only re-scramble on an actual change
+      if (phrase === lastPhrase) return; // only re-run on an actual change
       lastPhrase = phrase;
       scrambleTo(phrase);
     }
