@@ -440,7 +440,7 @@
 
     /* Desktop icon strip: subtle plain black 75%, no blur, sits just
        above the SoundCloud bar behind the HUD icon row. Not tall/intrusive. */
-    #mobileIconDock{
+   #mobileIconDock{
   display:block; /* mobile only */
   position:fixed;
   left:0;
@@ -468,15 +468,18 @@
       /* Dark strip behind the icon row — plain black 75%, NO blur. */
       #mobileIconDock{
   display:none; /* desktop: hidden */
-  position:fixed; left:0; right:0;
+  position:fixed;
+  left:0;
+  right:0;
   bottom:0;
   height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
   background: rgba(0,0,0,.75);
-  z-index: 9990;
+  z-index:9990;
   pointer-events:none;
-  will-change: transform;
-  transform: translateZ(0);
+  will-change:transform;
+  transform:translateZ(0);
 }
+
 
       /* All mobile icons share one row, centered vertically in the dock,
          sized a touch smaller, equal spacing via percentage anchors. */
