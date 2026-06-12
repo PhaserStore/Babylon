@@ -465,14 +465,16 @@
 
       /* Dark strip behind the icon row — plain black 75%, NO blur. */
       #mobileIconDock{
-        display:block;
-        position:fixed; left:0; right:0;
-        bottom:0;
-        height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
-        background: rgba(0,0,0,.75);
-        z-index: 9990; pointer-events:none;
-        will-change: transform; transform: translateZ(0);
-      }
+  display:none; /* desktop: hidden */
+  position:fixed; left:0; right:0;
+  bottom:0;
+  height: calc(var(--icon-size) + var(--dock-pad)*2 + var(--safe-bottom));
+  background: rgba(0,0,0,.75);
+  z-index: 9990;
+  pointer-events:none;
+  will-change: transform;
+  transform: translateZ(0);
+}
 
       /* All mobile icons share one row, centered vertically in the dock,
          sized a touch smaller, equal spacing via percentage anchors. */
