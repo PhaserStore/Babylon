@@ -1440,9 +1440,9 @@
     floorOverlay.position.z = floor.position.z;
 
     const floorTex = new BABYLON.Texture(
-      "./assets/floor_1024.webp", scene, false, false,
+      "./assets/floor_1024_75.webp", scene, false, false,
       BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-      () => console.log("[floor] floor_1024.webp loaded"),
+      () => console.log("[floor] floor_1024_75.webp loaded"),
       (msg, ex) => console.error("[floor] failed", msg, ex)
     );
     floorTex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
