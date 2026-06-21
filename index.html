@@ -1972,16 +1972,17 @@ function getWallTextsForDevice(wallKey){
     const isSide = (wallKey === 'left' || wallKey === 'right');
 
     if (isSide){
-      drawStaticSideText(dt, {
-        text: SIDE_WALL_TEXT,
-        texW,
-        texH,
-        color: TW_COLOR_HEX,
-        fontPx: TW_FONT_PX,
-        hFlip
-      });
-      return { rafId: 0, controller: null };
-    }
+  drawStaticSideText(dt, {
+    text: SIDE_WALL_TEXT,
+    texW,
+    texH,
+    color: IS_MOBILE ? "#cfcfcf" : TW_COLOR_HEX,
+    fontPx: TW_FONT_PX,
+    hFlip
+  });
+  return { rafId: 0, controller: null };
+}
+
 
 if (IS_MOBILE){
   try { __cyclers[wallKey]?.stop?.(); } catch(_){}
