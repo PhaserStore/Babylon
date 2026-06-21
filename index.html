@@ -1946,7 +1946,7 @@ const TW_STRINGS = {
 function getWallTextsForDevice(wallKey){
   // Na mobilu chceme, aby front i back wall zobrazovaly stejny text jako back wall
   if (IS_MOBILE && (wallKey === "front" || wallKey === "back")) {
-    return TW_STRINGS.back;
+    return TW_STRINGS.front;
   }
   return TW_STRINGS[wallKey];
 }
