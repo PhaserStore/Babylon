@@ -2368,7 +2368,7 @@ if (IS_MOBILE){
 
   /* ========= Camera reset ========= */
   const WALL_CENTER_Y = (ROOM.H - 0.04 - 0.005) / 2;
-  const RESET_TARGET_Y = WALL_CENTER_Y - 1.75;
+  const RESET_TARGET_Y = WALL_CENTER_Y - 1.05;
   const FRONT_ALPHA = -Math.PI / 2;
 
   const MOBILE_TARGET_Y = WALL_CENTER_Y + 2.45;
@@ -2452,10 +2452,18 @@ if (IS_MOBILE){
     scene.clearColor = new BABYLON.Color4(0,0,0,1);
 
     camera = new BABYLON.ArcRotateCamera("cam", RESET_POSE.alpha, RESET_POSE.beta, RESET_POSE.radius, RESET_POSE.target.clone(), scene);
-    camera.attachControl(canvas, true);
-    camera.minZ = 0.05; camera.maxZ = 5000;
-    camera.lowerRadiusLimit = MIN_RADIUS; camera.upperRadiusLimit = 40;
-    camera.lowerBetaLimit = 0.05; camera.upperBetaLimit = Math.PI - 0.05;
+camera.attachControl(canvas, true);
+camera.minZ = 0.05; 
+camera.maxZ = 5000;
+camera.lowerRadiusLimit = MIN_RADIUS; 
+camera.upperRadiusLimit = 40;
+camera.lowerBetaLimit = 0.05; 
+camera.upperBetaLimit = Math.PI - 0.05;
+
+/* Desktop only: slightly narrower lens to reduce perspective distortion */
+if (!IS_MOBILE) {
+  camera.fov = 0.62;
+}
 
     new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene);
 
