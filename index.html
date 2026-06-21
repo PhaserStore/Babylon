@@ -908,24 +908,35 @@
   const MAX_ANISO = sceneCaps.maxAnisotropy || 4;
 
   /* ===== Wall text content ===== */
-  const TW_STRINGS = {
-    front: [
-      "WELCOME_TO_THE_VIRTUAL_SHOWROOM",
-      "EXPLORE_THE_COLLECTIONS",
-      "FOLLOW_US_ON_INSTAGRAM"
-    ],
-    back: [
-      "THANK_YOU_FOR_VISITING",
-      "NEW_DROPS_THIS_MONTH",
-      "LIMITED_EDITION_OUT_NOW"
-    ],
-    left: [
-      "Future ready. Powered by the beat."
-    ],
-    right: [
-      "Future ready. Powered by the beat."
-    ]
-  };
+const TW_STRINGS = {
+  front: [
+    "Explore with ease.",
+    "Select any product label for details.",
+    "Activate autopilot with A.",
+    "Switch to fullscreen with F.",
+    "Reset your view with R.",
+    "Open Instagram with I.",
+    "Share your experience with S.",
+    "Send via email with E.",
+    "Hide or reveal the interface with H.",
+    "Smooth navigation. Seamless experience."
+  ],
+  back: [
+    "Welcome to the showroom.",
+    "Explore the latest limited drops.",
+    "Future-ready.",
+    "Select any product label for details.",
+    "Global shipping available.",
+    "Designed to move.",
+    "Discover what is next."
+  ],
+  left: [
+    "Future ready. Powered by the beat."
+  ],
+  right: [
+    "Future ready. Powered by the beat."
+  ]
+};
 
   /* Fixed side-wall sentence (Poppins SemiBold, static, both platforms). */
   const SIDE_WALL_TEXT = "Future ready. Powered by the beat.";
@@ -1928,9 +1939,17 @@
   let __logoRight = null;
 
   function hint(msg){ console.log(msg); }
-
+    
+function getWallTextsForDevice(wallKey){
+  // Na mobilu chceme, aby front i back wall zobrazovaly stejny text jako back wall
+  if (IS_MOBILE && (wallKey === "front" || wallKey === "back")) {
+    return TW_STRINGS.back;
+  }
+  return TW_STRINGS[wallKey];
+}
+    
   function startWallText(wallKey, dt, texW, texH){
-    const texts = TW_STRINGS[wallKey];
+    const texts = getWallTextsForDevice(wallKey);
     const hFlip = (wallKey === 'left' || wallKey === 'right');
     const isSide = (wallKey === 'left' || wallKey === 'right');
 
