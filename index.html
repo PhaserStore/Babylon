@@ -970,6 +970,14 @@ const TW_STRINGS = {
   const TW_CURSOR_ALPHA_MAX  = 1.00;
   const TW_CURSOR_COLOR      = TW_COLOR_HEX;
 
+    /* ===== Mobile text tuning =====
+   menší číslo u H_COMPRESS = víc smrsknuté horizontálně
+   větší číslo u SIDE_HSCALE = víc roztažené horizontálně */
+const MOBILE_FB_HCOMPRESS = 0.74;   // Doto na front/back stěně – lehce víc smrsknout
+const MOBILE_SIDE_HSCALE  = 0.92;   // side text – lehce víc roztáhnout
+const MOBILE_SIDE_VSCALE  = 1.00;   // výšku necháme přirozenou
+
+
   let __twFrontPlane = null, __twBackPlane = null;
   let __twFrontDT = null, __twBackDT = null;
   let __twFrontRAF = 0, __twBackRAF = 0;
@@ -1310,8 +1318,8 @@ const TW_STRINGS = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    const SIDE_HSCALE = IS_MOBILE ? 0.72 : 1.15;
-    const SIDE_VSCALE = IS_MOBILE ? 1.0 : 0.6;
+    const SIDE_HSCALE = IS_MOBILE ? MOBILE_SIDE_HSCALE : 1.15;
+const SIDE_VSCALE = IS_MOBILE ? MOBILE_SIDE_VSCALE : 0.6;
 
     const maxW = (texW * 0.90) / SIDE_HSCALE;
 
@@ -1975,15 +1983,14 @@ function getWallTextsForDevice(wallKey){
       return { rafId: 0, controller: null };
     }
 
- if (IS_MOBILE){
+if (IS_MOBILE){
   try { __cyclers[wallKey]?.stop?.(); } catch(_){}
 
-  const H_COMPRESS = 0.8;
+  const H_COMPRESS = MOBILE_FB_HCOMPRESS;
   const measCtx = dt.getContext();
 
-  // On mobile, both front and back walls use the FRONT wall text
-  const mobileFB = TW_STRINGS.front;
-  const fixedPx = fixedFontPxForSet(measCtx, mobileFB, texW, TW_FONT_PX, H_COMPRESS);
+  // font size dopočítej podle skutečných textů pro danou stěnu
+  const fixedPx = fixedFontPxForSet(measCtx, texts, texW, TW_FONT_PX, H_COMPRESS);
 
   const ctrl = runSentenceCyclerToDT(dt, {
     texts,
