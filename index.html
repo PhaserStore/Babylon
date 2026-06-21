@@ -1968,30 +1968,33 @@ function getWallTextsForDevice(wallKey){
       return { rafId: 0, controller: null };
     }
 
-    if (IS_MOBILE){
-      try { __cyclers[wallKey]?.stop?.(); } catch(_){}
+ if (IS_MOBILE){
+  try { __cyclers[wallKey]?.stop?.(); } catch(_){}
 
-      const H_COMPRESS = 0.8;
-      const measCtx = dt.getContext();
-      const combinedFB = [].concat(TW_STRINGS.front || [], TW_STRINGS.back || []);
-      const fixedPx = fixedFontPxForSet(measCtx, combinedFB, texW, TW_FONT_PX, H_COMPRESS);
+  const H_COMPRESS = 0.8;
+  const measCtx = dt.getContext();
 
-      const ctrl = runSentenceCyclerToDT(dt, {
-        texts,
-        texW,
-        texH,
-        color: TW_COLOR_HEX,
-        fontPx: TW_FONT_PX,
-        holdMs: 2600,
-        fadeMs: 320,
-        hFlip: false,
-        fixedPx,
-        hCompress: H_COMPRESS
-      });
+  // On mobile, both front and back walls use the FRONT wall text
+  const mobileFB = TW_STRINGS.front;
+  const fixedPx = fixedFontPxForSet(measCtx, mobileFB, texW, TW_FONT_PX, H_COMPRESS);
 
-      __cyclers[wallKey] = ctrl;
-      return { rafId: 0, controller: ctrl };
-    }
+  const ctrl = runSentenceCyclerToDT(dt, {
+    texts,
+    texW,
+    texH,
+    color: TW_COLOR_HEX,
+    fontPx: TW_FONT_PX,
+    holdMs: 2600,
+    fadeMs: 320,
+    hFlip: false,
+    fixedPx,
+    hCompress: H_COMPRESS
+  });
+
+  __cyclers[wallKey] = ctrl;
+  return { rafId: 0, controller: ctrl };
+}
+
 
     const rafId = runTypewriterToDT(dt, {
       texts,
