@@ -380,32 +380,208 @@
       display:none !important;
     }
 
-    #scBar{
-      position:fixed; left:0; right:0; bottom:0;
-      height:var(--bar-h); background:#1a1a1a;
-      border-top:1px solid rgba(255,255,255,.15);
-      display:flex; align-items:center; padding:0 14px; gap:20px;
-      z-index:50; font-size:13px; color:#eee;
-      -webkit-tap-highlight-color: transparent;
-      /* FIX 2: promote bar to its own layer so it never triggers canvas repaints */
-      will-change: transform;
-      transform: translateZ(0);
-    }
-    #scBar button{
-      width:34px; height:34px; border-radius:8px; border:1px solid var(--btn-brd);
-      background:var(--btn-bg); color:#fff; cursor:pointer; display:inline-grid; place-items:center; outline:none;
-    }
-    #scBar button:hover{ background:var(--btn-bg-hover); }
-    #scBar button:focus-visible{ box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
-    .icon{ width:18px; height:18px; display:block; fill:#fff; pointer-events:none; }
-    .sc-left{ display:flex; gap:6px; align-items:center; }
-    .sc-center{ flex:1; display:flex; align-items:center; gap:10px; user-select:none; min-width:180px; }
-    #scSeek{ flex:1; height:6px; background:#555; border-radius:4px; position:relative; cursor:pointer; }
-    #scSeekFill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--accent); border-radius:4px; }
-    .time{ min-width:40px; text-align:center; color:#ddd; font-variant-numeric: tabular-nums; }
-    .sc-right{ display:flex; align-items:center; gap:12px; min-width:280px; }
-    #scThumb{ width:34px; height:34px; border-radius:6px; object-fit:cover; }
-    #barVol{ width:84px; }
+ #scBar{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  height:var(--bar-h);
+  background:#1a1a1a;
+  border-top:1px solid rgba(255,255,255,.15);
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:16px;
+  padding:0 14px;
+  z-index:50;
+  font-size:13px;
+  color:#eee;
+  -webkit-tap-highlight-color:transparent;
+  will-change:transform;
+  transform:translateZ(0);
+}
+
+.sc-left,
+.sc-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+
+.sc-center{
+  min-width:180px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  user-select:none;
+}
+
+.scIconBtn{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--btn-brd);
+  background:var(--btn-bg);
+  color:#fff;
+  cursor:pointer;
+  display:inline-grid;
+  place-items:center;
+  outline:none;
+  transition:background .15s ease, border-color .15s ease, transform .12s ease, color .15s ease;
+  flex:0 0 auto;
+}
+
+.scIconBtn:hover{
+  background:var(--btn-bg-hover);
+  transform:translateY(-1px);
+}
+
+.scIconBtn:focus-visible{
+  box-shadow:0 0 0 2px rgba(255,255,255,.22);
+}
+
+.scIconBtn.is-accent{
+  color:var(--accent);
+}
+
+.icon{
+  width:18px;
+  height:18px;
+  display:block;
+  fill:currentColor;
+  pointer-events:none;
+}
+
+.time{
+  min-width:52px;
+  text-align:center;
+  color:#ddd;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+
+#scSeek{
+  flex:1;
+  height:6px;
+  background:#555;
+  border-radius:999px;
+  position:relative;
+  cursor:pointer;
+  overflow:hidden;
+}
+
+#scSeekFill{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0%;
+  background:var(--accent);
+  border-radius:999px;
+}
+
+#scThumb{
+  width:34px;
+  height:34px;
+  border-radius:8px;
+  object-fit:cover;
+  display:none;
+  flex:0 0 auto;
+  background:#111;
+}
+
+#scThumb.is-visible{
+  display:block;
+}
+
+.scMeta{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+  max-width:260px;
+  margin-right:4px;
+}
+
+#scTitle,
+#scArtist{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+#scTitle{
+  color:#f0f0f0;
+  font-size:12.5px;
+  line-height:1.1;
+}
+
+#scArtist{
+  color:#a9a9a9;
+  font-size:11px;
+  line-height:1.1;
+  margin-top:3px;
+}
+
+#barVol{
+  width:112px;
+  height:6px;
+  appearance:none;
+  -webkit-appearance:none;
+  border:none;
+  outline:none;
+  border-radius:999px;
+  background:linear-gradient(to right, var(--accent) 0%, var(--accent) 75%, #555 75%, #555 100%);
+  cursor:pointer;
+  margin:0;
+}
+
+#barVol::-webkit-slider-runnable-track{
+  height:6px;
+  background:transparent;
+  border-radius:999px;
+}
+
+#barVol::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:var(--accent);
+  border:none;
+  margin-top:-5px;
+  box-shadow:0 0 0 2px rgba(0,0,0,.2);
+}
+
+#barVol::-moz-range-track{
+  height:6px;
+  background:transparent;
+  border:none;
+  border-radius:999px;
+}
+
+#barVol::-moz-range-thumb{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:var(--accent);
+  border:none;
+}
+
+@media (max-width: 1280px){
+  .scMeta{ max-width:200px; }
+  #barVol{ width:96px; }
+}
+
+@media (max-width: 560px){
+  #scBar{ gap:12px; padding:0 10px; }
+  .time{ display:none; }
+}
+
 
     /* RIGHT HUD group: reset (far right), fullscreen (left of reset), auto-tour (left of fullscreen) */
     .hudIcon{
@@ -593,20 +769,54 @@
     role="button" tabindex="0" aria-label="Email" />
 
   <div id="scBar" aria-label="SoundCloud Bar">
-    <div class="sc-left">
-      <button id="barPrev" title="Previous" aria-label="Previous">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/></svg>
-      </button>
-      <button id="barPlay" title="Play" aria-label="Play">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button id="barPause" title="Pause" aria-label="Pause">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-      </button>
-      <button id="barNext" title="Next" aria-label="Next">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/></svg>
-      </button>
+  <div class="sc-left">
+    <button id="barPrev" class="scIconBtn" title="Previous" aria-label="Previous">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M11 6v12l-8-6 8-6zm10 0v12l-8-6 8-6z"/>
+      </svg>
+    </button>
+
+    <button id="barToggle" class="scIconBtn is-accent" title="Play / Pause" aria-label="Play / Pause" aria-pressed="false">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    </button>
+
+    <button id="barNext" class="scIconBtn" title="Next" aria-label="Next">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M13 6v12l8-6-8-6zM3 6v12l8-6-8-6z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="sc-center">
+    <span id="scTimeCur" class="time">0:00</span>
+
+    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <div id="scSeekFill"></div>
     </div>
+
+    <span id="scTimeDur" class="time">0:00</span>
+  </div>
+
+  <div class="sc-right">
+    <img id="scThumb" src="" alt="Cover art" />
+
+    <div class="scMeta">
+      <span id="scTitle">–</span>
+      <span id="scArtist">–</span>
+    </div>
+
+    <button id="barMute" class="scIconBtn" title="Mute / Unmute" aria-label="Mute / Unmute" aria-pressed="false">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9v6h4l5 5V4L8 9H4z"/>
+      </svg>
+    </button>
+
+    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+  </div>
+</div>
+
 
     <div class="sc-center">
       <span id="scTimeCur" class="time">0:00</span>
@@ -647,11 +857,18 @@
   const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent);
   const SC_ENABLED = !IS_MOBILE;
 
-  const fmtTime = (ms)=> {
-    const sec = Math.max(0, Math.floor((ms||0)/1000));
-    const m = Math.floor(sec/60), s = sec%60;
-    return `${m}:${s.toString().padStart(2,'0')}`;
-  };
+ const fmtTime = (ms) => {
+  const totalSec = Math.max(0, Math.floor((ms || 0) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
+};
+
 
   const DPR = (()=> {
     const raw = window.devicePixelRatio || 1;
@@ -2809,114 +3026,440 @@ if (IS_MOBILE){
     camera.alpha += AutoTour.speed * dt;
   }
 
-  /* ========= SoundCloud player ========= */
-  const SC_PLAYLIST_URL = "https://soundcloud.com/move-d/jus-ed-invites-move-d-to-globustresor-all-night-marathon";
-  let scWidget = null, scReady = false, scLoading = false, scDuration = 0;
+/* ========= SoundCloud player ========= */
+const SC_PLAYLIST_URL = "https://soundcloud.com/move-d/jus-ed-invites-move-d-to-globustresor-all-night-marathon";
 
-  function loadScApiOnce(){
-    return new Promise((resolve, reject)=>{
-      if (window.SC && window.SC.Widget) return resolve();
-      const s = document.createElement('script');
-      s.src = "https://w.soundcloud.com/player/api.js";
-      s.async = true; s.onload = ()=>resolve(); s.onerror = ()=>reject(new Error("SC API failed"));
-      document.head.appendChild(s);
-    });
+let scWidget = null;
+let scReady = false;
+let scDuration = 0;
+let scIsPlaying = false;
+let scBootPromise = null;
+let scLastNonZeroVolume = 75;
+
+const SC_ICONS = {
+  play: `
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+  `,
+  pause: `
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 5h4v14H6zM14 5h4v14h-4z"/>
+    </svg>
+  `,
+  volume: `
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 9v6h4l5 5V4L8 9H4z"/>
+    </svg>
+  `,
+  volumeMuted: `
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 9v6h4l5 5V4L8 9H4z"></path>
+      <path d="M16.5 8.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"></path>
+    </svg>
+  `
+};
+
+function truncateText(str, maxChars){
+  const s = (str || "").trim();
+  if (!s) return "–";
+  return s.length > maxChars ? s.slice(0, maxChars - 1).trimEnd() + "…" : s;
+}
+
+function titleLimit(){
+  return window.innerWidth <= 1280 ? 34 : 46;
+}
+
+function artistLimit(){
+  return window.innerWidth <= 1280 ? 20 : 28;
+}
+
+function setButtonSvg(button, svg){
+  if (!button) return;
+  button.innerHTML = svg;
+}
+
+function setPlayToggleVisual(isPlaying){
+  const btn = document.getElementById("barToggle");
+  if (!btn) return;
+
+  btn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
+  btn.title = isPlaying ? "Pause" : "Play";
+  btn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+  btn.classList.add("is-accent");
+  setButtonSvg(btn, isPlaying ? SC_ICONS.pause : SC_ICONS.play);
+}
+
+function setVolumeIcon(volume){
+  const btn = document.getElementById("barMute");
+  if (!btn) return;
+
+  const muted = volume <= 0;
+  btn.setAttribute("aria-pressed", muted ? "true" : "false");
+  btn.title = muted ? "Unmute" : "Mute";
+  btn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+  setButtonSvg(btn, muted ? SC_ICONS.volumeMuted : SC_ICONS.volume);
+}
+
+function paintVolumeRange(el, value){
+  if (!el) return;
+  const v = Math.max(0, Math.min(100, Number(value) || 0));
+  el.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${v}%, #555 ${v}%, #555 100%)`;
+}
+
+function syncVolumeUI(volume){
+  const vol = document.getElementById("barVol");
+  if (vol) {
+    vol.value = volume;
+    paintVolumeRange(vol, volume);
   }
+  setVolumeIcon(volume);
+}
 
-  function mountScIframeOnce(){
-    return new Promise((resolve)=>{
-      const host = document.getElementById('scIframeHost');
-      let iframe = host.querySelector('iframe');
-      if (iframe) return resolve(iframe);
-      const url = "https://w.soundcloud.com/player/?"
-        + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
-        + "&auto_play=false&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true";
-      iframe = document.createElement('iframe');
-      iframe.id = "scIframe"; iframe.title = "SoundCloud Player"; iframe.allow = "autoplay";
-      iframe.setAttribute("scrolling","no"); iframe.setAttribute("frameborder","no");
-      iframe.style.width = "0"; iframe.style.height = "0"; iframe.style.border = "0";
-      iframe.src = url;
-      host.appendChild(iframe);
-      resolve(iframe);
-    });
+function setWidgetVolume(volume){
+  const v = Math.max(0, Math.min(100, Number(volume) || 0));
+  if (v > 0) scLastNonZeroVolume = v;
+  syncVolumeUI(v);
+  if (scReady && scWidget) scWidget.setVolume(v);
+}
+
+function scUpdateTime(cur, dur){
+  const c = document.getElementById("scTimeCur");
+  const d = document.getElementById("scTimeDur");
+  if (c) c.textContent = fmtTime(cur);
+  if (d) d.textContent = fmtTime(dur);
+}
+
+function scUpdateThumb(sound){
+  const thumb = document.getElementById("scThumb");
+  if (!thumb) return;
+
+  let art = sound?.artwork_url || sound?.publisher_metadata?.artwork_url || sound?.user?.avatar_url || "";
+  if (art) art = art.replace("-large.jpg", "-t200x200.jpg");
+
+  if (art) {
+    thumb.src = art;
+    thumb.classList.add("is-visible");
+    thumb.title = sound?.title || "";
+  } else {
+    thumb.removeAttribute("src");
+    thumb.classList.remove("is-visible");
+    thumb.title = "";
   }
+}
 
-  function scUpdateTime(cur, dur){ const c=document.getElementById("scTimeCur"),d=document.getElementById("scTimeDur"); if(c) c.textContent=fmtTime(cur); if(d) d.textContent=fmtTime(dur); }
-  function scUpdateThumb(s){ const t=document.getElementById("scThumb"); if(!t) return; let art=s?.artwork_url||s?.user?.avatar_url||""; if(art) art=art.replace("-large.jpg","-t200x200.jpg"); t.src=art||""; t.title=s?.title||""; }
-  function scUpdateTitle(s){ const el=document.getElementById("scTitle"); if(!el) return; el.textContent=s?(s.title||"Unknown"):"–"; el.title=s?.title||""; }
-  function scUpdateProgress(rel){ const fill=document.getElementById("scSeekFill"); if(!fill) return; fill.style.width=(Math.max(0,Math.min(1,rel))*100).toFixed(2)+"%"; }
+function scUpdateTitle(sound){
+  const titleEl = document.getElementById("scTitle");
+  const artistEl = document.getElementById("scArtist");
+  if (!titleEl || !artistEl) return;
 
-  function scUpdateMeta(){
-    if (!scWidget) return;
-    scWidget.getCurrentSound((s)=>{
-      scUpdateTitle(s); scUpdateThumb(s);
-      const d = (s && typeof s.duration==="number") ? s.duration : scDuration;
-      scDuration = d || 0;
-      scUpdateTime(0, scDuration);
-      const openLink = ()=>{ if(s?.permalink_url) window.open(s.permalink_url,"_blank","noopener"); };
-      const titleEl = document.getElementById("scTitle");
-      const thumbEl = document.getElementById("scThumb");
-      if (titleEl){ titleEl.onclick=openLink; titleEl.setAttribute("role","link"); titleEl.setAttribute("tabindex","0"); titleEl.onkeydown=(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openLink(); } }; }
-      if (thumbEl){ thumbEl.onclick=openLink; thumbEl.setAttribute("role","link"); thumbEl.setAttribute("tabindex","0"); thumbEl.onkeydown=(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openLink(); } }; }
-    });
-  }
+  const rawTitle =
+    sound?.title ||
+    "Unknown track";
 
-  function initScWidgetOnce(){
-    return new Promise((resolve)=>{
-      const iframe = document.getElementById('scIframe');
-      if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
-      if (scWidget) return resolve(scWidget);
-      scWidget = window.SC.Widget(iframe);
-      scWidget.bind(window.SC.Widget.Events.READY, ()=>{
-        scReady = true;
-        const barVol = document.getElementById('barVol');
-        scWidget.setVolume(Math.max(0, Math.min(100, +(barVol?.value||80))));
-        scUpdateMeta();
-        scWidget.bind(window.SC.Widget.Events.PLAY, scUpdateMeta);
-        scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e)=>{
-          if (e && typeof e.duration==="number") scDuration=e.duration;
-          scUpdateTime(e?.currentPosition||0, scDuration);
-          scUpdateProgress(e?.relativePosition||(scDuration?(e?.currentPosition||0)/scDuration:0));
-        });
-        scWidget.bind(window.SC.Widget.Events.ERROR, (err)=>console.error("[SC] error:", err));
-        resolve(scWidget);
-      });
-    });
-  }
+  const rawArtist =
+    sound?.publisher_metadata?.artist ||
+    sound?.user?.username ||
+    "SoundCloud";
 
-  async function ensureScReadyAndPlay(){
-    if (scLoading) return; scLoading = true;
-    try{
-      await loadScApiOnce(); await mountScIframeOnce();
-      const w = await initScWidgetOnce();
-      if (w) w.play();
-    }catch(e){ console.warn("SC lazy-load failed:", e); }
-    finally{ scLoading = false; }
-  }
+  titleEl.textContent = truncateText(rawTitle, titleLimit());
+  titleEl.title = rawTitle;
 
-  function bindBarControls(){
-    const pPrev=document.getElementById("barPrev"), pPlay=document.getElementById("barPlay"),
-          pPause=document.getElementById("barPause"), pNext=document.getElementById("barNext"),
-          vol=document.getElementById("barVol"), mute=document.getElementById("barMute"),
-          seek=document.getElementById("scSeek");
-    if (pPlay){ pPlay.addEventListener('click', ()=>ensureScReadyAndPlay()); pPlay.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();ensureScReadyAndPlay();}}); }
-    if (pPause) pPause.addEventListener('click', ()=>scReady&&scWidget&&scWidget.pause());
-    const jump=(dir)=>async()=>{
-      await ensureScReadyAndPlay();
-      if(!scReady||!scWidget) return;
-      try{ if(dir<0) scWidget.prev(); else scWidget.next(); setTimeout(()=>{try{scWidget.play();}catch(_){}},120); }
-      catch(e){console.warn("[SC] jump failed",e);}
+  artistEl.textContent = truncateText(rawArtist, artistLimit());
+  artistEl.title = rawArtist;
+}
+
+function scUpdateProgress(rel){
+  const fill = document.getElementById("scSeekFill");
+  const seek = document.getElementById("scSeek");
+  const safe = Math.max(0, Math.min(1, Number(rel) || 0));
+
+  if (fill) fill.style.width = (safe * 100).toFixed(2) + "%";
+  if (seek) seek.setAttribute("aria-valuenow", String(Math.round(safe * 100)));
+}
+
+function scUpdateMeta(){
+  if (!scWidget) return;
+
+  scWidget.getCurrentSound((sound) => {
+    scUpdateTitle(sound);
+    scUpdateThumb(sound);
+
+    const d = (sound && typeof sound.duration === "number") ? sound.duration : scDuration;
+    scDuration = d || 0;
+    scUpdateTime(0, scDuration);
+
+    const openLink = () => {
+      if (sound?.permalink_url) window.open(sound.permalink_url, "_blank", "noopener");
     };
-    if (pPrev) pPrev.addEventListener('click', jump(-1));
-    if (pNext) pNext.addEventListener('click', jump(+1));
-    if (vol) vol.addEventListener('input',e=>{const v=Math.min(100,Math.max(0,+e.target.value||75)); if(scReady&&scWidget) scWidget.setVolume(v);});
-    if (mute) mute.addEventListener('click',()=>{ if(!scReady||!scWidget) return; scWidget.getVolume(v=>{ scWidget.setVolume(v>0?0:(document.getElementById('barVol')?.value|0)||75); }); });
-    if (seek){
-      const doSeek=(px)=>{ if(!scReady||!scWidget||!scDuration) return; const rect=seek.getBoundingClientRect(); scWidget.seekTo(Math.min(1,Math.max(0,(px-rect.left)/rect.width))*scDuration); };
-      seek.addEventListener("click",e=>doSeek(e.clientX));
-      seek.addEventListener("keydown",e=>{ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); const cur=parseFloat((document.getElementById('scSeekFill')?.style.width||"0").replace("%",""))/100; const rel=Math.min(1,Math.max(0,cur+(e.key==='ArrowRight'?0.02:-0.02))); if(scReady&&scWidget&&scDuration) scWidget.seekTo(rel*scDuration); } });
+
+    const titleEl = document.getElementById("scTitle");
+    const artistEl = document.getElementById("scArtist");
+    const thumbEl = document.getElementById("scThumb");
+
+    if (titleEl){
+      titleEl.onclick = openLink;
+      titleEl.setAttribute("role", "link");
+      titleEl.setAttribute("tabindex", "0");
+      titleEl.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openLink();
+        }
+      };
     }
+
+    if (artistEl){
+      artistEl.onclick = openLink;
+      artistEl.setAttribute("role", "link");
+      artistEl.setAttribute("tabindex", "0");
+      artistEl.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openLink();
+        }
+      };
+    }
+
+    if (thumbEl){
+      thumbEl.onclick = openLink;
+      thumbEl.setAttribute("role", "link");
+      thumbEl.setAttribute("tabindex", "0");
+      thumbEl.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openLink();
+        }
+      };
+    }
+  });
+}
+
+function loadScApiOnce(){
+  return new Promise((resolve, reject) => {
+    if (window.SC && window.SC.Widget) return resolve();
+
+    const existing = document.querySelector('script[src="https://w.soundcloud.com/player/api.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once:true });
+      existing.addEventListener("error", () => reject(new Error("SC API failed")), { once:true });
+      return;
+    }
+
+    const s = document.createElement("script");
+    s.src = "https://w.soundcloud.com/player/api.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("SC API failed"));
+    document.head.appendChild(s);
+  });
+}
+
+function mountScIframeOnce(){
+  return new Promise((resolve) => {
+    const host = document.getElementById("scIframeHost");
+    let iframe = host.querySelector("iframe");
+    if (iframe) return resolve(iframe);
+
+    const url =
+      "https://w.soundcloud.com/player/?"
+      + "url=" + encodeURIComponent(SC_PLAYLIST_URL)
+      + "&auto_play=false"
+      + "&hide_related=false"
+      + "&show_comments=false"
+      + "&show_user=true"
+      + "&show_reposts=false"
+      + "&show_teaser=false"
+      + "&visual=true";
+
+    iframe = document.createElement("iframe");
+    iframe.id = "scIframe";
+    iframe.title = "SoundCloud Player";
+    iframe.allow = "autoplay";
+    iframe.setAttribute("scrolling", "no");
+    iframe.setAttribute("frameborder", "no");
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.src = url;
+
+    host.appendChild(iframe);
+    resolve(iframe);
+  });
+}
+
+function initScWidgetOnce(){
+  return new Promise((resolve) => {
+    const iframe = document.getElementById("scIframe");
+    if (!iframe || !window.SC || !window.SC.Widget) return resolve(null);
+    if (scWidget) return resolve(scWidget);
+
+    scWidget = window.SC.Widget(iframe);
+
+    scWidget.bind(window.SC.Widget.Events.READY, () => {
+      scReady = true;
+
+      const initialVol = Math.max(0, Math.min(100, +(document.getElementById("barVol")?.value || 75)));
+      scLastNonZeroVolume = initialVol > 0 ? initialVol : 75;
+
+      scWidget.setVolume(initialVol);
+      syncVolumeUI(initialVol);
+      setPlayToggleVisual(false);
+
+      scWidget.bind(window.SC.Widget.Events.PLAY, () => {
+        scIsPlaying = true;
+        setPlayToggleVisual(true);
+        scUpdateMeta();
+      });
+
+      scWidget.bind(window.SC.Widget.Events.PAUSE, () => {
+        scIsPlaying = false;
+        setPlayToggleVisual(false);
+      });
+
+      scWidget.bind(window.SC.Widget.Events.PLAY_PROGRESS, (e) => {
+        if (e && typeof e.duration === "number") scDuration = e.duration;
+        scUpdateTime(e?.currentPosition || 0, scDuration);
+        scUpdateProgress(
+          e?.relativePosition || (scDuration ? ((e?.currentPosition || 0) / scDuration) : 0)
+        );
+      });
+
+      scWidget.bind(window.SC.Widget.Events.FINISH, () => {
+        scIsPlaying = false;
+        setPlayToggleVisual(false);
+        scUpdateProgress(1);
+      });
+
+      scWidget.bind(window.SC.Widget.Events.ERROR, (err) => {
+        console.error("[SC] error:", err);
+      });
+
+      resolve(scWidget);
+    });
+  });
+}
+
+function ensureScReady(){
+  if (scReady && scWidget) return Promise.resolve(scWidget);
+  if (scBootPromise) return scBootPromise;
+
+  scBootPromise = (async () => {
+    await loadScApiOnce();
+    await mountScIframeOnce();
+    return await initScWidgetOnce();
+  })().finally(() => {
+    scBootPromise = null;
+  });
+
+  return scBootPromise;
+}
+
+async function ensureScReadyAndPlay(){
+  try{
+    const w = await ensureScReady();
+    if (w) w.play();
+  }catch(e){
+    console.warn("SC lazy-load failed:", e);
   }
+}
+
+async function toggleScPlayback(){
+  if (!scReady || !scWidget) {
+    await ensureScReadyAndPlay();
+    return;
+  }
+
+  if (scIsPlaying) scWidget.pause();
+  else scWidget.play();
+}
+
+function bindBarControls(){
+  const pPrev   = document.getElementById("barPrev");
+  const pToggle = document.getElementById("barToggle");
+  const pNext   = document.getElementById("barNext");
+  const vol     = document.getElementById("barVol");
+  const mute    = document.getElementById("barMute");
+  const seek    = document.getElementById("scSeek");
+
+  syncVolumeUI(+(vol?.value || 75));
+  setPlayToggleVisual(false);
+
+  if (pToggle){
+    pToggle.addEventListener("click", toggleScPlayback);
+    pToggle.addEventListener("keydown", (e) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        toggleScPlayback();
+      }
+    });
+  }
+
+  const jump = (dir) => async () => {
+    await ensureScReadyAndPlay();
+    if (!scReady || !scWidget) return;
+
+    try{
+      if (dir < 0) scWidget.prev();
+      else scWidget.next();
+
+      setTimeout(() => {
+        try { scWidget.play(); } catch(_) {}
+      }, 120);
+    } catch(e){
+      console.warn("[SC] jump failed", e);
+    }
+  };
+
+  if (pPrev) pPrev.addEventListener("click", jump(-1));
+  if (pNext) pNext.addEventListener("click", jump(+1));
+
+  if (vol){
+    vol.addEventListener("input", (e) => {
+      const v = Math.max(0, Math.min(100, +e.target.value || 0));
+      setWidgetVolume(v);
+    });
+  }
+
+  if (mute){
+    mute.addEventListener("click", () => {
+      const inputEl = document.getElementById("barVol");
+      const current = Math.max(0, Math.min(100, +(inputEl?.value || 0)));
+
+      if (current <= 0) {
+        setWidgetVolume(scLastNonZeroVolume || 75);
+      } else {
+        setWidgetVolume(0);
+      }
+    });
+  }
+
+  if (seek){
+    const doSeek = (px) => {
+      if (!scReady || !scWidget || !scDuration) return;
+
+      const rect = seek.getBoundingClientRect();
+      const rel = Math.min(1, Math.max(0, (px - rect.left) / rect.width));
+      scWidget.seekTo(rel * scDuration);
+    };
+
+    seek.addEventListener("click", (e) => doSeek(e.clientX));
+
+    seek.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+
+        const cur = parseFloat((document.getElementById("scSeekFill")?.style.width || "0").replace("%", "")) / 100;
+        const rel = Math.min(1, Math.max(0, cur + (e.key === "ArrowRight" ? 0.02 : -0.02)));
+
+        if (scReady && scWidget && scDuration) {
+          scWidget.seekTo(rel * scDuration);
+        }
+      }
+    });
+  }
+}
+
 
   /* ========= BOOT ========= */
   createScene();
