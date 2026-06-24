@@ -387,7 +387,7 @@
   bottom:0;
   height:var(--bar-h);
   background:#1a1a1a;
-  border-top:1px solid rgba(255,255,255,.15);
+  border-top:none
   display:grid;
   grid-template-columns:auto 1fr auto;
   align-items:center;
@@ -776,7 +776,7 @@
       </svg>
     </button>
 
-    <button id="barToggle" class="scIconBtn is-accent" title="Play / Pause" aria-label="Play / Pause" aria-pressed="false">
+    <button id="barToggle" class="scIconBtn" title="Play / Pause" aria-label="Play / Pause" aria-pressed="false">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M8 5v14l11-7z"/>
       </svg>
@@ -3086,9 +3086,12 @@ function setPlayToggleVisual(isPlaying){
   btn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
   btn.title = isPlaying ? "Pause" : "Play";
   btn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
-  btn.classList.add("is-accent");
+
+  btn.classList.toggle("is-accent", !!isPlaying);
+
   setButtonSvg(btn, isPlaying ? SC_ICONS.pause : SC_ICONS.play);
 }
+
 
 function setVolumeIcon(volume){
   const btn = document.getElementById("barMute");
