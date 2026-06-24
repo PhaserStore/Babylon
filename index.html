@@ -568,16 +568,22 @@
   border-radius:999px;
 }
 
+#barVol::-webkit-slider-runnable-track{
+  height:2px;
+  background:transparent;
+  border-radius:999px;
+}
+
 #barVol::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
-  width:16px;
-  height:16px;
-  border-radius:50%;
+  width:6px;
+  height:6px;
+  border-radius:1px;
   background:var(--accent);
   border:none;
-  margin-top:-7px;
-  box-shadow:0 0 0 2px rgba(0,0,0,.2);
+  margin-top:-2px;
+  box-shadow:none;
 }
 
 #barVol::-moz-range-track{
@@ -588,18 +594,14 @@
 }
 
 #barVol::-moz-range-thumb{
-  width:16px;
-  height:16px;
-  border-radius:50%;
+  width:6px;
+  height:6px;
+  border-radius:1px;
   background:var(--accent);
   border:none;
+  box-shadow:none;
 }
 
-#barVol::-webkit-slider-runnable-track{
-  height:2px;
-  background:transparent;
-  border-radius:999px;
-}
 
 #barVol::-webkit-slider-thumb{
   -webkit-appearance:none;
