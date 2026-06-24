@@ -477,17 +477,16 @@
   flex:0 0 auto;
 }
 
-#scSeek{
-  flex:1 1 auto;
-  min-width:120px;
-  height:6px;
-  background:#555;
+#scSeekFill{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0%;
+  background:var(--accent);
   border-radius:999px;
-  position:relative;
-  cursor:pointer;
-  overflow:hidden;
-  align-self:center;
 }
+
 
 #scSeekFill{
   position:absolute;
@@ -551,7 +550,7 @@
 
 #barVol{
   width:110px;
-  height:6px;
+  height:2px;
   appearance:none;
   -webkit-appearance:none;
   border:none;
@@ -564,7 +563,7 @@
 }
 
 #barVol::-webkit-slider-runnable-track{
-  height:6px;
+  height:2px;
   background:transparent;
   border-radius:999px;
 }
@@ -577,12 +576,12 @@
   border-radius:50%;
   background:var(--accent);
   border:none;
-  margin-top:-5px;
+  margin-top:-7px;
   box-shadow:0 0 0 2px rgba(0,0,0,.2);
 }
 
 #barVol::-moz-range-track{
-  height:6px;
+  height:2px;
   background:transparent;
   border:none;
   border-radius:999px;
