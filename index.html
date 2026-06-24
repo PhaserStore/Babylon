@@ -556,12 +556,15 @@
   cursor:pointer;
   border:none;
   outline:none;
+  padding:0;
   border-radius:999px;
   background:linear-gradient(to right, var(--accent) 0%, var(--accent) 75%, #555 75%, #555 100%);
+  box-shadow:none;
 
   appearance:none;
   -webkit-appearance:none;
   -moz-appearance:none;
+  accent-color: transparent;
 }
 
 /* Chrome / Edge / Safari */
@@ -572,22 +575,29 @@
   border-radius:999px;
 }
 
-##barVol::-webkit-slider-thumb{
+#barVol::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
   width:8px;
   height:8px;
   background:var(--accent);
   border:none;
-  border-radius:1px;
+  border-radius:0 !important;
   box-shadow:none !important;
-  margin-top:-3px;
+  margin-top:-3px; /* vystředění na 2px lince */
 }
 
 /* Firefox */
 #barVol::-moz-range-track{
   height:2px;
-  background:transparent;
+  background:#555;
+  border:none;
+  border-radius:999px;
+}
+
+#barVol::-moz-range-progress{
+  height:2px;
+  background:var(--accent);
   border:none;
   border-radius:999px;
 }
@@ -597,10 +607,19 @@
   height:8px;
   background:var(--accent);
   border:none;
-  border-radius:1px;
+  border-radius:0 !important;
   box-shadow:none !important;
 }
 
+/* odstranění focus halo */
+#barVol:focus{
+  outline:none;
+  box-shadow:none;
+}
+
+#barVol::-moz-focus-outer{
+  border:0;
+}
 
 /* Responsive */
 @media (max-width: 1280px){
