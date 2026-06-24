@@ -387,9 +387,9 @@
   bottom:0;
   height:var(--bar-h);
   background:#1a1a1a;
-  border-top:none
-  display:grid;
-  grid-template-columns:auto 1fr auto;
+  border-top:none !important;
+  box-shadow:none !important;
+  display:flex;
   align-items:center;
   gap:16px;
   padding:0 14px;
@@ -399,22 +399,37 @@
   -webkit-tap-highlight-color:transparent;
   will-change:transform;
   transform:translateZ(0);
+  overflow:hidden;
 }
 
-.sc-left,
-.sc-right{
+#scBar::before,
+#scBar::after{
+  content:none !important;
+  display:none !important;
+}
+
+.sc-left{
   display:flex;
   align-items:center;
   gap:8px;
-  min-width:0;
+  flex:0 0 auto;
 }
 
 .sc-center{
-  min-width:180px;
+  flex:1 1 auto;
+  min-width:0;
   display:flex;
   align-items:center;
   gap:10px;
   user-select:none;
+}
+
+.sc-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:0 0 auto;
+  min-width:0;
 }
 
 .scIconBtn{
@@ -428,7 +443,7 @@
   display:inline-grid;
   place-items:center;
   outline:none;
-  transition:background .15s ease, border-color .15s ease, transform .12s ease, color .15s ease;
+  transition:background .15s ease, transform .12s ease, color .15s ease, border-color .15s ease;
   flex:0 0 auto;
 }
 
@@ -454,21 +469,24 @@
 }
 
 .time{
-  min-width:52px;
+  min-width:58px;
   text-align:center;
   color:#ddd;
   font-variant-numeric:tabular-nums;
   letter-spacing:.02em;
+  flex:0 0 auto;
 }
 
 #scSeek{
-  flex:1;
+  flex:1 1 auto;
+  min-width:120px;
   height:6px;
   background:#555;
   border-radius:999px;
   position:relative;
   cursor:pointer;
   overflow:hidden;
+  align-self:center;
 }
 
 #scSeekFill{
@@ -500,8 +518,7 @@
   flex-direction:column;
   justify-content:center;
   min-width:0;
-  max-width:260px;
-  margin-right:4px;
+  max-width:240px;
 }
 
 #scTitle,
@@ -527,7 +544,7 @@
 }
 
 #barVol{
-  width:112px;
+  width:110px;
   height:6px;
   appearance:none;
   -webkit-appearance:none;
@@ -537,6 +554,7 @@
   background:linear-gradient(to right, var(--accent) 0%, var(--accent) 75%, #555 75%, #555 100%);
   cursor:pointer;
   margin:0;
+  flex:0 0 auto;
 }
 
 #barVol::-webkit-slider-runnable-track{
@@ -573,15 +591,28 @@
 }
 
 @media (max-width: 1280px){
-  .scMeta{ max-width:200px; }
-  #barVol{ width:96px; }
+  .scMeta{ max-width:180px; }
+  #barVol{ width:92px; }
 }
 
 @media (max-width: 560px){
-  #scBar{ gap:12px; padding:0 10px; }
-  .time{ display:none; }
-}
+  #scBar{
+    gap:10px;
+    padding:0 10px;
+  }
 
+  .time{
+    display:none;
+  }
+
+  .scMeta{
+    max-width:120px;
+  }
+
+  #barVol{
+    width:70px;
+  }
+}
 
     /* RIGHT HUD group: reset (far right), fullscreen (left of reset), auto-tour (left of fullscreen) */
     .hudIcon{
@@ -776,7 +807,7 @@
       </svg>
     </button>
 
-    <button id="barToggle" class="scIconBtn" title="Play / Pause" aria-label="Play / Pause" aria-pressed="false">
+    <button id="barToggle" class="scIconBtn" title="Play" aria-label="Play" aria-pressed="false">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M8 5v14l11-7z"/>
       </svg>
@@ -788,6 +819,34 @@
       </svg>
     </button>
   </div>
+
+  <div class="sc-center">
+    <span id="scTimeCur" class="time">0:00</span>
+
+    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <div id="scSeekFill"></div>
+    </div>
+
+    <span id="scTimeDur" class="time">0:00</span>
+  </div>
+
+  <div class="sc-right">
+    <img id="scThumb" src="" alt="Album cover" />
+
+    <div class="scMeta">
+      <span id="scTitle">–</span>
+      <span id="scArtist">–</span>
+    </div>
+
+    <button id="barMute" class="scIconBtn" title="Mute / Unmute" aria-label="Mute / Unmute" aria-pressed="false">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9v6h4l5 5V4L8 9H4z"/>
+      </svg>
+    </button>
+
+    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
+  </div>
+
 
   <div class="sc-center">
     <span id="scTimeCur" class="time">0:00</span>
@@ -868,6 +927,7 @@
   }
   return `${m}:${String(s).padStart(2, "0")}`;
 };
+
 
 
   const DPR = (()=> {
@@ -3086,12 +3146,10 @@ function setPlayToggleVisual(isPlaying){
   btn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
   btn.title = isPlaying ? "Pause" : "Play";
   btn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
-
   btn.classList.toggle("is-accent", !!isPlaying);
 
   setButtonSvg(btn, isPlaying ? SC_ICONS.pause : SC_ICONS.play);
 }
-
 
 function setVolumeIcon(volume){
   const btn = document.getElementById("barMute");
@@ -3156,14 +3214,8 @@ function scUpdateTitle(sound){
   const artistEl = document.getElementById("scArtist");
   if (!titleEl || !artistEl) return;
 
-  const rawTitle =
-    sound?.title ||
-    "Unknown track";
-
-  const rawArtist =
-    sound?.publisher_metadata?.artist ||
-    sound?.user?.username ||
-    "SoundCloud";
+  const rawTitle = sound?.title || "Unknown track";
+  const rawArtist = sound?.publisher_metadata?.artist || sound?.user?.username || "SoundCloud";
 
   titleEl.textContent = truncateText(rawTitle, titleLimit());
   titleEl.title = rawTitle;
@@ -3462,7 +3514,6 @@ function bindBarControls(){
     });
   }
 }
-
 
   /* ========= BOOT ========= */
   createScene();
