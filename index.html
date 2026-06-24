@@ -513,13 +513,19 @@
   display:block;
 }
 
+
 .scMeta{
-  display:flex;
+  display:none;
   flex-direction:column;
   justify-content:center;
   min-width:0;
   max-width:240px;
 }
+
+.scMeta.is-visible{
+  display:flex;
+}
+
 
 #scTitle,
 #scArtist{
@@ -833,10 +839,11 @@
   <div class="sc-right">
     <img id="scThumb" src="" alt="Album cover" />
 
-    <div class="scMeta">
-      <span id="scTitle">–</span>
-      <span id="scArtist">–</span>
-    </div>
+   <div class="scMeta" id="scMeta">
+  <span id="scTitle"></span>
+  <span id="scArtist"></span>
+</div>
+
 
     <button id="barMute" class="scIconBtn" title="Mute / Unmute" aria-label="Mute / Unmute" aria-pressed="false">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -3162,19 +3169,24 @@ function scUpdateThumb(sound){
 }
 
 function scUpdateTitle(sound){
+  const metaEl = document.getElementById("scMeta");
   const titleEl = document.getElementById("scTitle");
   const artistEl = document.getElementById("scArtist");
-  if (!titleEl || !artistEl) return;
+  if (!titleEl || !artistEl || !metaEl) return;
 
-  const rawTitle = sound?.title || "Unknown track";
-  const rawArtist = sound?.publisher_metadata?.artist || sound?.user?.username || "SoundCloud";
+  const rawTitle = sound?.title || "";
+  const rawArtist = sound?.publisher_metadata?.artist || sound?.user?.username || "";
 
-  titleEl.textContent = truncateText(rawTitle, titleLimit());
-  titleEl.title = rawTitle;
+  titleEl.textContent = rawTitle ? truncateText(rawTitle, titleLimit()) : "";
+  titleEl.title = rawTitle || "";
 
-  artistEl.textContent = truncateText(rawArtist, artistLimit());
-  artistEl.title = rawArtist;
+  artistEl.textContent = rawArtist ? truncateText(rawArtist, artistLimit()) : "";
+  artistEl.title = rawArtist || "";
+
+  const hasMeta = !!(rawTitle || rawArtist);
+  metaEl.classList.toggle("is-visible", hasMeta);
 }
+
 
 function scUpdateProgress(rel){
   const fill = document.getElementById("scSeekFill");
