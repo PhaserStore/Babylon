@@ -846,58 +846,10 @@
 
     <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
   </div>
-
-
-  <div class="sc-center">
-    <span id="scTimeCur" class="time">0:00</span>
-
-    <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-      <div id="scSeekFill"></div>
-    </div>
-
-    <span id="scTimeDur" class="time">0:00</span>
-  </div>
-
-  <div class="sc-right">
-    <img id="scThumb" src="" alt="Cover art" />
-
-    <div class="scMeta">
-      <span id="scTitle">–</span>
-      <span id="scArtist">–</span>
-    </div>
-
-    <button id="barMute" class="scIconBtn" title="Mute / Unmute" aria-label="Mute / Unmute" aria-pressed="false">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 9v6h4l5 5V4L8 9H4z"/>
-      </svg>
-    </button>
-
-    <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-  </div>
 </div>
-
-
-    <div class="sc-center">
-      <span id="scTimeCur" class="time">0:00</span>
-      <div id="scSeek" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div id="scSeekFill"></div>
-      </div>
-      <span id="scTimeDur" class="time">0:00</span>
-    </div>
-
-    <div class="sc-right">
-      <button id="barMute" title="Mute" aria-label="Mute">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/></svg>
-      </button>
-      <input id="barVol" type="range" min="0" max="100" value="75" aria-label="Volume" />
-      <img id="scThumb" src="" alt="cover" />
-      <span id="scTitle">–</span>
-    </div>
-  </div>
-
   <div id="scIframeHost" style="position:fixed; left:-99999px; top:-99999px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;"></div>
 
-  <script>
+<script>
   /* ========= Helpers & flags ========= */
   const IS_MOBILE =
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
