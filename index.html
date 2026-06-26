@@ -802,12 +802,12 @@
   <!-- RIGHT HUD: auto-tour, fullscreen, reset -->
   <img id="autoTourIcon" class="hudIcon"
     src="./assets/Auto pilot.svg"
-    alt="Auto pilot" title="Auto pilot"
+    alt="Auto pilot" title="Auto pilot (A)"
     role="button" tabindex="0" aria-label="Auto pilot" aria-pressed="false" />
 
   <img id="fullscreenIcon" class="hudIcon"
     src="https://raw.githubusercontent.com/PhaserStore/Babylon/main/assets/full%20screen.svg"
-    alt="Full screen" title="Full screen"
+    alt="Full screen" title="Full screen (F)"
     role="button" tabindex="0" aria-label="Full screen" aria-pressed="false" />
 
   <img id="resetCamIcon" class="hudIcon"
@@ -821,7 +821,8 @@
   target="_blank"
   rel="noopener noreferrer"
   aria-label="Open Instagram @____phaser"
-  title="Open Instagram @____phaser"
+  title="Open Instagram @____phaser (I)"
+  
 >
   <img
     id="instaIcon"
@@ -834,12 +835,12 @@
 
   <img id="shareIcon" class="hudIconLeft"
     src="./assets/Share.svg"
-    alt="Share" title="Share"
+    alt="Share" title="Share (S)"
     role="button" tabindex="0" aria-label="Share this page" />
 
   <img id="emailIcon" class="hudIconLeft"
     src="./assets/Email.svg"
-    alt="Email" title="Email"
+    alt="Email" title="Email (E)"
     role="button" tabindex="0" aria-label="Email" />
 
   <div id="scBar" aria-label="SoundCloud Bar">
@@ -3750,13 +3751,14 @@ window.addEventListener('keydown', (e) => {
     });
   }
 
-  function openInsta(){
-    window.open(
-      "https://www.instagram.com/__phaser__?igsh=d2lnbjhxMTZ1YjYz&utm_source=qr",
-      "_blank",
-      "noopener"
-    );
-  }
+ function openInsta(){
+  window.open(
+    "https://www.instagram.com/____phaser/",
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
+
 
   async function sharePage(){
     const shareData = {
@@ -3789,6 +3791,7 @@ window.addEventListener('keydown', (e) => {
       }
     });
   }
+  
 
   if (shareIcon){
     shareIcon.addEventListener('dragstart', (e)=>e.preventDefault());
