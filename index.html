@@ -3039,26 +3039,26 @@ if (IS_MOBILE){
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
-  /* ========= LUXURY AUTO TOUR ========= */
+  //* ========= LUXURY AUTO TOUR ========= */
 
 const AutoTour = {
   active: false,
 
-  // Celková rychlost rotace
+  // Celková rychlost orbitu
   speed: 0.10,
 
   lastTime: 0,
   startTime: 0,
+
   targetAlpha: 0,
 
-  // Výchozí hodnoty kamery
+  // Výchozí pozice kamery
   baseBeta: 1.15,
   baseRadius: 14,
 
-  // Aktuální intenzita pohybu pro plynulý start a stop
+  // Plynulý náběh
   intensity: 0,
 
-  // Nastavení charakteru pohybu
   settings: {
     startDelay: 700,
     fadeInDuration: 3500,
@@ -3074,7 +3074,6 @@ const AutoTour = {
     radiusFrequency: 0.12
   }
 };
-
 
 /* ========= HELPERS ========= */
 
@@ -3092,19 +3091,17 @@ function damp(current, target, smoothness, dt) {
   return current + (target - current) * factor;
 }
 
-
 /* ========= BUTTON ========= */
 
 function setAutoTourButton(on) {
-  const btn = document.getElementById('autoTourIcon');
+  const btn = document.getElementById("autoTourIcon");
 
   if (!btn) return;
 
-  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  btn.classList.toggle('is-active', on);
-  btn.title = on ? 'Stop auto tour' : 'Auto tour';
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("is-active", on);
+  btn.title = on ? "Stop auto tour" : "Auto tour";
 }
-
 
 /* ========= START ========= */
 
@@ -3118,17 +3115,16 @@ function startAutoTour() {
   AutoTour.startTime = now;
   AutoTour.intensity = 0;
 
-  // Zapamatuje aktuální pozici kamery
   AutoTour.targetAlpha = camera.alpha;
   AutoTour.baseBeta = camera.beta;
   AutoTour.baseRadius = camera.radius;
 
   setAutoTourButton(true);
 
-  // Plynulé vrácení kamery do výchozí pozice
-  resetCamera({ animate: true });
+  if (typeof resetCamera === "function") {
+    resetCamera({ animate: true });
+  }
 }
-
 
 /* ========= STOP ========= */
 
@@ -3141,7 +3137,6 @@ function stopAutoTour() {
   setAutoTourButton(false);
 }
 
-
 /* ========= TOGGLE ========= */
 
 function toggleAutoTour() {
@@ -3150,15 +3145,21 @@ function toggleAutoTour() {
     return;
   }
 
-  if (!isFullscreen()) {
+  if (
+    typeof isFullscreen === "function" &&
+    !isFullscreen()
+  ) {
     try {
-      requestFs(document.documentElement);
-    } catch (_) {}
+      if (typeof requestFs === "function") {
+        requestFs(document.documentElement);
+      }
+    } catch (e) {
+      console.log(e);
+    }
   }
 
   startAutoTour();
 }
-
 
 /* ========= UPDATE ========= */
 
@@ -3170,7 +3171,6 @@ function updateAutoTour() {
   let dt = (now - AutoTour.lastTime) / 1000;
   AutoTour.lastTime = now;
 
-  // Ochrana při přepnutí záložky nebo krátkém zamrznutí
   dt = clamp(dt, 0, 0.05);
 
   const elapsedMs = now - AutoTour.startTime;
@@ -3188,7 +3188,6 @@ function updateAutoTour() {
     radiusFrequency
   } = AutoTour.settings;
 
-  // Krátká pauza, aby se stihl dokončit reset kamery
   if (elapsedMs < startDelay) {
     AutoTour.targetAlpha = camera.alpha;
     AutoTour.baseBeta = camera.beta;
@@ -3196,19 +3195,16 @@ function updateAutoTour() {
     return;
   }
 
-  // Velmi plynulý filmový rozjezd
   const fadeProgress =
     (elapsedMs - startDelay) / fadeInDuration;
 
   AutoTour.intensity = smoothstep(fadeProgress);
 
-  // Pomalá orbitální rotace
   AutoTour.targetAlpha +=
     AutoTour.speed *
     AutoTour.intensity *
     dt;
 
-  // Frame-rate independent vyhlazení rotace
   camera.alpha = damp(
     camera.alpha,
     AutoTour.targetAlpha,
@@ -3216,7 +3212,6 @@ function updateAutoTour() {
     dt
   );
 
-  // Jemný vertikální pohyb
   const betaWave =
     Math.sin(elapsedSeconds * betaFrequency) *
     betaAmount *
@@ -3228,7 +3223,31 @@ function updateAutoTour() {
   camera.beta = damp(
     camera.beta,
     targetBeta,
-  
+    betaSmoothness,
+    dt
+  );
+
+  const radiusWave =
+    Math.sin(elapsedSeconds * radiusFrequency) *
+    radiusAmount *
+    AutoTour.intensity;
+
+  const targetRadius =
+    AutoTour.baseRadius + radiusWave;
+
+  camera.radius = damp(
+    camera.radius,
+    targetRadius,
+    radiusSmoothness,
+    dt
+  );
+}
+
+/* ========= RENDER LOOP ========= */
+
+scene.onBeforeRenderObservable.add(() => {
+  updateAutoTour();
+});
 /* ========= SoundCloud player ========= */
 const SC_PLAYLIST_URL = "https://soundcloud.com/phaserstore/sets/detroit-techno";
 
