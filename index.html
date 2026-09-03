@@ -3039,50 +3039,196 @@ if (IS_MOBILE){
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
-  /* ========= AUTO TOUR ========= */
-  const AutoTour = {
-    active: false,
-    speed: 0.175,
-    lastTime: 0
-  };
+  /* ========= LUXURY AUTO TOUR ========= */
 
-  function setAutoTourButton(on){
-    const btn = document.getElementById('autoTourIcon');
-    if (!btn) return;
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.classList.toggle('is-active', on);
-    btn.title = on ? 'Stop auto tour' : 'Auto tour';
+const AutoTour = {
+  active: false,
+
+  // Celková rychlost rotace
+  speed: 0.10,
+
+  lastTime: 0,
+  startTime: 0,
+  targetAlpha: 0,
+
+  // Výchozí hodnoty kamery
+  baseBeta: 1.15,
+  baseRadius: 14,
+
+  // Aktuální intenzita pohybu pro plynulý start a stop
+  intensity: 0,
+
+  // Nastavení charakteru pohybu
+  settings: {
+    startDelay: 700,
+    fadeInDuration: 3500,
+
+    rotationSmoothness: 3.2,
+    betaSmoothness: 1.8,
+    radiusSmoothness: 1.4,
+
+    betaAmount: 0.035,
+    radiusAmount: 0.45,
+
+    betaFrequency: 0.22,
+    radiusFrequency: 0.12
+  }
+};
+
+
+/* ========= HELPERS ========= */
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function smoothstep(value) {
+  value = clamp(value, 0, 1);
+  return value * value * (3 - 2 * value);
+}
+
+function damp(current, target, smoothness, dt) {
+  const factor = 1 - Math.exp(-smoothness * dt);
+  return current + (target - current) * factor;
+}
+
+
+/* ========= BUTTON ========= */
+
+function setAutoTourButton(on) {
+  const btn = document.getElementById('autoTourIcon');
+
+  if (!btn) return;
+
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.classList.toggle('is-active', on);
+  btn.title = on ? 'Stop auto tour' : 'Auto tour';
+}
+
+
+/* ========= START ========= */
+
+function startAutoTour() {
+  if (AutoTour.active) return;
+
+  const now = performance.now();
+
+  AutoTour.active = true;
+  AutoTour.lastTime = now;
+  AutoTour.startTime = now;
+  AutoTour.intensity = 0;
+
+  // Zapamatuje aktuální pozici kamery
+  AutoTour.targetAlpha = camera.alpha;
+  AutoTour.baseBeta = camera.beta;
+  AutoTour.baseRadius = camera.radius;
+
+  setAutoTourButton(true);
+
+  // Plynulé vrácení kamery do výchozí pozice
+  resetCamera({ animate: true });
+}
+
+
+/* ========= STOP ========= */
+
+function stopAutoTour() {
+  if (!AutoTour.active) return;
+
+  AutoTour.active = false;
+  AutoTour.intensity = 0;
+
+  setAutoTourButton(false);
+}
+
+
+/* ========= TOGGLE ========= */
+
+function toggleAutoTour() {
+  if (AutoTour.active) {
+    stopAutoTour();
+    return;
   }
 
-  function startAutoTour(){
-    if (AutoTour.active) return;
-    resetCamera({ animate:true });
-    AutoTour.active = true;
-    AutoTour.lastTime = performance.now();
-    setAutoTourButton(true);
+  if (!isFullscreen()) {
+    try {
+      requestFs(document.documentElement);
+    } catch (_) {}
   }
 
-  function stopAutoTour(){
-    if (!AutoTour.active) return;
-    AutoTour.active = false;
-    setAutoTourButton(false);
+  startAutoTour();
+}
+
+
+/* ========= UPDATE ========= */
+
+function updateAutoTour() {
+  if (!AutoTour.active) return;
+
+  const now = performance.now();
+
+  let dt = (now - AutoTour.lastTime) / 1000;
+  AutoTour.lastTime = now;
+
+  // Ochrana při přepnutí záložky nebo krátkém zamrznutí
+  dt = clamp(dt, 0, 0.05);
+
+  const elapsedMs = now - AutoTour.startTime;
+  const elapsedSeconds = elapsedMs / 1000;
+
+  const {
+    startDelay,
+    fadeInDuration,
+    rotationSmoothness,
+    betaSmoothness,
+    radiusSmoothness,
+    betaAmount,
+    radiusAmount,
+    betaFrequency,
+    radiusFrequency
+  } = AutoTour.settings;
+
+  // Krátká pauza, aby se stihl dokončit reset kamery
+  if (elapsedMs < startDelay) {
+    AutoTour.targetAlpha = camera.alpha;
+    AutoTour.baseBeta = camera.beta;
+    AutoTour.baseRadius = camera.radius;
+    return;
   }
 
-  function toggleAutoTour(){
-    if (AutoTour.active){ stopAutoTour(); return; }
-    if (!isFullscreen()){ try { requestFs(document.documentElement); } catch(_){} }
-    startAutoTour();
-  }
+  // Velmi plynulý filmový rozjezd
+  const fadeProgress =
+    (elapsedMs - startDelay) / fadeInDuration;
 
-  function updateAutoTour(){
-    if (!AutoTour.active) return;
-    const now = performance.now();
-    let dt = (now - AutoTour.lastTime) / 1000;
-    AutoTour.lastTime = now;
-    if (dt > 0.1) dt = 0.1;
-    camera.alpha += AutoTour.speed * dt;
-  }
+  AutoTour.intensity = smoothstep(fadeProgress);
 
+  // Pomalá orbitální rotace
+  AutoTour.targetAlpha +=
+    AutoTour.speed *
+    AutoTour.intensity *
+    dt;
+
+  // Frame-rate independent vyhlazení rotace
+  camera.alpha = damp(
+    camera.alpha,
+    AutoTour.targetAlpha,
+    rotationSmoothness,
+    dt
+  );
+
+  // Jemný vertikální pohyb
+  const betaWave =
+    Math.sin(elapsedSeconds * betaFrequency) *
+    betaAmount *
+    AutoTour.intensity;
+
+  const targetBeta =
+    AutoTour.baseBeta + betaWave;
+
+  camera.beta = damp(
+    camera.beta,
+    targetBeta,
+  
 /* ========= SoundCloud player ========= */
 const SC_PLAYLIST_URL = "https://soundcloud.com/phaserstore/sets/detroit-techno";
 
