@@ -3039,39 +3039,43 @@ if (IS_MOBILE){
     camera.radius = clamp(camera.radius, MIN_RADIUS, rMax);
   }
 
-  //* ========= LUXURY AUTO TOUR ========= */
+/* ========= LUXURY AUTO TOUR ========= */
 
 const AutoTour = {
   active: false,
 
-  // Celková rychlost orbitu
-  speed: 0.10,
+  // Velmi pomalá orbitální rotace
+  speed: 0.03,
 
   lastTime: 0,
   startTime: 0,
 
   targetAlpha: 0,
 
-  // Výchozí pozice kamery
   baseBeta: 1.15,
   baseRadius: 14,
 
-  // Plynulý náběh
   intensity: 0,
 
   settings: {
-    startDelay: 700,
-    fadeInDuration: 3500,
+    // Delší klid po spuštění
+    startDelay: 1200,
 
-    rotationSmoothness: 3.2,
-    betaSmoothness: 1.8,
-    radiusSmoothness: 1.4,
+    // Pomalý filmový náběh
+    fadeInDuration: 6000,
 
-    betaAmount: 0.035,
-    radiusAmount: 0.45,
+    // Luxusně vyhlazené pohyby
+    rotationSmoothness: 1.2,
+    betaSmoothness: 0.9,
+    radiusSmoothness: 0.7,
 
-    betaFrequency: 0.22,
-    radiusFrequency: 0.12
+    // Menší amplitudy
+    betaAmount: 0.008,
+    radiusAmount: 0.12,
+
+    // Velmi pomalé frekvence
+    betaFrequency: 0.08,
+    radiusFrequency: 0.05
   }
 };
 
@@ -3154,7 +3158,7 @@ function toggleAutoTour() {
         requestFs(document.documentElement);
       }
     } catch (e) {
-      console.log(e);
+      console.warn(e);
     }
   }
 
@@ -3200,6 +3204,7 @@ function updateAutoTour() {
 
   AutoTour.intensity = smoothstep(fadeProgress);
 
+  // hlavní orbit
   AutoTour.targetAlpha +=
     AutoTour.speed *
     AutoTour.intensity *
@@ -3212,32 +3217,28 @@ function updateAutoTour() {
     dt
   );
 
+  // jemný vertical drift
   const betaWave =
     Math.sin(elapsedSeconds * betaFrequency) *
     betaAmount *
     AutoTour.intensity;
 
-  const targetBeta =
-    AutoTour.baseBeta + betaWave;
-
   camera.beta = damp(
     camera.beta,
-    targetBeta,
+    AutoTour.baseBeta + betaWave,
     betaSmoothness,
     dt
   );
 
+  // velmi jemné dýchání kamery
   const radiusWave =
     Math.sin(elapsedSeconds * radiusFrequency) *
     radiusAmount *
     AutoTour.intensity;
 
-  const targetRadius =
-    AutoTour.baseRadius + radiusWave;
-
   camera.radius = damp(
     camera.radius,
-    targetRadius,
+    AutoTour.baseRadius + radiusWave,
     radiusSmoothness,
     dt
   );
@@ -3248,6 +3249,7 @@ function updateAutoTour() {
 scene.onBeforeRenderObservable.add(() => {
   updateAutoTour();
 });
+
 /* ========= SoundCloud player ========= */
 const SC_PLAYLIST_URL = "https://soundcloud.com/phaserstore/sets/detroit-techno";
 
