@@ -646,6 +646,102 @@
   }
 }
 
+    /* Gallery switcher: only one gallery dataset is mounted at a time. */
+    #gallerySwitcher{
+      position:fixed;
+      top:calc(14px + var(--safe-top));
+      left:50%;
+      transform:translateX(-50%);
+      z-index:10020;
+      display:flex;
+      align-items:center;
+      gap:26px;
+      padding:7px 9px;
+      border:0;
+      background:transparent;
+      color:#fff;
+      font-family:"Michroma",sans-serif;
+      font-size:10px;
+      letter-spacing:.08em;
+    }
+    #gallerySwitcher button{
+      border:0;
+      border-radius:0;
+      background:transparent;
+      color:rgba(255,255,255,.72);
+      padding:8px 2px;
+      cursor:pointer;
+      font:inherit;
+    }
+    #gallerySwitcher button[aria-pressed="true"]{
+      color:var(--phaser-green);
+      background:transparent;
+      box-shadow:none;
+    }
+    #gallerySwitcher button:focus-visible{
+      outline:2px solid var(--phaser-green);
+      outline-offset:2px;
+    }
+    #gallerySwitcher .galleryDivider{
+      color:rgba(255,255,255,.20);
+      user-select:none;
+      pointer-events:none;
+    }
+    #gallerySwitcher button.galleryLocked{
+      color:rgba(255,255,255,.30);
+      cursor:pointer;
+    }
+    #gallerySwitcher button.galleryLocked:hover{
+      color:rgba(255,255,255,.42);
+    }
+    #accessDenied{
+      position:fixed;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%) scale(.98);
+      z-index:10040;
+      min-width:260px;
+      padding:22px 30px;
+      border:1px solid rgba(218,255,62,.55);
+      background:rgba(0,0,0,.88);
+      color:#fff;
+      text-align:center;
+      font-family:"Michroma",sans-serif;
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transition:opacity .18s ease, transform .18s ease, visibility .18s ease;
+    }
+    #accessDenied.is-visible{
+      opacity:1;
+      visibility:visible;
+      transform:translate(-50%,-50%) scale(1);
+    }
+    .accessDeniedTitle{
+      color:var(--phaser-green);
+      font-size:16px;
+      letter-spacing:.10em;
+      margin-bottom:10px;
+    }
+    .accessDeniedText{
+      color:rgba(255,255,255,.72);
+      font-size:10px;
+      letter-spacing:.05em;
+    }
+    body.is-loading #gallerySwitcher{
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+    }
+    @media (max-width:900px), (pointer:coarse){
+      #gallerySwitcher{
+        top:calc(8px + var(--safe-top));
+        font-size:9px;
+        padding:6px;
+        gap:5px;
+      }
+      #gallerySwitcher button{ padding:7px 8px; }
+    }
     /* RIGHT HUD group: reset (far right), fullscreen (left of reset), auto-tour (left of fullscreen) */
     .hudIcon{
       position:fixed; z-index:10000; width:56px; height:56px; cursor:pointer; user-select:none; -webkit-user-drag:none;
@@ -799,6 +895,19 @@
     </div>
   </div>
 
+  <!-- Gallery selector: switches datasets without keeping two galleries in memory. -->
+  <div id="gallerySwitcher" role="group" aria-label="Select gallery">
+    <button id="galleryOneBtn" type="button" aria-pressed="true">Apparel</button>
+    <span class="galleryDivider" aria-hidden="true">|</span>
+    <button id="galleryTwoBtn" class="galleryLocked" type="button" aria-pressed="false">Digital Art</button>
+    <span class="galleryDivider" aria-hidden="true">|</span>
+    <button id="galleryThreeBtn" class="galleryLocked" type="button" aria-pressed="false">Interior</button>
+  </div>
+
+  <div id="accessDenied" role="status" aria-live="polite" aria-hidden="true">
+    <div class="accessDeniedTitle">ACCESS DENIED</div>
+    <div class="accessDeniedText">Access will be granted soon.</div>
+  </div>
   <!-- RIGHT HUD: auto-tour, fullscreen, reset -->
   <img id="autoTourIcon" class="hudIcon"
     src="./assets/Auto pilot.svg"
@@ -1649,7 +1758,7 @@ const SIDE_VSCALE = IS_MOBILE ? MOBILE_SIDE_VSCALE : 0.6;
 
   /* ========= Scene setup ========= */
   let scene, camera, glow;
-  const ROOM = { W:16, D:30, H:13 };
+  const ROOM = { W:23, D:30, H:13 };
   const MIN_RADIUS = 0.28;
 
   const BASE_LEVEL = Math.max(0.33, Math.min(1 / DPR, 1));
@@ -1896,7 +2005,7 @@ const SIDE_VSCALE = IS_MOBILE ? MOBILE_SIDE_VSCALE : 0.6;
     return { texW, texH };
   }
 
-  function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover") {
+  function setWebPToFrame(url, targetItem, texSize=TEX_SIZE, fitMode="cover", loadVersion=galleryLoadVersion) {
     if (!isWebP(url)) {
       console.warn("Only WebP is allowed for frame images. Skipping:", url);
       return;
@@ -1907,6 +2016,7 @@ const SIDE_VSCALE = IS_MOBILE ? MOBILE_SIDE_VSCALE : 0.6;
     img.decoding = "async";
 
     img.onload = () => {
+      if (loadVersion !== galleryLoadVersion || targetItem._disposed) return;
       const { texW, texH } = getFrameTexSize();
       const dt = makeDT("imgDT_" + Math.random(), texW, texH, !IS_MOBILE);
       dt.gammaSpace = true;
@@ -2332,7 +2442,8 @@ if (IS_MOBILE){
 
       const mul = IS_MOBILE ? LOGO_SIZE_MULT_MOBILE : LOGO_SIZE_MULT_DESKTOP;
       const LOGO_EXTRA_SCALE = 1.25;
-      const logoW = ROOM.W * LOGO_SCALE * mul * LOGO_EXTRA_SCALE;
+      const BRANDING_REFERENCE_W = 16; // original room width; preserve original logo/text proportions
+      const logoW = BRANDING_REFERENCE_W * LOGO_SCALE * mul * LOGO_EXTRA_SCALE;
       const logoH = LOGO_HEIGHT_M * mul * LOGO_EXTRA_SCALE;
 
       const frameTopY = FRAME_CENTER_Y + FRAME_SIZE.H / 2;
@@ -2386,7 +2497,7 @@ if (IS_MOBILE){
       const minSafePlaneY = frameTopYLocal + TW_MIN_CLEARANCE_ABOVE_FRAMES_M + textCenterOffsetInPlane;
       yText = Math.max(yText, minSafePlaneY);
 
-      const frontBackAvail = ROOM.W - TW_MARGIN_WALL * 2;
+      const frontBackAvail = BRANDING_REFERENCE_W - TW_MARGIN_WALL * 2;
       const panelH = Math.max(0.20, TW_FONT_PX / 100);
 
       const sidePanelH = panelH * 1.85;
@@ -2474,31 +2585,65 @@ if (IS_MOBILE){
   const FIXED_LAYOUT = {
     safeWall: 1.0, cornerSafe: 1.0,
     frame: { width: 2.2, height: 2.2, border: 0.08, color: "#717171" },
-    counts: { front: 2, back: 2, left: 4, right: 4 }
+    counts: { front: 3, back: 3, left: 4, right: 4 }
   };
 
-  const DATA = {
-    front: [
-      { img: "./assets/Acid smiley final.webp", label: "Acid Smiley Tee", href: "https://phaserstore.etsy.com/listing/4495434398" },
-      { img: "./assets/acid smiley tote.webp", label: "Acid Smiley Tote",   href: "https://phaserstore.etsy.com/listing/4497313058" }
-    ],
-    back: [
-      { img: "./assets/phaser-tote-bag-black2.webp", label: "Phaser Cyber Tote", href: "https://phaserstore.etsy.com/listing/4575362504" },
-      { img: "./assets/phaser-cyber-tote-bag-large2.webp", label: "Phaser Cyber Large Tote", href: "https://phaserstore.etsy.com/listing/4574485346" }
-    ],
-    left: [
-      { img: "./assets/detroit-techno-rave-party-y2k-tshirt-front.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4493084313" },
-      { img: "./assets/techno-oversized-hoodie-phaser-y2k-back-phaser.webp", label: "Detroit Techno Oversized Hoodie", href: "https://phaserstore.etsy.com/listing/4526672511" },
-      { img: "./assets/Cyber phaser_gildan1a.webp", label: "Phaser Cyber Tee", href: "https://phaserstore.etsy.com/listing/4574561288" },
-      { img: "./assets/Detroit techno-blurred-tshirt.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4507983658" }
-    ],
-    right: [
-      { img: "./assets/phaser-cyber-oversized1.webp", label: "Phaser Cyber Oversized Tee", href: "https://phaserstore.etsy.com/listing/4574097430" },
-      { img: "./assets/303-606-909-techno-tote-y2k-black-phaser.webp", label: "303606909 Tote", href: "https://phaserstore.etsy.com/listing/4503572740" },
-      { img: "./assets/The-future_techno-y2k-black-tshirt-front-man-cover.webp", label: "The Future Is Bright II Tee", href: "https://phaserstore.etsy.com/listing/4525104191" },
-      { img: "./assets/Acid-88-tshirt-y2k-phaser-unisex.webp", label: "Acid 88 Tee", href: "https://phaserstore.etsy.com/listing/4514737333" }
-    ]
+  const GALLERIES = {
+    gallery1: {
+      name: "Apparel",
+      front: [
+        { img: "./assets/Acid smiley final.webp", label: "Acid Smiley Tee", href: "https://phaserstore.etsy.com/listing/4495434398" },
+        { img: "./assets/acid smiley tote.webp", label: "Acid Smiley Tote", href: "https://phaserstore.etsy.com/listing/4497313058" },
+        { img: "./assets/Acid smiley final.webp", label: "Acid Smiley Collection", href: "https://phaserstore.etsy.com" }
+      ],
+      back: [
+        { img: "./assets/phaser-tote-bag-black2.webp", label: "Phaser Cyber Tote", href: "https://phaserstore.etsy.com/listing/4575362504" },
+        { img: "./assets/phaser-cyber-tote-bag-large2.webp", label: "Phaser Cyber Large Tote", href: "https://phaserstore.etsy.com/listing/4574485346" },
+        { img: "./assets/phaser-tote-bag-black2.webp", label: "Phaser Cyber Collection", href: "https://phaserstore.etsy.com" }
+      ],
+      left: [
+        { img: "./assets/detroit-techno-rave-party-y2k-tshirt-front.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4493084313" },
+        { img: "./assets/techno-oversized-hoodie-phaser-y2k-back-phaser.webp", label: "Detroit Techno Oversized Hoodie", href: "https://phaserstore.etsy.com/listing/4526672511" },
+        { img: "./assets/Cyber phaser_gildan1a.webp", label: "Phaser Cyber Tee", href: "https://phaserstore.etsy.com/listing/4574561288" },
+        { img: "./assets/Detroit techno-blurred-tshirt.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4507983658" }
+      ],
+      right: [
+        { img: "./assets/phaser-cyber-oversized1.webp", label: "Phaser Cyber Oversized Tee", href: "https://phaserstore.etsy.com/listing/4574097430" },
+        { img: "./assets/303-606-909-techno-tote-y2k-black-phaser.webp", label: "303606909 Tote", href: "https://phaserstore.etsy.com/listing/4503572740" },
+        { img: "./assets/The-future_techno-y2k-black-tshirt-front-man-cover.webp", label: "The Future Is Bright II Tee", href: "https://phaserstore.etsy.com/listing/4525104191" },
+        { img: "./assets/Acid-88-tshirt-y2k-phaser-unisex.webp", label: "Acid 88 Tee", href: "https://phaserstore.etsy.com/listing/4514737333" }
+      ]
+    },
+    gallery2: {
+      name: "Digital Art",
+      /* Replace these entries with the second collection whenever assets are ready. */
+      front: [
+        { img: "./assets/phaser-cyber-oversized1.webp", label: "Phaser Cyber Oversized Tee", href: "https://phaserstore.etsy.com/listing/4574097430" },
+        { img: "./assets/The-future_techno-y2k-black-tshirt-front-man-cover.webp", label: "The Future Is Bright II Tee", href: "https://phaserstore.etsy.com/listing/4525104191" },
+        { img: "./assets/Acid-88-tshirt-y2k-phaser-unisex.webp", label: "Acid 88 Tee", href: "https://phaserstore.etsy.com/listing/4514737333" }
+      ],
+      back: [
+        { img: "./assets/detroit-techno-rave-party-y2k-tshirt-front.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4493084313" },
+        { img: "./assets/techno-oversized-hoodie-phaser-y2k-back-phaser.webp", label: "Detroit Techno Oversized Hoodie", href: "https://phaserstore.etsy.com/listing/4526672511" },
+        { img: "./assets/Cyber phaser_gildan1a.webp", label: "Phaser Cyber Tee", href: "https://phaserstore.etsy.com/listing/4574561288" }
+      ],
+      left: [
+        { img: "./assets/Acid smiley final.webp", label: "Acid Smiley Tee", href: "https://phaserstore.etsy.com/listing/4495434398" },
+        { img: "./assets/acid smiley tote.webp", label: "Acid Smiley Tote", href: "https://phaserstore.etsy.com/listing/4497313058" },
+        { img: "./assets/phaser-tote-bag-black2.webp", label: "Phaser Cyber Tote", href: "https://phaserstore.etsy.com/listing/4575362504" },
+        { img: "./assets/phaser-cyber-tote-bag-large2.webp", label: "Phaser Cyber Large Tote", href: "https://phaserstore.etsy.com/listing/4574485346" }
+      ],
+      right: [
+        { img: "./assets/303-606-909-techno-tote-y2k-black-phaser.webp", label: "303606909 Tote", href: "https://phaserstore.etsy.com/listing/4503572740" },
+        { img: "./assets/Detroit techno-blurred-tshirt.webp", label: "Detroit Techno Tee", href: "https://phaserstore.etsy.com/listing/4507983658" },
+        { img: "./assets/phaser-cyber-oversized1.webp", label: "Phaser Cyber Oversized Tee", href: "https://phaserstore.etsy.com/listing/4574097430" },
+        { img: "./assets/Acid-88-tshirt-y2k-phaser-unisex.webp", label: "Acid 88 Tee", href: "https://phaserstore.etsy.com/listing/4514737333" }
+      ]
+    }
   };
+  let activeGalleryKey = "gallery1";
+  let galleryLoadVersion = 0;
+  const getActiveGalleryData = () => GALLERIES[activeGalleryKey];
 
   function distributeCenters(min, max, count, frameW){
     if (count <= 1) return [ (min+max)/2 ];
@@ -2515,6 +2660,32 @@ if (IS_MOBILE){
     return centers;
   }
 
+  function disposeFrameItem(it){
+    if (!it) return;
+    it._disposed = true;
+    try { it.videoTex?.video?.pause?.(); } catch (_) {}
+    try { it.videoTex?.dispose?.(); } catch (_) {}
+    [it.frame, it.box, it.placard].forEach(mesh => {
+      if (!mesh) return;
+      try {
+        const materials = mesh.material?.subMaterials || [mesh.material];
+        materials.filter(Boolean).forEach(mat => {
+          const textures = mat.getActiveTextures?.() || [];
+          textures.forEach(tex => { try { tex.dispose(); } catch (_) {} });
+          try { mat.dispose(); } catch (_) {}
+        });
+      } catch (_) {}
+      try { mesh.dispose(); } catch (_) {}
+    });
+  }
+  function unloadGalleryContent(){
+    galleryLoadVersion++;
+    Object.keys(framesByWall).forEach(wall => {
+      framesByWall[wall].forEach(disposeFrameItem);
+      framesByWall[wall] = [];
+    });
+  }
+
   function createFixedFramesForWall(wall, count, centerY, safeWall, cornerSafe){
     const rotY = wall==='front' ? Math.PI : wall==='back' ? 0 : wall==='left' ? Math.PI/2 : -Math.PI/2;
     const axisX  = (wall==='front'||wall==='back');
@@ -2526,7 +2697,7 @@ if (IS_MOBILE){
     const max =  length/2 - sw - cs;
     const frameW = FRAME_SIZE.W || FIXED_LAYOUT.frame.width;
     const centers = distributeCenters(min, max, count, frameW);
-    framesByWall[wall].forEach(it => { it.frame.dispose(); it.box.dispose(); it.placard.dispose(); });
+    framesByWall[wall].forEach(disposeFrameItem);
     framesByWall[wall] = [];
     centers.forEach(val=>{
       const pos = axisX
@@ -2558,7 +2729,7 @@ if (IS_MOBILE){
         if (isVideoUrl(src)) {
           setVideoToFrame(src, it, { loop: d.loop !== false, muted: d.muted !== false, autoplay: true });
         } else if (isWebPUrl(src)) {
-          setWebPToFrame(src, it, TEX_SIZE, d.fit || "contain");
+          setWebPToFrame(src, it, TEX_SIZE, d.fit || "contain", galleryLoadVersion);
         } else {
           console.warn("Only WebP is allowed. Skipping:", src);
           Assets.markFrameImageLoaded();
@@ -2576,7 +2747,7 @@ if (IS_MOBILE){
     let finished = false;
 
     function totalImagesPlanned(){
-      return Object.values(DATA).reduce((acc, arr) => acc + arr.filter(d => /\.webp$/i.test(d.img||d.src||"")).length, 0);
+      return Object.values(getActiveGalleryData()).filter(Array.isArray).reduce((acc, arr) => acc + arr.filter(d => /\.webp$/i.test(d.img||d.src||"")).length, 0);
     }
 
     function recompute(){
@@ -3007,7 +3178,41 @@ if (IS_MOBILE){
     createFixedFramesForWall('back',  FIXED_LAYOUT.counts.back,   centerY, safeWall, cornerSafe);
     createFixedFramesForWall('left',  FIXED_LAYOUT.counts.left,   centerY, safeWall, cornerSafe);
     createFixedFramesForWall('right', FIXED_LAYOUT.counts.right,  centerY, safeWall, cornerSafe);
-    assignDataAllWalls(DATA);
+    assignDataAllWalls(getActiveGalleryData());
+  }
+
+  function syncGallerySwitcher(){
+    const one = document.getElementById("galleryOneBtn");
+    one?.setAttribute("aria-pressed", activeGalleryKey === "gallery1" ? "true" : "false");
+    document.getElementById("galleryTwoBtn")?.setAttribute("aria-pressed", "false");
+    document.getElementById("galleryThreeBtn")?.setAttribute("aria-pressed", "false");
+  }
+  let accessDeniedTimer = null;
+  function showAccessDenied(){
+    const notice = document.getElementById("accessDenied");
+    if (!notice) return;
+    clearTimeout(accessDeniedTimer);
+    notice.classList.add("is-visible");
+    notice.setAttribute("aria-hidden", "false");
+    accessDeniedTimer = setTimeout(() => {
+      notice.classList.remove("is-visible");
+      notice.setAttribute("aria-hidden", "true");
+    }, 1800);
+  }
+  function switchGallery(nextKey){
+    if (!GALLERIES[nextKey] || nextKey === activeGalleryKey) return;
+    stopAutoTour();
+    unloadGalleryContent();
+    activeGalleryKey = nextKey;
+    applyFixedLayout();
+    syncGallerySwitcher();
+    resetCamera({ animate:true });
+  }
+  function bindGallerySwitcher(){
+    document.getElementById("galleryOneBtn")?.addEventListener("click", () => switchGallery("gallery1"));
+    document.getElementById("galleryTwoBtn")?.addEventListener("click", showAccessDenied);
+    document.getElementById("galleryThreeBtn")?.addEventListener("click", showAccessDenied);
+    syncGallerySwitcher();
   }
 
   /* ========= Soft camera bounds ========= */
@@ -3599,6 +3804,7 @@ function bindBarControls(){
     applyFixedLayout();
     buildGalleryLogo();
     bindBarControls();
+    bindGallerySwitcher();
     resetCamera({animate:false});
 
     requestAnimationFrame(() => animateCameraTo({
